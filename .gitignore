@@ -12,3 +12,4 @@ src/Paycrest/appsettings.Production.json
 src/Paycrest/appsettings.Development.json
 *.PublishSettings
 *.pubxml.user
+*.log

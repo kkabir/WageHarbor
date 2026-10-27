@@ -18,7 +18,8 @@ if ((Get-Content $prod -Raw) -match 'YOUR_DB_PASSWORD') {
 }
 
 # Run the tests first: never deploy a broken payroll engine.
-dotnet test --nologo -v q
+# Release config, so a copy running from Visual Studio (Debug) doesn't lock the build output.
+dotnet test -c Release --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed - publish cancelled.' }
 
 $cred = Get-Credential -UserName 'kkabir84-001' -Message 'SmarterASP Web Deploy password (control panel > Web Deploy)'
