@@ -203,7 +203,7 @@
     private List<(DateOnly Date, string Icon, string Text)> upcoming = [];
     private Announcement post = new();
 
-    private string Greeting => (DateTime.Now.Hour) switch { < 12 => "Good morning", < 17 => "Good afternoon", _ => "Good evening" };
+    private string Greeting => DateTime.Now.Hour switch { var h when h < 12 => "Good morning", var h when h < 17 => "Good afternoon", _ => "Good evening" };
 
     protected override async Task OnInitializedAsync()
     {
