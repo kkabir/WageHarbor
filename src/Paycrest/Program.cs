@@ -70,6 +70,9 @@ var app = builder.Build();
 
 await SeedData.InitializeAsync(app.Services);
 
+// Https:Enabled = false serves the site over plain HTTP (no redirect, no HSTS) until the host has an SSL certificate.
+var httpsEnabled = app.Configuration.GetValue("Https:Enabled", true);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -77,10 +80,10 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
+    if (httpsEnabled) app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+if (httpsEnabled) app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 
