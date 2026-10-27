@@ -1,0 +1,192 @@
+@page "/paystub/{Id:int}"
+@attribute [Authorize]
+@inherits AppComponentBase
+
+<PageTitle>Pay stub · WageHarbor</PageTitle>
+
+@if (denied)
+{
+    <EmptyState Icon="shield-lock" Title="You don't have access to this pay stub" />
+    return;
+}
+@if (check == null || company == null) { return; }
+
+<PageHeader Title="Pay stub" Subtitle="@($"{check.EmployeeName} · {Fmt.Date(check.PayDate)}")">
+    <Crumbs>
+        @if (isAdmin) { <a href="payroll/@check.PayrollRunId">Payroll run</a> } else { <a href="me/pay">My pay</a> } / Pay stub
+    </Crumbs>
+    <ChildContent>
+        <button class="btn btn-primary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print / save PDF</button>
+    </ChildContent>
+</PageHeader>
+
+@if (status != PayrollRunStatus.Paid)
+{
+    <div class="alert alert-warning small no-print"><i class="bi bi-info-circle me-1"></i>Preview — this payroll is <strong>@status</strong> and amounts may change.</div>
+}
+
+<div class="stub" style="max-width:900px">
+    <div class="d-flex justify-content-between flex-wrap gap-3">
+        <div>
+            <div class="fs-5 fw-bold">@(company.LegalName ?? company.Name)</div>
+            <div class="small text-secondary">@company.AddressSingleLine</div>
+            @if (!string.IsNullOrEmpty(company.Ein)) { <div class="small text-secondary">EIN @company.Ein</div> }
+        </div>
+        <div class="text-end small">
+            <div class="fw-semibold fs-6">Earnings statement</div>
+            <div>Pay date: <strong>@Fmt.Date(check.PayDate)</strong></div>
+            <div>Period: @Fmt.Date(check.PeriodStart) – @Fmt.Date(check.PeriodEnd)</div>
+            @if (check.CheckNumber.HasValue) { <div>Check #@check.CheckNumber</div> }
+        </div>
+    </div>
+
+    <div class="row mt-3 small">
+        <div class="col-sm-6">
+            <div class="fw-semibold">@emp!.LegalName</div>
+            <div class="text-secondary">@emp.AddressLine1 @emp.AddressLine2</div>
+            <div class="text-secondary">@emp.City @emp.State @emp.PostalCode</div>
+        </div>
+        <div class="col-sm-6 text-sm-end text-secondary">
+            <div>Employee # @emp.EmployeeNumber · SSN @SensitiveData.MaskSsn(emp.SsnLast4)</div>
+            <div>Federal: @emp.FilingStatus.Label()@(emp.W4MultipleJobs ? ", Step 2 checked" : "")</div>
+            <div>State (@check.StateCode): @emp.StateFilingStatus.Label()</div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-7">
+            <h4>Earnings</h4>
+            <table>
+                <thead><tr><th>Description</th><th class="num">Rate</th><th class="num">Hours</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <tbody>
+                    @foreach (var l in Lines(PaycheckLineType.Earning))
+                    {
+                        <tr><td>@l.Description</td><td class="num">@(l.Rate.HasValue ? l.Rate.Value.ToString("0.00##") : "")</td><td class="num">@(l.Hours.HasValue ? Fmt.Hours(l.Hours.Value) : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, PaycheckLineType.Earning))</td></tr>
+                    }
+                    <tr class="fw-bold"><td>Gross pay</td><td></td><td class="num">@Fmt.Hours(check.TotalHours)</td><td class="num">@Fmt.Money(check.GrossPay)</td><td class="num">@Fmt.Money(ytd.Sum(p => p.GrossPay))</td></tr>
+                </tbody>
+            </table>
+
+            <h4>Taxes</h4>
+            <table>
+                <thead><tr><th>Description</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <tbody>
+                    @foreach (var code in TaxCodes())
+                    {
+                        <tr><td>@TaxName(code)</td><td class="num">@Fmt.Money(Current(code, PaycheckLineType.EmployeeTax))</td><td class="num">@Fmt.Money(Ytd(code, PaycheckLineType.EmployeeTax))</td></tr>
+                    }
+                    @if (!TaxCodes().Any()) { <tr><td colspan="3" class="text-secondary">No taxes withheld</td></tr> }
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-5">
+            <h4>Deductions</h4>
+            <table>
+                <thead><tr><th>Description</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <tbody>
+                    @foreach (var l in check.Lines.Where(l => l.LineType is PaycheckLineType.PreTaxDeduction or PaycheckLineType.PostTaxDeduction))
+                    {
+                        <tr><td>@l.Description @(l.LineType == PaycheckLineType.PreTaxDeduction ? "*" : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, l.LineType))</td></tr>
+                    }
+                    @if (check.PreTaxDeductions + check.PostTaxDeductions == 0) { <tr><td colspan="3" class="text-secondary">None</td></tr> }
+                </tbody>
+            </table>
+            @if (check.PreTaxDeductions > 0) { <div class="small text-secondary mt-1">* Pre-tax: excluded from taxable wages</div> }
+
+            @if (check.Lines.Any(l => l.LineType == PaycheckLineType.EmployerContribution))
+            {
+                <h4>Employer-paid benefits</h4>
+                <table>
+                    <tbody>
+                        @foreach (var l in check.Lines.Where(l => l.LineType == PaycheckLineType.EmployerContribution))
+                        {
+                            <tr><td>@l.Description</td><td class="num">@Fmt.Money(l.Amount)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            <h4>Taxable wages</h4>
+            <table>
+                <tbody>
+                    <tr><td>Federal</td><td class="num">@Fmt.Money(check.FederalTaxableWages)</td></tr>
+                    <tr><td>Social Security / Medicare</td><td class="num">@Fmt.Money(check.SocialSecurityWages) / @Fmt.Money(check.MedicareWages)</td></tr>
+                    <tr><td>State (@check.StateCode)</td><td class="num">@Fmt.Money(check.StateTaxableWages)</td></tr>
+                </tbody>
+            </table>
+
+            @if (balances.Count > 0)
+            {
+                <h4>Time off (hours)</h4>
+                <table>
+                    <tbody>
+                        @foreach (var b in balances) { <tr><td>@b.TimeOffPolicy!.Name</td><td class="num">@Fmt.Hours(b.Balance) available</td></tr> }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="net mt-4">
+        <div>
+            <div class="small text-secondary">Net pay</div>
+            @foreach (var d in check.Deposits)
+            {
+                <div class="small">@d.AccountType @SensitiveData.MaskAccount(d.AccountLast4) @(d.BankName != null ? $"({d.BankName})" : "") — @Fmt.Money(d.Amount)</div>
+            }
+            @if (check.PaymentMethod == PaymentMethod.Check) { <div class="small">Paper check @(check.CheckNumber.HasValue ? "#" + check.CheckNumber : "")</div> }
+        </div>
+        <div class="amt">@Fmt.Money(check.NetPay)</div>
+    </div>
+    <div class="small text-secondary mt-2">YTD net pay: @Fmt.Money(ytd.Sum(p => p.NetPay))</div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Paycheck? check;
+    private Employee? emp;
+    private Company? company;
+    private PayrollRunStatus status;
+    private bool denied, isAdmin;
+    private List<Paycheck> ytd = [];
+    private List<TimeOffBalance> balances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await Me.CanManagePeopleAsync();
+        var myId = await Me.GetEmployeeIdAsync();
+        await using var db = await Dbs.OpenAsync();
+        check = await db.Paychecks.AsNoTracking().Include(p => p.Lines).Include(p => p.Deposits).Include(p => p.PayrollRun)
+            .AsSplitQuery().FirstOrDefaultAsync(p => p.Id == Id);
+        if (check == null) { denied = true; return; }
+        status = check.PayrollRun!.Status;
+
+        // Employees can see only their own paid stubs.
+        if (!isAdmin && (check.EmployeeId != myId || status != PayrollRunStatus.Paid)) { denied = true; check = null; return; }
+
+        emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == check.EmployeeId);
+        company = await db.Companies.AsNoTracking().FirstAsync();
+        var yearStart = new DateOnly(check.PayDate.Year, 1, 1);
+        ytd = await db.Paychecks.AsNoTracking().Include(p => p.Lines)
+            .Where(p => p.EmployeeId == check.EmployeeId && p.PayDate >= yearStart && p.PayDate <= check.PayDate &&
+                        (p.PayrollRun!.Status == PayrollRunStatus.Paid || p.Id == check.Id))
+            .ToListAsync();
+        balances = await db.TimeOffBalances.AsNoTracking().Include(b => b.TimeOffPolicy).Where(b => b.EmployeeId == check.EmployeeId).ToListAsync();
+    }
+
+    private IEnumerable<PaycheckLine> Lines(PaycheckLineType t) => check!.Lines.Where(l => l.LineType == t);
+
+    private decimal Current(string code, PaycheckLineType t) => check!.Lines.Where(l => l.LineType == t && l.Code == code).Sum(l => l.Amount);
+
+    private decimal Ytd(string code, PaycheckLineType t) => ytd.SelectMany(p => p.Lines).Where(l => l.LineType == t && l.Code == code).Sum(l => l.Amount);
+
+    private IEnumerable<string> TaxCodes() =>
+        ytd.SelectMany(p => p.Lines).Where(l => l.LineType == PaycheckLineType.EmployeeTax).Select(l => l.Code).Distinct()
+            .OrderBy(c => Array.IndexOf(["FIT", "SS", "MED", "MEDADD", "SIT"], c));
+
+    // Match on line type too: tax codes (e.g. MED = Medicare) can collide with deduction codes (MED = medical insurance).
+    private string TaxName(string code) =>
+        ytd.SelectMany(p => p.Lines).Prepend(check!.Lines.FirstOrDefault(l => l.LineType == PaycheckLineType.EmployeeTax && l.Code == code))
+            .First(l => l != null && l.LineType == PaycheckLineType.EmployeeTax && l.Code == code)!.Description;
+}

@@ -1,0 +1,41 @@
+﻿<div class="app-brand">
+    <img src="brand/wageharbor-mark.svg" class="logo" alt="" />
+    <div>Wage<span class="brand-accent">Harbor</span><small>Payroll & HR</small></div>
+</div>
+
+<nav class="app-nav" onclick="document.getElementById('menu-toggle').checked=false">
+    <NavLink href="" Match="NavLinkMatch.All"><i class="bi bi-grid-1x2"></i>Dashboard</NavLink>
+
+    <div class="nav-section">Me</div>
+    <NavLink href="me/pay"><i class="bi bi-receipt"></i>My pay</NavLink>
+    <NavLink href="me/time"><i class="bi bi-clock"></i>My time</NavLink>
+    <NavLink href="me/time-off"><i class="bi bi-sun"></i>My time off</NavLink>
+    <NavLink href="me/profile"><i class="bi bi-person-vcard"></i>My profile</NavLink>
+
+    <AuthorizeView Roles="@AppRoles.Approvers">
+        <div class="nav-section">Team</div>
+        <NavLink href="time/approvals"><i class="bi bi-calendar-check"></i>Timesheets</NavLink>
+        <NavLink href="time-off/approvals"><i class="bi bi-airplane"></i>Time-off requests</NavLink>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="@AppRoles.PeopleAdmins">
+        <div class="nav-section">Company</div>
+        <NavLink href="employees"><i class="bi bi-people"></i>Employees</NavLink>
+        <NavLink href="payroll"><i class="bi bi-cash-stack"></i>Payroll</NavLink>
+        <NavLink href="reports"><i class="bi bi-bar-chart-line"></i>Reports</NavLink>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="@AppRoles.SettingsAdmins">
+        <div class="nav-section">Administration</div>
+        <NavLink href="settings/company"><i class="bi bi-building-gear"></i>Company</NavLink>
+        <NavLink href="settings/pay-setup"><i class="bi bi-sliders"></i>Earnings & deductions</NavLink>
+        <NavLink href="settings/time-off"><i class="bi bi-calendar-heart"></i>Time off & holidays</NavLink>
+        <NavLink href="settings/tax"><i class="bi bi-bank"></i>Tax tables</NavLink>
+        <AuthorizeView Roles="@AppRoles.Admin" Context="adminCtx">
+            <NavLink href="settings/users"><i class="bi bi-shield-lock"></i>Users & roles</NavLink>
+            <NavLink href="settings/audit"><i class="bi bi-journal-text"></i>Audit log</NavLink>
+        </AuthorizeView>
+    </AuthorizeView>
+</nav>
+
+<div class="sidebar-footer">wageharbor.com · Free for small business</div>

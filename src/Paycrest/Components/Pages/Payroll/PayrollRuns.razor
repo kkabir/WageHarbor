@@ -1,0 +1,128 @@
+@page "/payroll"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject PayrollService Payroll
+@inject Clock Clock
+
+<PageTitle>Payroll · WageHarbor</PageTitle>
+
+<PageHeader Title="Payroll" Subtitle="Create, review, approve and pay. Draft payrolls recalculate automatically when you add earnings.">
+    <AuthorizeView Roles="@AppRoles.PayrollAdmins">
+        <button class="btn btn-outline-secondary" @onclick="() => OpenNew(PayrollRunType.OffCycle)"><i class="bi bi-gift me-1"></i>Off-cycle / bonus</button>
+        <button class="btn btn-primary" @onclick="() => OpenNew(PayrollRunType.Regular)"><i class="bi bi-play-circle me-1"></i>Run regular payroll</button>
+    </AuthorizeView>
+</PageHeader>
+
+<div class="pc-card p-0">
+    @if (runs.Count == 0)
+    {
+        <EmptyState Icon="cash-stack" Title="No payrolls yet">Click <b>Run regular payroll</b> to calculate your first pay period.</EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr><th>Pay date</th><th>Period</th><th>Type</th><th>Status</th><th class="num">Employees</th><th class="num">Gross</th><th class="num">Net</th><th class="num">Total cost</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in runs)
+                    {
+                        <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"payroll/{r.Id}"))">
+                            <td class="fw-semibold">@Fmt.Date(r.PayDate)</td>
+                            <td>@r.PeriodLabel <span class="text-muted small">· @r.PayFrequency.Label()</span></td>
+                            <td>@(r.RunType == PayrollRunType.Regular ? "Regular" : "Off-cycle")</td>
+                            <td><StatusChip Status="r.Status" /></td>
+                            <td class="num">@r.EmployeeCount</td>
+                            <td class="num">@Fmt.Money(r.TotalGross)</td>
+                            <td class="num">@Fmt.Money(r.TotalNet)</td>
+                            <td class="num fw-semibold">@Fmt.Money(r.TotalCost)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modal @bind-Show="showNew" Title="@(type == PayrollRunType.Regular ? "Run regular payroll" : "Off-cycle payroll")">
+    <ChildContent>
+        @if (type == PayrollRunType.OffCycle)
+        {
+            <p class="small text-muted">Use off-cycle payrolls for bonuses, commissions, corrections or final pay. After creating it, add earnings for each employee. Bonuses are withheld at the federal supplemental rate.</p>
+        }
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Pay frequency</label>
+                <select class="form-select" value="@freq" @onchange="FrequencyChanged">
+                    @foreach (var f in Enum.GetValues<PayFrequency>()) { <option value="@f">@f.Label()</option> }
+                </select>
+            </div>
+            <div class="col-6"><label class="form-label">Period start</label><InputDate class="form-control" @bind-Value="start" /></div>
+            <div class="col-6"><label class="form-label">Period end</label><InputDate class="form-control" @bind-Value="end" /></div>
+            <div class="col-6"><label class="form-label">Pay date</label><InputDate class="form-control" @bind-Value="payDate" /></div>
+            <div class="col-6 d-flex align-items-end">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="applyded" @bind="applyDeductions" />
+                    <label class="form-check-label" for="applyded">Apply recurring deductions</label>
+                </div>
+            </div>
+            <div class="col-12"><label class="form-label">Notes</label><input class="form-control" @bind="notes" /></div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showNew = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="Create">
+            @if (Busy) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            @(type == PayrollRunType.Regular ? "Calculate payroll" : "Create payroll")
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<PayrollRun> runs = [];
+    private bool showNew, applyDeductions = true;
+    private PayrollRunType type;
+    private PayFrequency freq;
+    private DateOnly start, end, payDate;
+    private string? notes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        runs = await db.PayrollRuns.AsNoTracking().OrderByDescending(r => r.PayDate).ThenByDescending(r => r.Id).Take(200).ToListAsync();
+        freq = (await db.Companies.AsNoTracking().FirstAsync()).DefaultPayFrequency;
+    }
+
+    private async Task OpenNew(PayrollRunType t)
+    {
+        type = t;
+        applyDeductions = t == PayrollRunType.Regular;
+        notes = null;
+        await Suggest();
+        if (t == PayrollRunType.OffCycle)
+        {
+            var today = await Clock.TodayAsync();
+            start = end = payDate = today;
+        }
+        showNew = true;
+    }
+
+    private async Task FrequencyChanged(ChangeEventArgs e)
+    {
+        freq = Enum.Parse<PayFrequency>(e.Value!.ToString()!);
+        if (type == PayrollRunType.Regular) await Suggest();
+    }
+
+    private async Task Suggest()
+    {
+        (start, end, payDate) = await Payroll.SuggestNextPeriodAsync(freq, await Clock.TodayAsync());
+    }
+
+    private async Task Create()
+    {
+        PayrollRun? run = null;
+        if (await RunAsync(async () => run = await Payroll.CreateRunAsync(type, freq, start, end, payDate, applyDeductions, notes)))
+            Nav.NavigateTo($"payroll/{run!.Id}");
+    }
+}

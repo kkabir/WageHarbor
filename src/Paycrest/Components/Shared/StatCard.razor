@@ -1,0 +1,19 @@
+<div class="pc-card stat-card">
+    <div class="icon tone-@Tone"><i class="bi bi-@Icon"></i></div>
+    <div class="min-w-0">
+        <div class="label">@Label</div>
+        <div class="value tabular">@Value</div>
+        @if (!string.IsNullOrEmpty(Hint))
+        {
+            <div class="hint">@Hint</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "circle";
+    [Parameter] public string Tone { get; set; } = "primary";
+    [Parameter] public string? Hint { get; set; }
+}

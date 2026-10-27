@@ -1,0 +1,68 @@
+@page "/settings/audit"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inherits AppComponentBase
+
+<PageTitle>Audit log · WageHarbor</PageTitle>
+
+<PageHeader Title="Audit log" Subtitle="Every change to employees, pay, tax tables and settings — who, what and when." />
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap gap-2 p-3 border-bottom">
+        <input class="form-control" style="max-width:240px" placeholder="Search user, entity, details" @bind="search" @bind:event="oninput" />
+        <select class="form-select" style="max-width:200px" @bind="entity">
+            <option value="">All record types</option>
+            @foreach (var t in entityTypes) { <option value="@t">@t</option> }
+        </select>
+        <button class="btn btn-light" @onclick="LoadAsync"><i class="bi bi-search me-1"></i>Filter</button>
+    </div>
+    <div class="table-wrap">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>When (UTC)</th><th>User</th><th>Action</th><th>Record</th><th>Details</th></tr></thead>
+            <tbody>
+                @foreach (var a in logs)
+                {
+                    <tr>
+                        <td class="text-nowrap small">@a.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td class="small">@a.UserName</td>
+                        <td><span class="chip plain @(a.Action switch { "Added" => "tone-success", "Deleted" => "tone-danger", "ViewedSSN" => "tone-warning", _ => "tone-info" })">@a.Action</span></td>
+                        <td class="small">@a.EntityType #@a.EntityId</td>
+                        <td class="small text-muted" style="max-width:520px; word-break:break-word">@a.Details</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (logs.Count == 0) { <EmptyState Icon="journal-text" Title="No matching entries" /> }
+    </div>
+    <div class="d-flex justify-content-between align-items-center p-3 border-top">
+        <button class="btn btn-sm btn-light" disabled="@(page == 0)" @onclick="() => Go(-1)">← Newer</button>
+        <span class="small text-muted">Page @(page + 1)</span>
+        <button class="btn btn-sm btn-light" disabled="@(logs.Count < PageSize)" @onclick="() => Go(1)">Older →</button>
+    </div>
+</div>
+
+@code {
+    private const int PageSize = 100;
+    private List<AuditLog> logs = [];
+    private List<string> entityTypes = [];
+    private string search = "", entity = "";
+    private int page;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        entityTypes = await db.AuditLogs.Select(a => a.EntityType).Distinct().OrderBy(t => t).ToListAsync();
+        await LoadAsync();
+    }
+
+    private async Task Go(int dir) { page += dir; await LoadAsync(); }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        var q = db.AuditLogs.AsNoTracking();
+        if (!string.IsNullOrEmpty(entity)) q = q.Where(a => a.EntityType == entity);
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(a => a.UserName!.Contains(search) || a.EntityType.Contains(search) || a.Details!.Contains(search) || a.Action.Contains(search));
+        logs = await q.OrderByDescending(a => a.Id).Skip(page * PageSize).Take(PageSize).ToListAsync();
+    }
+}

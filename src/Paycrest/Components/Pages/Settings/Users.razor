@@ -1,0 +1,165 @@
+@page "/settings/users"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inherits AppComponentBase
+@using Microsoft.AspNetCore.Identity
+@using Paycrest.Data
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Users & roles · WageHarbor</PageTitle>
+
+<PageHeader Title="Users & roles" Subtitle="Who can sign in and what they can do. Create employee logins from the employee's Self-service tab." />
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="pc-card p-0">
+            <table class="table align-middle">
+                <thead><tr><th>User</th><th>Employee</th><th>Roles</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var u in users)
+                    {
+                        <tr>
+                            <td><PersonCell Name="@(u.Email ?? u.UserName ?? "")" Sub="@(u.TwoFactorEnabled ? "2FA on" : "2FA off")" /></td>
+                            <td>@(links.TryGetValue(u.Id, out var emp) ? emp : "—")</td>
+                            <td>@foreach (var r in roles.GetValueOrDefault(u.Id) ?? []) { <span class="chip tone-primary plain me-1">@r</span> }</td>
+                            <td>@if (u.LockoutEnd > DateTimeOffset.UtcNow) { <span class="chip tone-danger">Locked</span> } else { <span class="chip tone-success">Active</span> }</td>
+                            <td class="text-end"><button class="btn btn-sm btn-light" @onclick="() => Edit(u)"><i class="bi bi-pencil"></i></button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="pc-card">
+            <h2 class="mb-2">Roles</h2>
+            <dl class="small mb-0">
+                <dt>Admin</dt><dd>Everything, including users, roles and audit log.</dd>
+                <dt>Payroll</dt><dd>Run, approve and pay payroll; employees; reports; tax tables.</dd>
+                <dt>HR</dt><dd>Employees, time off, documents, reports, settings. Can preview but not approve payroll.</dd>
+                <dt>Manager</dt><dd>Approves time and time off for direct reports.</dd>
+                <dt>Employee</dt><dd>Self-service: pay stubs, W-4, time clock, time off.</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<Modal @bind-Show="showEdit" Title="@($"Edit {editing?.Email}")">
+    <ChildContent>
+        @if (editing != null)
+        {
+            <label class="form-label">Roles</label>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+                @foreach (var r in AppRoles.All)
+                {
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="ur-@r" checked="@editRoles.Contains(r)" @onchange="e => ToggleRole(r, (bool)e.Value!)" />
+                        <label class="form-check-label" for="ur-@r">@r</label>
+                    </div>
+                }
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-secondary btn-sm" disabled="@Busy" @onclick="ResetPassword"><i class="bi bi-key me-1"></i>Reset password</button>
+                @if (editing.LockoutEnd > DateTimeOffset.UtcNow)
+                {
+                    <button class="btn btn-outline-success btn-sm" disabled="@Busy" @onclick="() => SetLock(false)">Unlock</button>
+                }
+                else
+                {
+                    <button class="btn btn-outline-danger btn-sm" disabled="@Busy" @onclick="() => SetLock(true)">Disable sign-in</button>
+                }
+            </div>
+            @if (newPassword != null)
+            {
+                <div class="alert alert-success small mt-3">Temporary password: <code class="fs-6">@newPassword</code> — share it securely; it won't be shown again.</div>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showEdit = false">Close</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveRoles">Save roles</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<ApplicationUser> users = [];
+    private Dictionary<string, IList<string>> roles = [];
+    private Dictionary<string, string> links = [];
+    private ApplicationUser? editing;
+    private HashSet<string> editRoles = [];
+    private bool showEdit;
+    private string? newPassword;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        users = await UserManager.Users.AsNoTracking().OrderBy(u => u.Email).ToListAsync();
+        roles.Clear();
+        foreach (var u in users) roles[u.Id] = await UserManager.GetRolesAsync(u);
+        await using var db = await Dbs.OpenAsync();
+        links = await db.Employees.Where(e => e.UserId != null).ToDictionaryAsync(e => e.UserId!, e => e.FirstName + " " + e.LastName);
+    }
+
+    private void Edit(ApplicationUser u)
+    {
+        editing = u;
+        editRoles = (roles.GetValueOrDefault(u.Id) ?? []).ToHashSet();
+        newPassword = null;
+        showEdit = true;
+    }
+
+    private void ToggleRole(string role, bool on) { if (on) editRoles.Add(role); else editRoles.Remove(role); }
+
+    private async Task<ApplicationUser> Tracked() => await UserManager.FindByIdAsync(editing!.Id) ?? throw new InvalidOperationException("User not found.");
+
+    private async Task SaveRoles()
+    {
+        var ok = await RunAsync(async () =>
+        {
+            var u = await Tracked();
+            if (u.Id == await Me.GetUserIdAsync() && !editRoles.Contains(AppRoles.Admin))
+                throw new InvalidOperationException("You can't remove your own Admin role.");
+            var current = await UserManager.GetRolesAsync(u);
+            await UserManager.RemoveFromRolesAsync(u, current.Except(editRoles));
+            await UserManager.AddToRolesAsync(u, editRoles.Except(current));
+            await LogAsync("RolesChanged", u.Id, string.Join(",", editRoles));
+        }, "Roles updated. They apply at the user's next sign-in.");
+        if (ok) showEdit = false;
+        await LoadAsync();
+    }
+
+    private async Task ResetPassword()
+    {
+        await RunAsync(async () =>
+        {
+            var u = await Tracked();
+            var token = await UserManager.GeneratePasswordResetTokenAsync(u);
+            var pwd = EmployeeService.GeneratePassword();
+            var result = await UserManager.ResetPasswordAsync(u, token, pwd);
+            if (!result.Succeeded) throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+            newPassword = pwd;
+            await LogAsync("PasswordReset", u.Id, null);
+        });
+    }
+
+    private async Task SetLock(bool locked)
+    {
+        await RunAsync(async () =>
+        {
+            var u = await Tracked();
+            if (locked && u.Id == await Me.GetUserIdAsync()) throw new InvalidOperationException("You can't disable your own account.");
+            await UserManager.SetLockoutEnabledAsync(u, true);
+            await UserManager.SetLockoutEndDateAsync(u, locked ? DateTimeOffset.MaxValue : null);
+            await LogAsync(locked ? "UserDisabled" : "UserEnabled", u.Id, null);
+            editing = u;
+        }, locked ? "Sign-in disabled." : "User unlocked.");
+        await LoadAsync();
+    }
+
+    private async Task LogAsync(string action, string userId, string? details)
+    {
+        await using var db = await Dbs.OpenAsync();
+        db.AuditLogs.Add(new AuditLog { UserName = await Me.GetNameAsync(), Action = action, EntityType = "User", EntityId = userId, Details = details });
+        await db.SaveChangesAsync();
+    }
+}

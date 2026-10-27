@@ -1,0 +1,24 @@
+<div class="page-header">
+    <div>
+        @if (Crumbs != null)
+        {
+            <div class="breadcrumbs">@Crumbs</div>
+        }
+        <h1>@Title</h1>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+            <div class="subtitle">@Subtitle</div>
+        }
+    </div>
+    @if (ChildContent != null)
+    {
+        <div class="d-flex gap-2 flex-wrap no-print">@ChildContent</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? Crumbs { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

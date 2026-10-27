@@ -1,0 +1,118 @@
+@page "/me/pay"
+@attribute [Authorize]
+@inherits AppComponentBase
+
+<PageTitle>My pay · WageHarbor</PageTitle>
+
+<PageHeader Title="My pay" Subtitle="Pay stubs, year-to-date totals and where your pay goes." />
+
+@if (myId == null)
+{
+    <NoEmployeeRecord />
+    return;
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} gross pay")" Value="@Fmt.Money(ytd.Sum(p => p.GrossPay))" Icon="wallet2" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} taxes")" Value="@Fmt.Money(ytd.Sum(p => p.EmployeeTaxes))" Icon="bank" Tone="warning" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} deductions")" Value="@Fmt.Money(ytd.Sum(p => p.PreTaxDeductions + p.PostTaxDeductions))" Icon="heart-pulse" Tone="info" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} net pay")" Value="@Fmt.Money(ytd.Sum(p => p.NetPay))" Icon="cash" Tone="success" /></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="pc-card p-0">
+            <div class="d-flex align-items-center p-3 border-bottom">
+                <div class="fw-semibold">Pay stubs</div>
+                <select class="form-select form-select-sm ms-auto" style="max-width:120px" value="@year" @onchange="YearChanged">
+                    @foreach (var y in years) { <option value="@y">@y</option> }
+                </select>
+            </div>
+            @if (ytd.Count == 0)
+            {
+                <EmptyState Icon="receipt" Title="No pay stubs for this year" />
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Pay date</th><th>Period</th><th class="num">Gross</th><th class="num">Taxes</th><th class="num">Net</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var p in ytd.OrderByDescending(p => p.PayDate))
+                            {
+                                <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"paystub/{p.Id}"))">
+                                    <td class="fw-semibold">@Fmt.Date(p.PayDate)</td>
+                                    <td class="small">@p.PeriodStart.ToString("MMM d") – @p.PeriodEnd.ToString("MMM d")</td>
+                                    <td class="num">@Fmt.Money(p.GrossPay)</td>
+                                    <td class="num">@Fmt.Money(p.EmployeeTaxes)</td>
+                                    <td class="num fw-bold">@Fmt.Money(p.NetPay)</td>
+                                    <td class="text-end"><i class="bi bi-chevron-right text-muted"></i></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="pc-card mb-3">
+            <h2 class="mb-3">Direct deposit</h2>
+            @if (banks.Count == 0) { <div class="text-muted small">Paid by paper check.</div> }
+            @foreach (var b in banks)
+            {
+                <div class="d-flex justify-content-between small py-1">
+                    <span><i class="bi bi-bank me-1"></i>@b.BankName @b.AccountType @SensitiveData.MaskAccount(b.AccountLast4)</span>
+                    <span>@(b.SplitType switch { DepositSplitType.FixedAmount => Fmt.Money(b.SplitValue), DepositSplitType.Percent => $"{b.SplitValue:0.##}%", _ => "Remainder" })</span>
+                </div>
+            }
+            <div class="form-text mt-2">To change bank details, contact HR. For your security, changes are verified.</div>
+        </div>
+        <div class="pc-card">
+            <h2 class="mb-3">Benefits & deductions</h2>
+            @if (deductions.Count == 0) { <div class="text-muted small">None</div> }
+            @foreach (var d in deductions)
+            {
+                <div class="d-flex justify-content-between small py-1">
+                    <span>@d.DeductionType!.Name</span>
+                    <span>@(d.IsPercentOfGross ? $"{d.Amount:0.##}%" : Fmt.Money(d.Amount))</span>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int? myId;
+    private int year = DateTime.Today.Year;
+    private List<int> years = [];
+    private List<Paycheck> ytd = [];
+    private List<EmployeeBankAccount> banks = [];
+    private List<EmployeeDeduction> deductions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        myId = await Me.GetEmployeeIdAsync();
+        if (myId == null) return;
+        await using var db = await Dbs.OpenAsync();
+        years = await db.Paychecks.Where(p => p.EmployeeId == myId && p.PayrollRun!.Status == PayrollRunStatus.Paid)
+            .Select(p => p.PayDate.Year).Distinct().OrderByDescending(y => y).ToListAsync();
+        if (!years.Contains(year)) years.Insert(0, year);
+        banks = await db.EmployeeBankAccounts.AsNoTracking().Where(b => b.EmployeeId == myId && b.IsActive).ToListAsync();
+        deductions = await db.EmployeeDeductions.AsNoTracking().Include(d => d.DeductionType).Where(d => d.EmployeeId == myId && d.IsActive).ToListAsync();
+        await LoadYear();
+    }
+
+    private async Task YearChanged(ChangeEventArgs e)
+    {
+        year = int.Parse(e.Value!.ToString()!);
+        await LoadYear();
+    }
+
+    private async Task LoadYear()
+    {
+        await using var db = await Dbs.OpenAsync();
+        ytd = await db.Paychecks.AsNoTracking()
+            .Where(p => p.EmployeeId == myId && p.PayDate.Year == year && p.PayrollRun!.Status == PayrollRunStatus.Paid).ToListAsync();
+    }
+}

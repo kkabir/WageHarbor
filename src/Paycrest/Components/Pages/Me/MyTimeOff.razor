@@ -1,0 +1,159 @@
+@page "/me/time-off"
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject TimeOffService TimeOff
+@inject Clock Clock
+
+<PageTitle>My time off · WageHarbor</PageTitle>
+
+<PageHeader Title="My time off" Subtitle="Check balances and request time away." >
+    @if (myId != null)
+    {
+        <button class="btn btn-primary" @onclick="Open"><i class="bi bi-plus-lg me-1"></i>Request time off</button>
+    }
+</PageHeader>
+
+@if (myId == null)
+{
+    <NoEmployeeRecord />
+    return;
+}
+
+<div class="row g-3 mb-3">
+    @foreach (var b in balances)
+    {
+        <div class="col-sm-6 col-xl-3">
+            <StatCard Label="@b.TimeOffPolicy!.Name" Value="@($"{Fmt.Hours(b.Balance)} h")" Icon="sun" Tone="success"
+                      Hint="@($"≈ {b.Balance / 8:0.#} days · used {Fmt.Hours(b.UsedYtd)} h this year")" />
+        </div>
+    }
+    @if (balances.Count == 0)
+    {
+        <div class="col-12"><div class="pc-card text-muted small">You're not enrolled in a time-off policy yet.</div></div>
+    }
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="pc-card p-0">
+            <div class="p-3 border-bottom fw-semibold">My requests</div>
+            @if (requests.Count == 0)
+            {
+                <EmptyState Icon="airplane" Title="No requests yet" />
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="table align-middle">
+                        <thead><tr><th>Dates</th><th>Type</th><th class="num">Hours</th><th>Status</th><th>Note</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var r in requests)
+                            {
+                                <tr>
+                                    <td>@r.StartDate.ToString("MMM d")@(r.EndDate != r.StartDate ? " – " + r.EndDate.ToString("MMM d") : ""), @r.EndDate.Year</td>
+                                    <td>@r.TimeOffPolicy?.Name</td>
+                                    <td class="num">@Fmt.Hours(r.Hours)</td>
+                                    <td><StatusChip Status="r.Status" /></td>
+                                    <td class="small text-muted">@(r.ReviewNote ?? r.Reason)</td>
+                                    <td class="text-end">
+                                        @if (r.Status == ApprovalStatus.Pending || (r.Status == ApprovalStatus.Approved && r.StartDate > today))
+                                        {
+                                            <button class="btn btn-sm btn-light" @onclick="() => Cancel(r.Id)">Cancel</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="pc-card">
+            <h2 class="mb-3">Company holidays</h2>
+            <ul class="list-clean small">
+                @foreach (var h in holidays)
+                {
+                    <li class="d-flex justify-content-between"><span>@h.Name</span><span class="text-muted">@h.Date.ToString("ddd, MMM d")</span></li>
+                }
+                @if (holidays.Count == 0) { <li class="text-muted">No upcoming holidays.</li> }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<Modal @bind-Show="showRequest" Title="Request time off">
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Type</label>
+                <select class="form-select" @bind="request.TimeOffPolicyId">
+                    @foreach (var b in balances) { <option value="@b.TimeOffPolicyId">@b.TimeOffPolicy!.Name (@Fmt.Hours(b.Balance) h available)</option> }
+                </select>
+            </div>
+            <div class="col-6"><label class="form-label">First day</label><InputDate class="form-control" Value="request.StartDate" ValueChanged="(DateOnly d) => SetDates(d, request.EndDate < d ? d : request.EndDate)" ValueExpression="() => request.StartDate" /></div>
+            <div class="col-6"><label class="form-label">Last day</label><InputDate class="form-control" Value="request.EndDate" ValueChanged="(DateOnly d) => SetDates(request.StartDate, d)" ValueExpression="() => request.EndDate" /></div>
+            <div class="col-6"><label class="form-label">Total hours</label><input type="number" step="0.5" class="form-control" @bind="request.Hours" /><div class="form-text">Weekdays × 8 by default.</div></div>
+            <div class="col-12"><label class="form-label">Note for your manager</label><textarea class="form-control" rows="2" @bind="request.Reason"></textarea></div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showRequest = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="Submit">Submit request</button>
+    </Footer>
+</Modal>
+
+@code {
+    private int? myId;
+    private DateOnly today;
+    private List<TimeOffBalance> balances = [];
+    private List<TimeOffRequest> requests = [];
+    private List<Holiday> holidays = [];
+    private TimeOffRequest request = new();
+    private bool showRequest;
+
+    protected override async Task OnInitializedAsync()
+    {
+        myId = await Me.GetEmployeeIdAsync();
+        today = await Clock.TodayAsync();
+        await using var db = await Dbs.OpenAsync();
+        holidays = await db.Holidays.AsNoTracking().Where(h => h.Date >= today).OrderBy(h => h.Date).Take(8).ToListAsync();
+        if (myId != null) await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        balances = await TimeOff.GetBalancesAsync(myId!.Value);
+        requests = await TimeOff.ListRequestsAsync(myId);
+    }
+
+    private void Open()
+    {
+        if (balances.Count == 0) { Toast.Error("You're not enrolled in a time-off policy. Contact HR."); return; }
+        var start = today.AddDays(7);
+        request = new TimeOffRequest { EmployeeId = myId!.Value, TimeOffPolicyId = balances[0].TimeOffPolicyId };
+        SetDates(start, start);
+        showRequest = true;
+    }
+
+    private void SetDates(DateOnly start, DateOnly end)
+    {
+        request.StartDate = start;
+        request.EndDate = end;
+        request.Hours = Math.Max(TimeOffService.SuggestHours(start, end), 0);
+    }
+
+    private async Task Submit()
+    {
+        if (await RunAsync(() => TimeOff.SubmitAsync(request), "Request submitted. Your manager will be notified on their dashboard."))
+            showRequest = false;
+        await LoadAsync();
+    }
+
+    private async Task Cancel(int id)
+    {
+        await RunAsync(() => TimeOff.CancelAsync(id), "Request cancelled.");
+        await LoadAsync();
+    }
+}

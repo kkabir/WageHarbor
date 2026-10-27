@@ -1,0 +1,309 @@
+﻿@page "/"
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject ReportService Reports
+@inject Clock Clock
+
+<PageTitle>Dashboard · WageHarbor</PageTitle>
+
+@if (loading)
+{
+    <div class="text-muted">Loading…</div>
+    return;
+}
+
+<PageHeader Title="@($"{Greeting}, {firstName}")" Subtitle="@today.ToString("dddd, MMMM d, yyyy")">
+    @if (isPeopleAdmin)
+    {
+        <a href="employees/new" class="btn btn-outline-secondary"><i class="bi bi-person-plus me-1"></i>Add employee</a>
+        <a href="payroll" class="btn btn-primary"><i class="bi bi-play-circle me-1"></i>Run payroll</a>
+    }
+</PageHeader>
+
+@if (!setupComplete && isAdmin)
+{
+    <div class="pc-card mb-4 d-flex align-items-center gap-3 tone-primary border-0">
+        <i class="bi bi-rocket-takeoff fs-3"></i>
+        <div class="flex-grow-1">
+            <div class="fw-semibold">Finish setting up your company</div>
+            <div class="small">Add your legal name, EIN, address and bank details — or load sample data to explore.</div>
+        </div>
+        <a href="setup" class="btn btn-primary">Start setup</a>
+    </div>
+}
+
+@if (isPeopleAdmin)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3"><StatCard Label="Active employees" Value="@activeCount.ToString()" Icon="people" Tone="primary" Hint="@($"{newHires} hired in last 90 days")" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="Next pay date" Value="@(nextPayDate?.ToString("MMM d") ?? "—")" Icon="calendar-event" Tone="info" Hint="@nextPayHint" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="Last payroll cost" Value="@Fmt.Money(lastRun?.TotalCost ?? 0)" Icon="cash-coin" Tone="success" Hint="@(lastRun != null ? $"Paid {Fmt.Date(lastRun.PayDate)}" : "No payroll yet")" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="Awaiting approval" Value="@((pendingTime + pendingTimeOff).ToString())" Icon="hourglass-split" Tone="warning" Hint="@($"{pendingTimeOff} time off · {pendingTime} time entries")" /></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="pc-card h-100">
+                <div class="card-title-row">
+                    <h2>Payroll cost · last 12 months</h2>
+                    <a href="reports" class="small">Reports →</a>
+                </div>
+                @if (monthly.All(m => m.Value == 0))
+                {
+                    <EmptyState Icon="bar-chart" Title="No paid payrolls yet">Your gross pay plus employer taxes and benefits will appear here.</EmptyState>
+                }
+                else
+                {
+                    <BarChart Items="monthly" AriaLabel="Monthly payroll cost" />
+                }
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="pc-card h-100">
+                <div class="card-title-row"><h2>Action items</h2></div>
+                <ul class="list-clean">
+                    @if (draftRuns > 0)
+                    {
+                        <li><a href="payroll"><i class="bi bi-cash-stack me-2"></i>@draftRuns payroll@(draftRuns == 1 ? "" : "s") in draft</a></li>
+                    }
+                    @if (pendingTimeOff > 0)
+                    {
+                        <li><a href="time-off/approvals"><i class="bi bi-airplane me-2"></i>@pendingTimeOff time-off request@(pendingTimeOff == 1 ? "" : "s") to review</a></li>
+                    }
+                    @if (pendingTime > 0)
+                    {
+                        <li><a href="time/approvals"><i class="bi bi-clock-history me-2"></i>@pendingTime time entr@(pendingTime == 1 ? "y" : "ies") to approve</a></li>
+                    }
+                    @if (missingBank > 0)
+                    {
+                        <li><a href="employees"><i class="bi bi-bank me-2"></i>@missingBank direct-deposit employee@(missingBank == 1 ? "" : "s") without a bank account</a></li>
+                    }
+                    @if (missingTaxYear)
+                    {
+                        <li><a href="settings/tax" class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Tax tables for @today.Year are missing</a></li>
+                    }
+                    @if (draftRuns + pendingTimeOff + pendingTime + missingBank == 0 && !missingTaxYear)
+                    {
+                        <li class="text-muted"><i class="bi bi-check2-circle me-2 text-success"></i>You're all caught up.</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="row g-3">
+    @if (myEmployeeId != null)
+    {
+        <div class="col-lg-4">
+            <div class="pc-card h-100">
+                <div class="card-title-row"><h2>My last paycheck</h2><a href="me/pay" class="small">All pay →</a></div>
+                @if (myLastCheck == null)
+                {
+                    <EmptyState Icon="receipt" Title="No pay stubs yet" />
+                }
+                else
+                {
+                    <div class="text-muted small">Paid @Fmt.Date(myLastCheck.PayDate)</div>
+                    <div class="display-6 fw-bold my-2 tabular">@Fmt.Money(myLastCheck.NetPay)</div>
+                    <div class="small text-muted mb-3">Gross @Fmt.Money(myLastCheck.GrossPay) · Taxes @Fmt.Money(myLastCheck.EmployeeTaxes)</div>
+                    <a href="paystub/@myLastCheck.Id" class="btn btn-soft btn-sm">View pay stub</a>
+                }
+                @if (myBalances.Count > 0)
+                {
+                    <div class="form-section">
+                        @foreach (var b in myBalances)
+                        {
+                            <div class="d-flex justify-content-between small mb-1"><span>@b.TimeOffPolicy!.Name</span><span class="fw-semibold">@Fmt.Hours(b.Balance) h</span></div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    <div class="@(myEmployeeId != null ? "col-lg-5" : "col-lg-8")">
+        <div class="pc-card h-100">
+            <div class="card-title-row">
+                <h2>Announcements</h2>
+                @if (isPeopleAdmin)
+                {
+                    <button class="btn btn-sm btn-soft" @onclick="() => showPost = true"><i class="bi bi-megaphone me-1"></i>Post</button>
+                }
+            </div>
+            @if (announcements.Count == 0)
+            {
+                <EmptyState Icon="megaphone" Title="No announcements" />
+            }
+            <ul class="list-clean">
+                @foreach (var a in announcements)
+                {
+                    <li>
+                        <div class="d-flex justify-content-between">
+                            <div class="fw-semibold">@if (a.IsPinned) { <i class="bi bi-pin-angle-fill text-primary me-1"></i> }@a.Title</div>
+                            @if (isPeopleAdmin)
+                            {
+                                <button class="btn btn-link btn-sm text-muted p-0" title="Remove" @onclick="() => DeleteAnnouncement(a.Id)"><i class="bi bi-x-lg"></i></button>
+                            }
+                        </div>
+                        <div class="small" style="white-space:pre-line">@a.Body</div>
+                        <div class="small text-muted mt-1">@a.PostedBy · @a.PostedUtc.ToString("MMM d")</div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-@(myEmployeeId != null ? "3" : "4")">
+        <div class="pc-card h-100">
+            <div class="card-title-row"><h2>Coming up</h2></div>
+            <ul class="list-clean small">
+                @foreach (var (date, icon, text) in upcoming)
+                {
+                    <li class="d-flex gap-2">
+                        <i class="bi bi-@icon text-primary"></i>
+                        <div><div>@text</div><div class="text-muted">@date.ToString("ddd, MMM d")</div></div>
+                    </li>
+                }
+                @if (upcoming.Count == 0)
+                {
+                    <li class="text-muted">Nothing in the next 45 days.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<Modal @bind-Show="showPost" Title="Post announcement">
+    <ChildContent>
+        <div class="mb-3"><label class="form-label">Title</label><input class="form-control" @bind="post.Title" maxlength="120" /></div>
+        <div class="mb-3"><label class="form-label">Message</label><textarea class="form-control" rows="5" @bind="post.Body" maxlength="4000"></textarea></div>
+        <div class="row g-3">
+            <div class="col-6"><label class="form-label">Expires on (optional)</label><InputDate class="form-control" @bind-Value="post.ExpiresOn" /></div>
+            <div class="col-6 d-flex align-items-end"><div class="form-check"><InputCheckbox class="form-check-input" id="pin" @bind-Value="post.IsPinned" /><label class="form-check-label" for="pin">Pin to top</label></div></div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showPost = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="PostAnnouncement">Post</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool loading = true, isAdmin, isPeopleAdmin, setupComplete, missingTaxYear, showPost;
+    private string firstName = "";
+    private DateOnly today;
+    private int activeCount, newHires, pendingTime, pendingTimeOff, draftRuns, missingBank;
+    private int? myEmployeeId;
+    private DateOnly? nextPayDate;
+    private string? nextPayHint;
+    private PayrollRun? lastRun;
+    private Paycheck? myLastCheck;
+    private List<TimeOffBalance> myBalances = [];
+    private List<Announcement> announcements = [];
+    private List<(string Label, decimal Value)> monthly = [];
+    private List<(DateOnly Date, string Icon, string Text)> upcoming = [];
+    private Announcement post = new();
+
+    private string Greeting => (DateTime.Now.Hour) switch { < 12 => "Good morning", < 17 => "Good afternoon", _ => "Good evening" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        today = await Clock.TodayAsync();
+        isAdmin = await Me.IsInAnyRoleAsync(AppRoles.Admin);
+        isPeopleAdmin = await Me.CanManagePeopleAsync();
+        myEmployeeId = await Me.GetEmployeeIdAsync();
+        firstName = (await Me.GetNameAsync())?.Split('@')[0] ?? "";
+
+        await using var db = await Dbs.OpenAsync();
+        var company = await db.Companies.AsNoTracking().FirstAsync();
+        setupComplete = company.SetupCompleted;
+
+        if (myEmployeeId != null)
+        {
+            var me = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == myEmployeeId);
+            firstName = me.PreferredName ?? me.FirstName;
+            myLastCheck = await db.Paychecks.AsNoTracking()
+                .Where(p => p.EmployeeId == myEmployeeId && p.PayrollRun!.Status == PayrollRunStatus.Paid)
+                .OrderByDescending(p => p.PayDate).FirstOrDefaultAsync();
+            myBalances = await db.TimeOffBalances.AsNoTracking().Include(b => b.TimeOffPolicy)
+                .Where(b => b.EmployeeId == myEmployeeId && b.TimeOffPolicy!.IsActive).ToListAsync();
+        }
+
+        if (isPeopleAdmin)
+        {
+            activeCount = await db.Employees.CountAsync(e => e.Status != EmployeeStatus.Terminated);
+            newHires = await db.Employees.CountAsync(e => e.HireDate >= today.AddDays(-90));
+            pendingTime = await db.TimeEntries.CountAsync(t => t.Status == ApprovalStatus.Pending && !(t.ClockInUtc != null && t.ClockOutUtc == null));
+            pendingTimeOff = await db.TimeOffRequests.CountAsync(t => t.Status == ApprovalStatus.Pending);
+            draftRuns = await db.PayrollRuns.CountAsync(r => r.Status == PayrollRunStatus.Draft || r.Status == PayrollRunStatus.Approved);
+            missingBank = await db.Employees.CountAsync(e => e.Status != EmployeeStatus.Terminated && e.PaymentMethod == PaymentMethod.DirectDeposit
+                                                             && !e.BankAccounts.Any(b => b.IsActive));
+            missingTaxYear = !await db.TaxYears.AnyAsync(t => t.Year == today.Year);
+            lastRun = await db.PayrollRuns.AsNoTracking().Where(r => r.Status == PayrollRunStatus.Paid).OrderByDescending(r => r.PayDate).FirstOrDefaultAsync();
+            var open = await db.PayrollRuns.AsNoTracking().Where(r => r.Status == PayrollRunStatus.Draft || r.Status == PayrollRunStatus.Approved)
+                .OrderBy(r => r.PayDate).FirstOrDefaultAsync();
+            if (open != null) { nextPayDate = open.PayDate; nextPayHint = $"{open.Status} · {open.PeriodLabel}"; }
+            else if (lastRun != null)
+            {
+                var (s, e) = PayPeriods.Next(lastRun.PayFrequency, lastRun.PeriodEnd);
+                nextPayDate = PayPeriods.PayDate(e, company.PayDateOffsetDays);
+                nextPayHint = $"Period {s:MMM d} – {e:MMM d}";
+            }
+            else nextPayHint = "Run your first payroll";
+
+            monthly = (await Reports.MonthlyCostAsync(12)).Select(m => (m.Label, m.EmployerCost)).ToList();
+        }
+
+        announcements = await db.Announcements.AsNoTracking()
+            .Where(a => a.ExpiresOn == null || a.ExpiresOn >= today)
+            .OrderByDescending(a => a.IsPinned).ThenByDescending(a => a.PostedUtc).Take(6).ToListAsync();
+
+        var horizon = today.AddDays(45);
+        var holidays = await db.Holidays.AsNoTracking().Where(h => h.Date >= today && h.Date <= horizon).ToListAsync();
+        upcoming.AddRange(holidays.Select(h => (h.Date, "flag", h.Name)));
+        var people = await db.Employees.AsNoTracking().Where(e => e.Status != EmployeeStatus.Terminated)
+            .Select(e => new { e.FirstName, e.PreferredName, e.LastName, e.DateOfBirth, e.HireDate }).ToListAsync();
+        foreach (var p in people)
+        {
+            var name = $"{p.PreferredName ?? p.FirstName} {p.LastName}";
+            if (p.DateOfBirth is { } dob && NextOccurrence(dob) is var b && b <= horizon) upcoming.Add((b, "balloon", $"{name}'s birthday"));
+            var anniv = NextOccurrence(p.HireDate);
+            var years = anniv.Year - p.HireDate.Year;
+            if (years > 0 && anniv <= horizon) upcoming.Add((anniv, "award", $"{name} · {years} year{(years == 1 ? "" : "s")} at the company"));
+        }
+        upcoming = upcoming.OrderBy(u => u.Date).Take(8).ToList();
+        loading = false;
+    }
+
+    private DateOnly NextOccurrence(DateOnly d)
+    {
+        var day = Math.Min(d.Day, DateTime.DaysInMonth(today.Year, d.Month));
+        var next = new DateOnly(today.Year, d.Month, day);
+        return next < today ? next.AddYears(1) : next;
+    }
+
+    private async Task PostAnnouncement()
+    {
+        if (string.IsNullOrWhiteSpace(post.Title) || string.IsNullOrWhiteSpace(post.Body)) { Toast.Error("Title and message are required."); return; }
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            post.PostedBy = await Me.GetNameAsync();
+            post.PostedUtc = DateTime.UtcNow;
+            db.Announcements.Add(post);
+            await db.SaveChangesAsync();
+            announcements.Insert(0, post);
+            post = new();
+            showPost = false;
+        }, "Announcement posted.");
+    }
+
+    private async Task DeleteAnnouncement(int id)
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            await db.Announcements.Where(a => a.Id == id).ExecuteDeleteAsync();
+            announcements.RemoveAll(a => a.Id == id);
+        });
+    }
+}

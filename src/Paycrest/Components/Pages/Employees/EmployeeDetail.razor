@@ -1,0 +1,707 @@
+@page "/employees/new"
+@page "/employees/{Id:int}"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject EmployeeService Employees
+@inject TimeOffService TimeOff
+
+<PageTitle>@(IsNew ? "New employee" : emp?.FullName) · WageHarbor</PageTitle>
+
+@if (emp == null) { return; }
+
+<PageHeader Title="@(IsNew ? "New employee" : emp.FullName)" Subtitle="@(IsNew ? "Enter the essentials — you can add benefits and bank details after saving." : $"{emp.JobTitle} · #{emp.EmployeeNumber}")">
+    <Crumbs><a href="employees">Employees</a> / @(IsNew ? "New" : emp.FullName)</Crumbs>
+    <ChildContent>
+        @if (!IsNew)
+        {
+            <StatusChip Status="emp.Status" />
+        }
+    </ChildContent>
+</PageHeader>
+
+<div class="pc-tabs">
+    @foreach (var t in Tabs)
+    {
+        <button type="button" class="@(tab == t.Key ? "active" : "")" disabled="@(IsNew && !t.NewOk)" @onclick="() => tab = t.Key">
+            <i class="bi bi-@t.Icon me-1"></i>@t.Label
+        </button>
+    }
+</div>
+
+@if (tab is "profile" or "job" or "tax")
+{
+    <EditForm Model="emp" OnValidSubmit="SaveEmployee">
+        <DataAnnotationsValidator />
+        <div class="pc-card">
+            @if (tab == "profile")
+            {
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">First name *</label><InputText class="form-control" @bind-Value="emp.FirstName" /><ValidationMessage For="() => emp.FirstName" /></div>
+                    <div class="col-md-3"><label class="form-label">Middle name</label><InputText class="form-control" @bind-Value="emp.MiddleName" /></div>
+                    <div class="col-md-5"><label class="form-label">Last name *</label><InputText class="form-control" @bind-Value="emp.LastName" /><ValidationMessage For="() => emp.LastName" /></div>
+                    <div class="col-md-4"><label class="form-label">Preferred name</label><InputText class="form-control" @bind-Value="emp.PreferredName" /></div>
+                    <div class="col-md-4"><label class="form-label">Date of birth</label><InputDate class="form-control" @bind-Value="emp.DateOfBirth" /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Social Security number</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" @bind="newSsn" autocomplete="off" placeholder="@(revealedSsn ?? SensitiveData.MaskSsn(emp.SsnLast4))" />
+                            @if (!IsNew && emp.SsnLast4 != null)
+                            {
+                                <button type="button" class="btn btn-outline-secondary" title="Reveal (logged)" @onclick="RevealSsn"><i class="bi bi-eye"></i></button>
+                            }
+                        </div>
+                        <div class="form-text">Encrypted. Viewing the full number is recorded in the audit log.</div>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">Work email</label><InputText class="form-control" @bind-Value="emp.Email" /><ValidationMessage For="() => emp.Email" /></div>
+                    <div class="col-md-6"><label class="form-label">Phone</label><InputText class="form-control" @bind-Value="emp.Phone" /></div>
+                </div>
+                <div class="form-section">
+                    <h3>Home address</h3>
+                    <div class="row g-3">
+                        <div class="col-md-8"><label class="form-label">Street</label><InputText class="form-control" @bind-Value="emp.AddressLine1" /></div>
+                        <div class="col-md-4"><label class="form-label">Apt / unit</label><InputText class="form-control" @bind-Value="emp.AddressLine2" /></div>
+                        <div class="col-md-5"><label class="form-label">City</label><InputText class="form-control" @bind-Value="emp.City" /></div>
+                        <div class="col-md-3"><label class="form-label">State</label><StateSelect @bind-Value="emp.State" /></div>
+                        <div class="col-md-4"><label class="form-label">ZIP</label><InputText class="form-control" @bind-Value="emp.PostalCode" /></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3>Emergency contact</h3>
+                    <div class="row g-3">
+                        <div class="col-md-5"><label class="form-label">Name</label><InputText class="form-control" @bind-Value="emp.EmergencyContactName" /></div>
+                        <div class="col-md-3"><label class="form-label">Relationship</label><InputText class="form-control" @bind-Value="emp.EmergencyContactRelation" /></div>
+                        <div class="col-md-4"><label class="form-label">Phone</label><InputText class="form-control" @bind-Value="emp.EmergencyContactPhone" /></div>
+                    </div>
+                </div>
+            }
+            else if (tab == "job")
+            {
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">Employee # *</label><InputText class="form-control" @bind-Value="emp.EmployeeNumber" /><ValidationMessage For="() => emp.EmployeeNumber" /></div>
+                    <div class="col-md-5"><label class="form-label">Job title</label><InputText class="form-control" @bind-Value="emp.JobTitle" /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Department</label>
+                        <InputSelect class="form-select" @bind-Value="emp.DepartmentId">
+                            <option value="">— None —</option>
+                            @foreach (var d in departments) { <option value="@d.Id">@d.Name</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Manager</label>
+                        <InputSelect class="form-select" @bind-Value="emp.ManagerId">
+                            <option value="">— None —</option>
+                            @foreach (var m in managers.Where(m => m.Id != emp.Id)) { <option value="@m.Id">@m.FullName</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Employment type</label>
+                        <InputSelect class="form-select" @bind-Value="emp.EmploymentType">
+                            @foreach (var t in Enum.GetValues<EmploymentType>()) { <option value="@t">@t.Label()</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">Work state (for state tax)</label><StateSelect @bind-Value="emp.WorkState" AllowEmpty="false" /></div>
+                    <div class="col-md-4"><label class="form-label">Hire date</label><InputDate class="form-control" @bind-Value="emp.HireDate" /></div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <InputSelect class="form-select" @bind-Value="emp.Status">
+                            @foreach (var s in Enum.GetValues<EmployeeStatus>()) { <option value="@s">@s</option> }
+                        </InputSelect>
+                    </div>
+                    @if (emp.Status == EmployeeStatus.Terminated)
+                    {
+                        <div class="col-md-4"><label class="form-label">Termination date</label><InputDate class="form-control" @bind-Value="emp.TerminationDate" /></div>
+                        <div class="col-md-12"><label class="form-label">Termination reason</label><InputText class="form-control" @bind-Value="emp.TerminationReason" /></div>
+                    }
+                </div>
+                <div class="form-section">
+                    <h3>Compensation</h3>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Pay type</label>
+                            <InputSelect class="form-select" @bind-Value="emp.PayType">
+                                <option value="@PayType.Hourly">Hourly</option>
+                                <option value="@PayType.Salary">Salary</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">@(emp.PayType == PayType.Salary ? "Annual salary ($)" : "Hourly rate ($)")</label>
+                            <InputNumber class="form-control" @bind-Value="emp.PayRate" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Pay frequency</label>
+                            <InputSelect class="form-select" @bind-Value="emp.PayFrequency">
+                                @foreach (var f in Enum.GetValues<PayFrequency>()) { <option value="@f">@f.Label()</option> }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Standard hours / period</label>
+                            <InputNumber class="form-control" @bind-Value="emp.DefaultHours" />
+                            <div class="form-text">@(emp.PayType == PayType.Hourly ? "Paid automatically if no time is entered (0 = never)." : "Shown on pay stubs.")</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Payment method</label>
+                            <InputSelect class="form-select" @bind-Value="emp.PaymentMethod">
+                                <option value="@PaymentMethod.DirectDeposit">Direct deposit</option>
+                                <option value="@PaymentMethod.Check">Paper check</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-5 d-flex align-items-end">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" id="exempt" @bind-Value="emp.IsExempt" />
+                                <label class="form-check-label" for="exempt">FLSA exempt (no overtime)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end text-muted small">
+                            Annualized: <strong class="ms-1">@Fmt.Money(emp.AnnualizedPay)</strong>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @if (emp.IsContractor)
+                {
+                    <div class="alert alert-info small">1099 contractors are paid gross with no tax withholding. Collect a Form W-9 instead of a W-4.</div>
+                }
+                <h3 class="h6 fw-semibold">Federal — Form W-4 (2020 or later)</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Step 1(c) filing status</label>
+                        <InputSelect class="form-select" @bind-Value="emp.FilingStatus">
+                            @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s.Label()</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" id="step2" @bind-Value="emp.W4MultipleJobs" />
+                            <label class="form-check-label" for="step2">Step 2(c) checked — multiple jobs or spouse works</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">Step 3 dependents ($/yr)</label><InputNumber class="form-control" @bind-Value="emp.W4DependentsAmount" /></div>
+                    <div class="col-md-3"><label class="form-label">Step 4(a) other income</label><InputNumber class="form-control" @bind-Value="emp.W4OtherIncome" /></div>
+                    <div class="col-md-3"><label class="form-label">Step 4(b) deductions</label><InputNumber class="form-control" @bind-Value="emp.W4Deductions" /></div>
+                    <div class="col-md-3"><label class="form-label">Step 4(c) extra / period</label><InputNumber class="form-control" @bind-Value="emp.W4ExtraWithholding" /></div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" id="fedex" @bind-Value="emp.FederalExempt" />
+                            <label class="form-check-label" for="fedex">Exempt from federal income tax withholding (must be renewed each year by Feb 15)</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3>State — @emp.WorkState</h3>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Filing status</label>
+                            <InputSelect class="form-select" @bind-Value="emp.StateFilingStatus">
+                                @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s.Label()</option> }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-3"><label class="form-label">Allowances</label><InputNumber class="form-control" @bind-Value="emp.StateAllowances" /></div>
+                        <div class="col-md-3"><label class="form-label">Extra / period ($)</label><InputNumber class="form-control" @bind-Value="emp.StateExtraWithholding" /></div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check"><InputCheckbox class="form-check-input" id="stex" @bind-Value="emp.StateExempt" /><label class="form-check-label" for="stex">Exempt</label></div>
+                        </div>
+                    </div>
+                </div>
+            }
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary" disabled="@Busy"><i class="bi bi-check2 me-1"></i>@(IsNew ? "Create employee" : "Save changes")</button>
+                <a href="employees" class="btn btn-light">Cancel</a>
+            </div>
+        </div>
+    </EditForm>
+}
+else if (tab == "bank")
+{
+    <div class="pc-card">
+        <div class="card-title-row">
+            <h2>Direct deposit accounts</h2>
+            <button class="btn btn-sm btn-soft" @onclick="() => EditBank(new EmployeeBankAccount { EmployeeId = emp.Id, Priority = banks.Count + 1 })"><i class="bi bi-plus-lg me-1"></i>Add account</button>
+        </div>
+        @if (emp.PaymentMethod == PaymentMethod.Check)
+        {
+            <div class="alert alert-warning small">This employee is set to be paid by paper check. Change the payment method on the Job & pay tab to use direct deposit.</div>
+        }
+        @if (banks.Count == 0)
+        {
+            <EmptyState Icon="bank" Title="No bank accounts" />
+        }
+        else
+        {
+            <table class="table align-middle">
+                <thead><tr><th>Bank</th><th>Routing</th><th>Account</th><th>Type</th><th>Split</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var b in banks)
+                    {
+                        <tr class="@(b.IsActive ? "" : "opacity-50")">
+                            <td>@(b.BankName ?? "—")</td>
+                            <td>@b.RoutingNumber</td>
+                            <td>@SensitiveData.MaskAccount(b.AccountLast4)</td>
+                            <td>@b.AccountType</td>
+                            <td>@(b.SplitType switch { DepositSplitType.FixedAmount => Fmt.Money(b.SplitValue), DepositSplitType.Percent => $"{b.SplitValue:0.##}%", _ => "Remainder" })</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light" @onclick="() => EditBank(b)"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-light text-danger" @onclick="() => DeleteBank(b.Id)"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="form-text">Fixed and percentage splits are paid first (by priority); the remainder account receives the rest.</div>
+        }
+    </div>
+}
+else if (tab == "deductions")
+{
+    <div class="pc-card">
+        <div class="card-title-row">
+            <h2>Benefits & deductions</h2>
+            <button class="btn btn-sm btn-soft" @onclick="() => EditDeduction(new EmployeeDeduction { EmployeeId = emp.Id, DeductionTypeId = deductionTypes.FirstOrDefault()?.Id ?? 0 })"><i class="bi bi-plus-lg me-1"></i>Add deduction</button>
+        </div>
+        @if (deductions.Count == 0)
+        {
+            <EmptyState Icon="heart-pulse" Title="No deductions" />
+        }
+        else
+        {
+            <table class="table align-middle">
+                <thead><tr><th>Deduction</th><th>Tax treatment</th><th class="num">Employee</th><th class="num">Employer</th><th>Dates</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var d in deductions)
+                    {
+                        <tr class="@(d.IsActive ? "" : "opacity-50")">
+                            <td><div class="fw-semibold">@d.DeductionType!.Name</div><div class="small text-muted">@d.Reference</div></td>
+                            <td>@(d.DeductionType.IsPreTax ? "Pre-tax" : "Post-tax")</td>
+                            <td class="num">@(d.IsPercentOfGross ? $"{d.Amount:0.##}% of gross" : Fmt.Money(d.Amount))</td>
+                            <td class="num">@(d.EmployerAmount > 0 ? Fmt.Money(d.EmployerAmount) : d.DeductionType.EmployerMatchRate > 0 ? $"Match {d.DeductionType.EmployerMatchRate:P0} up to {d.DeductionType.EmployerMatchCapPercent:P0}" : "—")</td>
+                            <td class="small">@(d.StartDate.HasValue ? Fmt.Date(d.StartDate) : "")@(d.EndDate.HasValue ? " – " + Fmt.Date(d.EndDate) : "")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light" @onclick="() => EditDeduction(d)"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-light text-danger" @onclick="() => DeleteDeduction(d.Id)"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+else if (tab == "timeoff")
+{
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="pc-card">
+                <h2 class="mb-3">Balances</h2>
+                @foreach (var b in balances)
+                {
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div><div class="fw-semibold">@b.TimeOffPolicy!.Name</div><div class="small text-muted">Accrued @Fmt.Hours(b.AccruedYtd) · used @Fmt.Hours(b.UsedYtd) this year</div></div>
+                        <div class="fs-5 fw-bold">@Fmt.Hours(b.Balance) h</div>
+                    </div>
+                }
+                @if (balances.Count == 0) { <EmptyState Icon="sun" Title="Not enrolled in any policy" /> }
+                <div class="form-section">
+                    <h3>Adjust balance</h3>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select class="form-select" @bind="adjPolicyId">
+                                @foreach (var p in policies) { <option value="@p.Id">@p.Name</option> }
+                            </select>
+                        </div>
+                        <div class="col-6"><input type="number" step="0.25" class="form-control" placeholder="± hours" @bind="adjHours" /></div>
+                        <div class="col-12"><input class="form-control" placeholder="Reason" @bind="adjNote" /></div>
+                        <div class="col-12"><button class="btn btn-soft w-100" disabled="@Busy" @onclick="AdjustBalance">Apply adjustment</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="pc-card p-0">
+                <div class="p-3 border-bottom fw-semibold">Ledger</div>
+                <div class="table-wrap">
+                    <table class="table table-sm">
+                        <thead><tr><th>Date</th><th>Policy</th><th>Type</th><th class="num">Hours</th><th>Note</th></tr></thead>
+                        <tbody>
+                            @foreach (var t in ledger)
+                            {
+                                <tr><td>@Fmt.Date(t.Date)</td><td>@t.TimeOffPolicy?.Name</td><td>@t.Kind</td><td class="num @(t.Hours < 0 ? "text-danger" : "text-success")">@t.Hours.ToString("+0.##;-0.##")</td><td class="small text-muted">@t.Note</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (tab == "pay")
+{
+    <div class="pc-card p-0">
+        @if (paychecks.Count == 0)
+        {
+            <EmptyState Icon="receipt" Title="No paychecks yet" />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="table table-hover align-middle">
+                    <thead><tr><th>Pay date</th><th>Period</th><th>Status</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Taxes</th><th class="num">Deductions</th><th class="num">Net</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in paychecks)
+                        {
+                            <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"paystub/{p.Id}"))">
+                                <td>@Fmt.Date(p.PayDate)</td>
+                                <td class="small">@p.PeriodStart.ToString("MMM d") – @p.PeriodEnd.ToString("MMM d")</td>
+                                <td><StatusChip Status="p.PayrollRun!.Status" /></td>
+                                <td class="num">@Fmt.Hours(p.TotalHours)</td>
+                                <td class="num">@Fmt.Money(p.GrossPay)</td>
+                                <td class="num">@Fmt.Money(p.EmployeeTaxes)</td>
+                                <td class="num">@Fmt.Money(p.PreTaxDeductions + p.PostTaxDeductions)</td>
+                                <td class="num fw-semibold">@Fmt.Money(p.NetPay)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+else if (tab == "docs")
+{
+    <div class="pc-card">
+        <div class="card-title-row">
+            <h2>Documents</h2>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-3">
+                <label class="form-label">Category</label>
+                <select class="form-select" @bind="docCategory">
+                    @foreach (var c in DocCategories) { <option>@c</option> }
+                </select>
+            </div>
+            <div class="col-md-3 form-check ms-2 mb-2">
+                <input type="checkbox" class="form-check-input" id="docvis" @bind="docVisible" />
+                <label class="form-check-label" for="docvis">Visible to employee</label>
+            </div>
+            <div class="col-md-5">
+                <InputFile class="form-control" OnChange="UploadDoc" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt" />
+                <div class="form-text">PDF, image, Word or text · up to 5 MB</div>
+            </div>
+        </div>
+        @if (docs.Count == 0)
+        {
+            <EmptyState Icon="folder2-open" Title="No documents" />
+        }
+        else
+        {
+            <table class="table align-middle">
+                <thead><tr><th>File</th><th>Category</th><th>Size</th><th>Uploaded</th><th>Employee can see</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var d in docs)
+                    {
+                        <tr>
+                            <td><i class="bi bi-file-earmark me-1"></i>@d.FileName</td>
+                            <td>@d.Category</td>
+                            <td>@(d.SizeBytes / 1024) KB</td>
+                            <td class="small">@d.UploadedUtc.ToString("MMM d, yyyy") · @d.UploadedBy</td>
+                            <td>@(d.VisibleToEmployee ? "Yes" : "No")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-light" @onclick="() => DownloadDoc(d.Id)"><i class="bi bi-download"></i></button>
+                                <button class="btn btn-sm btn-light text-danger" @onclick="() => DeleteDoc(d.Id)"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+else if (tab == "access")
+{
+    <div class="pc-card" style="max-width:640px">
+        <h2 class="mb-2">Self-service access</h2>
+        @if (tempPassword != null)
+        {
+            <div class="alert alert-success small">
+                Login created. Temporary password: <code class="fs-6">@tempPassword</code><br />
+                Share it securely; the employee should change it after first sign-in. It will not be shown again.
+            </div>
+        }
+        @if (emp.UserId != null)
+        {
+            <p><i class="bi bi-check-circle-fill text-success me-1"></i>This employee has a login: <strong>@linkedEmail</strong></p>
+            <p class="small text-muted">Manage roles and passwords under <a href="settings/users">Users & roles</a>.</p>
+        }
+        else
+        {
+            <p class="text-muted small">Create a login so @emp.FirstName can view pay stubs, update their W-4 and address, clock in and request time off.</p>
+            <div class="mb-3"><label class="form-label">Login email</label><input class="form-control" @bind="loginEmail" /></div>
+            <label class="form-label">Additional roles</label>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+                @foreach (var r in new[] { AppRoles.Manager, AppRoles.HR, AppRoles.Payroll, AppRoles.Admin })
+                {
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="role-@r" checked="@loginRoles.Contains(r)" @onchange="e => ToggleRole(r, (bool)e.Value!)" />
+                        <label class="form-check-label" for="role-@r">@r</label>
+                    </div>
+                }
+            </div>
+            <button class="btn btn-primary" disabled="@Busy" @onclick="CreateLogin"><i class="bi bi-person-check me-1"></i>Create login</button>
+        }
+    </div>
+}
+
+<Modal @bind-Show="showBank" Title="@(bank?.Id == 0 ? "Add bank account" : "Edit bank account")">
+    <ChildContent>
+        @if (bank != null)
+        {
+            <div class="row g-3">
+                <div class="col-12"><label class="form-label">Bank name</label><input class="form-control" @bind="bank.BankName" /></div>
+                <div class="col-6"><label class="form-label">Routing number</label><input class="form-control" maxlength="9" @bind="bank.RoutingNumber" /></div>
+                <div class="col-6"><label class="form-label">Account number</label><input type="password" class="form-control" autocomplete="off" @bind="bankAccountNumber" placeholder="@(bank.Id == 0 ? "" : "Saved " + SensitiveData.MaskAccount(bank.AccountLast4))" /></div>
+                <div class="col-6">
+                    <label class="form-label">Account type</label>
+                    <select class="form-select" @bind="bank.AccountType">
+                        <option value="@BankAccountType.Checking">Checking</option>
+                        <option value="@BankAccountType.Savings">Savings</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Deposit</label>
+                    <select class="form-select" @bind="bank.SplitType">
+                        <option value="@DepositSplitType.Remainder">Remainder of net pay</option>
+                        <option value="@DepositSplitType.FixedAmount">Fixed amount</option>
+                        <option value="@DepositSplitType.Percent">Percent of net pay</option>
+                    </select>
+                </div>
+                @if (bank.SplitType != DepositSplitType.Remainder)
+                {
+                    <div class="col-6"><label class="form-label">@(bank.SplitType == DepositSplitType.Percent ? "Percent" : "Amount ($)")</label><input type="number" step="0.01" class="form-control" @bind="bank.SplitValue" /></div>
+                    <div class="col-6"><label class="form-label">Priority</label><input type="number" class="form-control" @bind="bank.Priority" /></div>
+                }
+                <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" id="bankactive" @bind="bank.IsActive" /><label class="form-check-label" for="bankactive">Active</label></div></div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showBank = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveBank">Save</button>
+    </Footer>
+</Modal>
+
+<Modal @bind-Show="showDeduction" Title="Benefit / deduction">
+    <ChildContent>
+        @if (deduction != null)
+        {
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" @bind="deduction.DeductionTypeId">
+                        @foreach (var t in deductionTypes) { <option value="@t.Id">@t.Name (@(t.IsPreTax ? "pre-tax" : "post-tax"))</option> }
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Calculate as</label>
+                    <select class="form-select" @bind="deduction.IsPercentOfGross">
+                        <option value="False">Fixed $ per pay period</option>
+                        <option value="True">% of gross pay</option>
+                    </select>
+                </div>
+                <div class="col-6"><label class="form-label">@(deduction.IsPercentOfGross ? "Percent" : "Amount ($)")</label><input type="number" step="0.01" class="form-control" @bind="deduction.Amount" /></div>
+                <div class="col-6"><label class="form-label">Employer contribution ($/period)</label><input type="number" step="0.01" class="form-control" @bind="deduction.EmployerAmount" /></div>
+                <div class="col-6"><label class="form-label">Annual limit override ($)</label><input type="number" step="0.01" class="form-control" @bind="deduction.AnnualLimit" /></div>
+                <div class="col-6"><label class="form-label">Start date</label><InputDate class="form-control" @bind-Value="deduction.StartDate" /></div>
+                <div class="col-6"><label class="form-label">End date</label><InputDate class="form-control" @bind-Value="deduction.EndDate" /></div>
+                <div class="col-12"><label class="form-label">Reference (case #, policy #)</label><input class="form-control" @bind="deduction.Reference" /></div>
+                <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" id="dedactive" @bind="deduction.IsActive" /><label class="form-check-label" for="dedactive">Active</label></div></div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showDeduction = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveDeduction">Save</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool IsNew => Id is null or 0;
+
+    private record TabDef(string Key, string Label, string Icon, bool NewOk);
+    private static readonly TabDef[] Tabs =
+    [
+        new("profile", "Personal", "person", true), new("job", "Job & pay", "briefcase", true), new("tax", "Tax withholding", "file-earmark-text", true),
+        new("bank", "Direct deposit", "bank", false), new("deductions", "Benefits & deductions", "heart-pulse", false),
+        new("timeoff", "Time off", "sun", false), new("pay", "Pay history", "receipt", false), new("docs", "Documents", "folder2", false),
+        new("access", "Self-service", "key", false)
+    ];
+    private static readonly string[] DocCategories = ["General", "Offer letter", "I-9", "W-4", "State W-4", "Contract", "Review", "Certification", "Other"];
+
+    private string tab = "profile";
+    private Employee? emp;
+    private string? newSsn, revealedSsn, bankAccountNumber, loginEmail, linkedEmail, tempPassword, adjNote;
+    private List<Department> departments = [];
+    private List<Employee> managers = [];
+    private List<EmployeeBankAccount> banks = [];
+    private List<EmployeeDeduction> deductions = [];
+    private List<DeductionType> deductionTypes = [];
+    private List<TimeOffBalance> balances = [];
+    private List<TimeOffPolicy> policies = [];
+    private List<TimeOffTransaction> ledger = [];
+    private List<Paycheck> paychecks = [];
+    private List<EmployeeDocument> docs = [];
+    private HashSet<string> loginRoles = [];
+    private EmployeeBankAccount? bank;
+    private EmployeeDeduction? deduction;
+    private bool showBank, showDeduction, docVisible;
+    private string docCategory = "General";
+    private int adjPolicyId;
+    private decimal adjHours;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        departments = await db.Departments.AsNoTracking().OrderBy(d => d.Name).ToListAsync();
+        managers = await db.Employees.AsNoTracking().Where(e => e.Status != EmployeeStatus.Terminated).OrderBy(e => e.FirstName).ToListAsync();
+        deductionTypes = await db.DeductionTypes.AsNoTracking().Where(d => d.IsActive).OrderBy(d => d.Name).ToListAsync();
+        policies = await db.TimeOffPolicies.AsNoTracking().Where(p => p.IsActive).ToListAsync();
+        adjPolicyId = policies.FirstOrDefault()?.Id ?? 0;
+
+        if (IsNew)
+        {
+            var company = await db.Companies.AsNoTracking().FirstAsync();
+            emp = new Employee
+            {
+                EmployeeNumber = await Employees.NextEmployeeNumberAsync(),
+                WorkState = company.State ?? "TX", State = company.State,
+                PayFrequency = company.DefaultPayFrequency,
+                DefaultHours = 80m * 26 / (int)company.DefaultPayFrequency
+            };
+            return;
+        }
+        emp = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == Id);
+        if (emp == null) { Nav.NavigateTo("employees"); return; }
+        await LoadChildrenAsync();
+    }
+
+    private async Task LoadChildrenAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        banks = await db.EmployeeBankAccounts.AsNoTracking().Where(b => b.EmployeeId == Id).OrderBy(b => b.Priority).ToListAsync();
+        deductions = await db.EmployeeDeductions.AsNoTracking().Include(d => d.DeductionType).Where(d => d.EmployeeId == Id).ToListAsync();
+        balances = await db.TimeOffBalances.AsNoTracking().Include(b => b.TimeOffPolicy).Where(b => b.EmployeeId == Id).ToListAsync();
+        ledger = await db.TimeOffTransactions.AsNoTracking().Include(t => t.TimeOffPolicy).Where(t => t.EmployeeId == Id)
+            .OrderByDescending(t => t.Date).ThenByDescending(t => t.Id).Take(50).ToListAsync();
+        paychecks = await db.Paychecks.AsNoTracking().Include(p => p.PayrollRun).Where(p => p.EmployeeId == Id)
+            .OrderByDescending(p => p.PayDate).Take(60).ToListAsync();
+        docs = await db.EmployeeDocuments.AsNoTracking().Where(d => d.EmployeeId == Id)
+            .Select(d => new EmployeeDocument { Id = d.Id, FileName = d.FileName, Category = d.Category, SizeBytes = d.SizeBytes, UploadedBy = d.UploadedBy, UploadedUtc = d.UploadedUtc, VisibleToEmployee = d.VisibleToEmployee })
+            .OrderByDescending(d => d.UploadedUtc).ToListAsync();
+        if (emp!.UserId != null)
+            linkedEmail = await db.Users.Where(u => u.Id == emp.UserId).Select(u => u.Email).FirstOrDefaultAsync();
+        loginEmail ??= emp.Email;
+    }
+
+    private async Task SaveEmployee()
+    {
+        var wasNew = IsNew;
+        await RunAsync(async () =>
+        {
+            await Employees.SaveAsync(emp!, newSsn);
+            newSsn = null;
+            revealedSsn = null;
+        }, wasNew ? "Employee created." : "Changes saved.");
+        if (wasNew && emp!.Id != 0) Nav.NavigateTo($"employees/{emp.Id}");
+    }
+
+    private async Task RevealSsn() => await RunAsync(async () => revealedSsn = await Employees.RevealSsnAsync(emp!.Id) ?? "Unavailable");
+
+    private void EditBank(EmployeeBankAccount b) { bank = b; bankAccountNumber = null; showBank = true; }
+
+    private async Task SaveBank()
+    {
+        if (await RunAsync(() => Employees.SaveBankAccountAsync(bank!, bankAccountNumber), "Bank account saved."))
+        {
+            showBank = false;
+            await LoadChildrenAsync();
+        }
+    }
+
+    private async Task DeleteBank(int id)
+    {
+        await RunAsync(() => Employees.DeleteAsync<EmployeeBankAccount>(id), "Bank account removed.");
+        await LoadChildrenAsync();
+    }
+
+    private void EditDeduction(EmployeeDeduction d) { deduction = d; showDeduction = true; }
+
+    private async Task SaveDeduction()
+    {
+        if (await RunAsync(() => Employees.SaveDeductionAsync(deduction!), "Deduction saved."))
+        {
+            showDeduction = false;
+            await LoadChildrenAsync();
+        }
+    }
+
+    private async Task DeleteDeduction(int id)
+    {
+        await RunAsync(() => Employees.DeleteAsync<EmployeeDeduction>(id), "Deduction removed.");
+        await LoadChildrenAsync();
+    }
+
+    private async Task AdjustBalance()
+    {
+        if (adjHours == 0 || adjPolicyId == 0) { Toast.Error("Enter a non-zero number of hours."); return; }
+        await RunAsync(() => TimeOff.AdjustBalanceAsync(emp!.Id, adjPolicyId, adjHours, adjNote), "Balance adjusted.");
+        adjHours = 0; adjNote = null;
+        await LoadChildrenAsync();
+    }
+
+    private async Task UploadDoc(InputFileChangeEventArgs e)
+    {
+        const long max = 5 * 1024 * 1024;
+        await RunAsync(async () =>
+        {
+            if (e.File.Size > max) throw new InvalidOperationException("File is larger than 5 MB.");
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(max).CopyToAsync(ms);
+            await using var db = await Dbs.OpenAsync();
+            db.EmployeeDocuments.Add(new EmployeeDocument
+            {
+                EmployeeId = emp!.Id, FileName = Path.GetFileName(e.File.Name), ContentType = e.File.ContentType,
+                SizeBytes = e.File.Size, Content = ms.ToArray(), Category = docCategory, VisibleToEmployee = docVisible,
+                UploadedBy = await Me.GetNameAsync()
+            });
+            await db.SaveChangesAsync();
+        }, "Document uploaded.");
+        await LoadChildrenAsync();
+    }
+
+    private async Task DownloadDoc(int id)
+    {
+        await using var db = await Dbs.OpenAsync();
+        var d = await db.EmployeeDocuments.AsNoTracking().FirstAsync(x => x.Id == id);
+        await JS.InvokeVoidAsync("paycrest.downloadBase64", d.FileName, d.ContentType, Convert.ToBase64String(d.Content));
+    }
+
+    private async Task DeleteDoc(int id)
+    {
+        await RunAsync(() => Employees.DeleteAsync<EmployeeDocument>(id), "Document deleted.");
+        await LoadChildrenAsync();
+    }
+
+    private void ToggleRole(string role, bool on) { if (on) loginRoles.Add(role); else loginRoles.Remove(role); }
+
+    private async Task CreateLogin()
+    {
+        if (string.IsNullOrWhiteSpace(loginEmail)) { Toast.Error("Enter an email address."); return; }
+        await RunAsync(async () =>
+        {
+            tempPassword = await Employees.CreateLoginAsync(emp!.Id, loginEmail.Trim(), loginRoles);
+            await using var db = await Dbs.OpenAsync();
+            emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == Id);
+        }, "Login created.");
+        await LoadChildrenAsync();
+    }
+}

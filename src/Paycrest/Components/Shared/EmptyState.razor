@@ -1,0 +1,14 @@
+<div class="empty">
+    <i class="bi bi-@Icon"></i>
+    <div class="fw-semibold mb-1">@Title</div>
+    @if (ChildContent != null)
+    {
+        <div class="small">@ChildContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "inbox";
+    [Parameter] public string Title { get; set; } = "Nothing here yet";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

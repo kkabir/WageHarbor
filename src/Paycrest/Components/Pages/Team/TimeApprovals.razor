@@ -1,0 +1,183 @@
+@page "/time/approvals"
+@attribute [Authorize(Roles = AppRoles.Approvers)]
+@inherits AppComponentBase
+@inject TimeService Time
+@inject Clock Clock
+
+<PageTitle>Timesheets · WageHarbor</PageTitle>
+
+<PageHeader Title="Timesheets" Subtitle="@(seeAll ? "Approve time for everyone before running payroll." : "Approve time for your direct reports.")">
+    @if (seeAll)
+    {
+        <button class="btn btn-outline-secondary" @onclick="OpenAdd"><i class="bi bi-plus-lg me-1"></i>Add time</button>
+    }
+    <button class="btn btn-primary" disabled="@(Busy || selected.Count == 0)" @onclick="() => SetStatus(ApprovalStatus.Approved)"><i class="bi bi-check2-all me-1"></i>Approve selected (@selected.Count)</button>
+</PageHeader>
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
+        <InputDate class="form-control" style="max-width:170px" @bind-Value="from" />
+        <span class="text-muted">to</span>
+        <InputDate class="form-control" style="max-width:170px" @bind-Value="to" />
+        <select class="form-select" style="max-width:160px" @bind="statusFilter">
+            <option value="">All statuses</option>
+            @foreach (var s in new[] { ApprovalStatus.Pending, ApprovalStatus.Approved, ApprovalStatus.Rejected }) { <option value="@s">@s</option> }
+        </select>
+        <button class="btn btn-light" @onclick="LoadAsync"><i class="bi bi-arrow-repeat"></i></button>
+        <button class="btn btn-sm btn-link ms-auto" @onclick="SelectAllPending">Select all pending</button>
+        <button class="btn btn-sm btn-outline-danger" disabled="@(Busy || selected.Count == 0)" @onclick="() => SetStatus(ApprovalStatus.Rejected)">Reject selected</button>
+    </div>
+
+    @if (entries.Count == 0)
+    {
+        <EmptyState Icon="calendar-check" Title="No time entries in this range" />
+    }
+    else
+    {
+        @foreach (var g in entries.GroupBy(e => e.EmployeeId))
+        {
+            var person = g.First().Employee!;
+            <div class="px-3 py-2 d-flex align-items-center gap-2 border-bottom" style="background:var(--pc-surface-2)">
+                <PersonCell Name="@person.FullName" Sub="@person.JobTitle" />
+                <span class="ms-auto small">
+                    <strong>@Fmt.Hours(g.Where(e => e.Status != ApprovalStatus.Rejected).Sum(e => e.Hours))</strong> h total ·
+                    @OvertimeText(g.ToList())
+                </span>
+            </div>
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                    @foreach (var e in g)
+                    {
+                        <tr>
+                            <td style="width:36px">
+                                @if (!e.IsLocked && !e.IsOpenPunch)
+                                {
+                                    <input type="checkbox" class="form-check-input" checked="@selected.Contains(e.Id)" @onchange="ev => Toggle(e.Id, (bool)ev.Value!)" />
+                                }
+                            </td>
+                            <td style="width:140px">@e.WorkDate.ToString("ddd, MMM d")</td>
+                            <td style="width:130px">@e.EarningType?.Name</td>
+                            <td class="num" style="width:80px">@(e.IsOpenPunch ? "open" : Fmt.Hours(e.Hours))</td>
+                            <td class="small text-muted">@e.Source · @e.Notes</td>
+                            <td style="width:120px">@if (e.IsLocked) { <span class="chip tone-success plain"><i class="bi bi-lock"></i> Paid</span> } else { <StatusChip Status="e.Status" /> }</td>
+                            <td style="width:60px" class="text-end">
+                                @if (seeAll && !e.IsLocked && !e.IsOpenPunch)
+                                {
+                                    <button class="btn btn-sm btn-light text-danger" title="Delete" @onclick="() => Delete(e.Id)"><i class="bi bi-trash"></i></button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</div>
+
+<Modal @bind-Show="showAdd" Title="Add time for an employee">
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Employee</label>
+                <select class="form-select" @bind="add.EmployeeId">
+                    <option value="0">Select…</option>
+                    @foreach (var e in employees) { <option value="@e.Id">@e.FullName</option> }
+                </select>
+            </div>
+            <div class="col-6"><label class="form-label">Date</label><InputDate class="form-control" @bind-Value="add.WorkDate" /></div>
+            <div class="col-6"><label class="form-label">Hours</label><input type="number" step="0.25" class="form-control" @bind="add.Hours" /></div>
+            <div class="col-12">
+                <label class="form-label">Type</label>
+                <select class="form-select" @bind="add.EarningTypeId">
+                    @foreach (var t in earningTypes) { <option value="@t.Id">@t.Name</option> }
+                </select>
+                <div class="form-text">Enter regular hours — overtime over @Fmt.Hours(otThreshold) h/week is calculated automatically.</div>
+            </div>
+            <div class="col-12"><label class="form-label">Notes</label><input class="form-control" @bind="add.Notes" /></div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showAdd = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveAdd">Add approved entry</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool seeAll, showAdd;
+    private int? myId;
+    private DateOnly from, to;
+    private string statusFilter = "";
+    private decimal otThreshold = 40;
+    private DayOfWeek weekStart;
+    private List<TimeEntry> entries = [];
+    private HashSet<int> selected = [];
+    private List<Employee> employees = [];
+    private List<EarningType> earningTypes = [];
+    private TimeEntry add = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        seeAll = await Me.CanApproveAllAsync();
+        myId = await Me.GetEmployeeIdAsync();
+        await using var db = await Dbs.OpenAsync();
+        var company = await db.Companies.AsNoTracking().FirstAsync();
+        otThreshold = company.OvertimeThresholdHours;
+        weekStart = company.WorkWeekStart;
+        (from, to) = PayPeriods.Containing(company.DefaultPayFrequency, await Clock.TodayAsync(), weekStart);
+        from = from.AddDays(-14);
+        employees = await db.Employees.AsNoTracking().Where(e => e.Status != EmployeeStatus.Terminated).OrderBy(e => e.FirstName).ToListAsync();
+        earningTypes = await db.EarningTypes.AsNoTracking().Where(t => t.IsActive && t.IsHoursBased && t.Code != EarningType.Overtime).ToListAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!seeAll && myId == null) { entries = []; return; }
+        ApprovalStatus? status = string.IsNullOrEmpty(statusFilter) ? null : Enum.Parse<ApprovalStatus>(statusFilter);
+        entries = await Time.ListAsync(from, to, status: status, managerEmployeeId: seeAll ? null : myId);
+        selected.RemoveWhere(id => !entries.Any(e => e.Id == id));
+    }
+
+    private string OvertimeText(List<TimeEntry> list)
+    {
+        var ot = list.Where(e => e.EarningType?.Code == EarningType.Regular && e.Status != ApprovalStatus.Rejected)
+            .GroupBy(e => PayrollCalculator.WeekStart(e.WorkDate, weekStart))
+            .Sum(w => Math.Max(0, w.Sum(e => e.Hours) - otThreshold));
+        return ot > 0 ? $"{Fmt.Hours(ot)} h overtime" : "no overtime";
+    }
+
+    private void Toggle(int id, bool on) { if (on) selected.Add(id); else selected.Remove(id); }
+
+    private void SelectAllPending()
+    {
+        foreach (var e in entries.Where(e => e.Status == ApprovalStatus.Pending && !e.IsLocked && !e.IsOpenPunch)) selected.Add(e.Id);
+    }
+
+    private async Task SetStatus(ApprovalStatus status)
+    {
+        var n = selected.Count;
+        await RunAsync(() => Time.SetStatusAsync(selected, status), $"{n} entr{(n == 1 ? "y" : "ies")} {status.ToString().ToLowerInvariant()}.");
+        selected.Clear();
+        await LoadAsync();
+    }
+
+    private async Task Delete(int id)
+    {
+        await RunAsync(() => Time.DeleteAsync(id, selfService: false), "Entry deleted.");
+        await LoadAsync();
+    }
+
+    private void OpenAdd()
+    {
+        add = new TimeEntry { WorkDate = to < DateOnly.FromDateTime(DateTime.Today) ? to : DateOnly.FromDateTime(DateTime.Today), Hours = 8,
+            EarningTypeId = earningTypes.First(t => t.Code == EarningType.Regular).Id };
+        showAdd = true;
+    }
+
+    private async Task SaveAdd()
+    {
+        if (add.EmployeeId == 0) { Toast.Error("Select an employee."); return; }
+        if (await RunAsync(() => Time.SaveAsync(add, selfService: false), "Time added.")) showAdd = false;
+        await LoadAsync();
+    }
+}

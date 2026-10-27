@@ -1,0 +1,17 @@
+<div class="bar-chart" role="img" aria-label="@AriaLabel">
+    @foreach (var (label, value) in Items)
+    {
+        var pct = Max == 0 ? 0 : (double)(value / Max) * 100;
+        <div class="bar-col">
+            <div class="bar" style="height:@(pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%" data-tip="@label: @Fmt.Money(value)"></div>
+            <div class="bar-label">@label</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<(string Label, decimal Value)> Items { get; set; } = [];
+    [Parameter] public string AriaLabel { get; set; } = "Bar chart";
+
+    private decimal Max => Items.Count == 0 ? 0 : Items.Max(i => i.Value);
+}

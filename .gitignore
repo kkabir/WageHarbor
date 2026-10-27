@@ -1,0 +1,14 @@
+bin/
+obj/
+publish/
+*.user
+.vs/
+.claude/
+logs/
+
+# Secrets: never commit these.
+# Production settings hold the database password; Development settings hold the local test login.
+src/Paycrest/appsettings.Production.json
+src/Paycrest/appsettings.Development.json
+*.PublishSettings
+*.pubxml.user

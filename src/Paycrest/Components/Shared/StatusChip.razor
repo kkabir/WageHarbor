@@ -1,0 +1,28 @@
+<span class="chip tone-@Tone">@Text</span>
+
+@code {
+    [Parameter] public object? Status { get; set; }
+    [Parameter] public string? Label { get; set; }
+
+    private string Text => Label ?? Status switch
+    {
+        EmployeeStatus.OnLeave => "On leave",
+        _ => Status?.ToString() ?? ""
+    };
+
+    private string Tone => Status switch
+    {
+        PayrollRunStatus.Draft => "info",
+        PayrollRunStatus.Approved => "primary",
+        PayrollRunStatus.Paid => "success",
+        PayrollRunStatus.Voided => "danger",
+        ApprovalStatus.Pending => "warning",
+        ApprovalStatus.Approved => "success",
+        ApprovalStatus.Rejected => "danger",
+        ApprovalStatus.Cancelled => "info",
+        EmployeeStatus.Active => "success",
+        EmployeeStatus.OnLeave => "warning",
+        EmployeeStatus.Terminated => "danger",
+        _ => "info"
+    };
+}

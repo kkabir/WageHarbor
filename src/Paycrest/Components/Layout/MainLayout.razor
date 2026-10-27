@@ -1,0 +1,78 @@
+﻿@inherits LayoutComponentBase
+@inject IDbContextFactory<Paycrest.Data.ApplicationDbContext> DbFactory
+
+<AuthorizeView>
+    <Authorized>
+        <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-label="Toggle navigation" />
+        <div class="app-shell">
+            <aside class="app-sidebar">
+                <NavMenu />
+            </aside>
+            <div class="app-main">
+                <header class="app-topbar">
+                    <label for="menu-toggle" class="menu-btn"><i class="bi bi-list"></i></label>
+                    <span class="company"><i class="bi bi-buildings me-2 text-muted"></i>@companyName</span>
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <ThemeToggle />
+                        <div class="dropdown">
+                            <a class="d-flex align-items-center gap-2 text-reset" href="Account/Manage" title="Account settings">
+                                <span class="avatar">@Initials(context.User.Identity?.Name)</span>
+                                <span class="d-none d-md-inline small fw-semibold">@context.User.Identity?.Name</span>
+                            </a>
+                        </div>
+                        <form action="Account/Logout" method="post" class="m-0">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="ReturnUrl" value="" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+                        </form>
+                    </div>
+                </header>
+                <main class="app-content">
+                    @Body
+                </main>
+            </div>
+        </div>
+        <Toasts />
+    </Authorized>
+    <NotAuthorized>
+        <div class="auth-wrap">
+            <section class="auth-hero">
+                <img src="brand/wageharbor-logo-dark.svg" alt="WageHarbor" height="44" />
+                <div>
+                    <h2>Payroll and HR,<br />done right.</h2>
+                    <p class="opacity-75 mb-4">Run payroll in minutes, keep every employee record in one place, and give your team self-service access to pay, time and benefits.</p>
+                    <ul>
+                        <li><i class="bi bi-check-circle-fill"></i>Automatic federal, FICA, state & unemployment taxes</li>
+                        <li><i class="bi bi-check-circle-fill"></i>Direct deposit with NACHA ACH files</li>
+                        <li><i class="bi bi-check-circle-fill"></i>Time clock, overtime and PTO accruals</li>
+                        <li><i class="bi bi-check-circle-fill"></i>Employee self-service & digital pay stubs</li>
+                        <li><i class="bi bi-check-circle-fill"></i>941, 940 and W-2 reporting</li>
+                    </ul>
+                </div>
+                <small class="opacity-50">Encrypted SSNs and bank data · Role-based access · Full audit trail</small>
+            </section>
+            <section class="auth-panel">
+                <div>@Body</div>
+            </section>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private string companyName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        companyName = await db.Companies.Select(c => c.Name).FirstOrDefaultAsync() ?? "WageHarbor";
+    }
+
+    private static string Initials(string? name) =>
+        string.IsNullOrEmpty(name) ? "?" : name[..1].ToUpperInvariant();
+}

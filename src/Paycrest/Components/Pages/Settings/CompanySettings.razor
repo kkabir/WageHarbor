@@ -1,0 +1,215 @@
+@page "/settings/company"
+@page "/setup"
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@inherits AppComponentBase
+@inject SensitiveData Sensitive
+@inject SampleDataService Samples
+
+<PageTitle>Company settings · WageHarbor</PageTitle>
+
+@if (company == null) { return; }
+
+@if (isSetup)
+{
+    <PageHeader Title="Welcome to WageHarbor" Subtitle="Tell us about your company. You can change any of this later under Administration › Company." />
+    <div class="steps">
+        <span class="step @(company.SetupCompleted || !string.IsNullOrEmpty(company.Ein) ? "done" : "current")"><i class="bi bi-1-circle"></i>Company profile</span>
+        <span class="step"><i class="bi bi-2-circle"></i>Payroll & taxes</span>
+        <span class="step"><i class="bi bi-3-circle"></i>Direct deposit bank</span>
+        <span class="step"><i class="bi bi-4-circle"></i>Add employees</span>
+    </div>
+}
+else
+{
+    <PageHeader Title="Company" Subtitle="Legal details, payroll defaults and the bank account payroll is paid from." />
+}
+
+<EditForm Model="company" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="pc-card">
+                <h2 class="mb-3">Company profile</h2>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Company name *</label><InputText class="form-control" @bind-Value="company.Name" /><ValidationMessage For="() => company.Name" /></div>
+                    <div class="col-md-6"><label class="form-label">Legal name</label><InputText class="form-control" @bind-Value="company.LegalName" placeholder="As registered with the IRS" /></div>
+                    <div class="col-md-4"><label class="form-label">Federal EIN</label><InputText class="form-control" @bind-Value="company.Ein" placeholder="12-3456789" /><ValidationMessage For="() => company.Ein" /></div>
+                    <div class="col-md-4"><label class="form-label">Phone</label><InputText class="form-control" @bind-Value="company.Phone" /></div>
+                    <div class="col-md-4"><label class="form-label">Email</label><InputText class="form-control" @bind-Value="company.Email" /><ValidationMessage For="() => company.Email" /></div>
+                    <div class="col-md-8"><label class="form-label">Address</label><InputText class="form-control" @bind-Value="company.AddressLine1" /></div>
+                    <div class="col-md-4"><label class="form-label">Suite / unit</label><InputText class="form-control" @bind-Value="company.AddressLine2" /></div>
+                    <div class="col-md-5"><label class="form-label">City</label><InputText class="form-control" @bind-Value="company.City" /></div>
+                    <div class="col-md-3">
+                        <label class="form-label">State</label>
+                        <InputSelect class="form-select" @bind-Value="company.State">
+                            <option value="">—</option>
+                            @foreach (var s in Fmt.States) { <option value="@s">@s</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">ZIP</label><InputText class="form-control" @bind-Value="company.PostalCode" /></div>
+                    <div class="col-md-6">
+                        <label class="form-label">Time zone</label>
+                        <InputSelect class="form-select" @bind-Value="company.TimeZoneId">
+                            @foreach (var tz in TimeZones) { <option value="@tz.Id">@tz.Label</option> }
+                        </InputSelect>
+                        <div class="form-text">Used for the time clock and "today".</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Payroll & taxes</h3>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Default pay frequency</label>
+                            <InputSelect class="form-select" @bind-Value="company.DefaultPayFrequency">
+                                @foreach (var f in Enum.GetValues<PayFrequency>()) { <option value="@f">@f.Label()</option> }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-4"><label class="form-label">Pay date (days after period end)</label><InputNumber class="form-control" @bind-Value="company.PayDateOffsetDays" /></div>
+                        <div class="col-md-4">
+                            <label class="form-label">Work week starts on</label>
+                            <InputSelect class="form-select" @bind-Value="company.WorkWeekStart">
+                                @foreach (var d in Enum.GetValues<DayOfWeek>()) { <option value="@d">@d</option> }
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-4"><label class="form-label">Weekly overtime after (hours)</label><InputNumber class="form-control" @bind-Value="company.OvertimeThresholdHours" /></div>
+                        <div class="col-md-4"><label class="form-label">State withholding account #</label><InputText class="form-control" @bind-Value="company.StateTaxId" /></div>
+                        <div class="col-md-4"><label class="form-label">State unemployment account #</label><InputText class="form-control" @bind-Value="company.StateUnemploymentId" /></div>
+                        <div class="col-md-4">
+                            <label class="form-label">SUTA rate (%)</label>
+                            <input type="number" step="0.001" class="form-control" @bind="SutaPercent" />
+                            <div class="form-text">From your state's annual rate notice.</div>
+                        </div>
+                        <div class="col-md-4"><label class="form-label">SUTA wage base ($)</label><InputNumber class="form-control" @bind-Value="company.SutaWageBase" /></div>
+                        <div class="col-md-4"><label class="form-label">Next check number</label><InputNumber class="form-control" @bind-Value="company.NextCheckNumber" /></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Direct deposit (ACH) origination</h3>
+                    <p class="small text-muted">Your bank provides these when you sign up for ACH origination. WageHarbor generates a NACHA file you upload to your bank's portal.</p>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label">Bank name</label><InputText class="form-control" @bind-Value="company.BankName" /></div>
+                        <div class="col-md-4"><label class="form-label">Routing number</label><InputText class="form-control" @bind-Value="company.BankRoutingNumber" maxlength="9" /><ValidationMessage For="() => company.BankRoutingNumber" /></div>
+                        <div class="col-md-4">
+                            <label class="form-label">Account number</label>
+                            <input type="password" class="form-control" @bind="newAccountNumber" autocomplete="off"
+                                   placeholder="@(string.IsNullOrEmpty(company.BankAccountLast4) ? "" : "Saved " + SensitiveData.MaskAccount(company.BankAccountLast4))" />
+                        </div>
+                        <div class="col-md-4"><label class="form-label">ACH company ID</label><InputText class="form-control" @bind-Value="company.AchCompanyId" placeholder="Defaults to 1 + EIN" /></div>
+                        <div class="col-md-4"><label class="form-label">Immediate origin</label><InputText class="form-control" @bind-Value="company.AchImmediateOrigin" placeholder="Defaults to company ID" /></div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary" disabled="@Busy"><i class="bi bi-check2 me-1"></i>@(isSetup ? "Save and continue" : "Save changes")</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            @if (isSetup || !company.SetupCompleted)
+            {
+                <div class="pc-card mb-3">
+                    <h2 class="mb-2">Try it with sample data</h2>
+                    <p class="small text-muted">Loads 12 demo employees across 5 departments, with pay rates, W-4s, benefits, bank accounts, time entries, PTO balances, holidays and pending requests. Best for exploring before you enter real people.</p>
+                    <button type="button" class="btn btn-soft w-100" disabled="@(Busy || hasEmployees)" @onclick="LoadSample">
+                        <i class="bi bi-magic me-1"></i>Load sample company
+                    </button>
+                    @if (hasEmployees) { <div class="form-text">Available only before any employees exist.</div> }
+                </div>
+                <div class="pc-card">
+                    <h2 class="mb-2">Next steps</h2>
+                    <ol class="small ps-3 mb-3">
+                        <li>Save your company profile.</li>
+                        <li>Review <a href="settings/tax">tax tables</a> for your state.</li>
+                        <li>Review <a href="settings/pay-setup">benefits & deductions</a>.</li>
+                        <li><a href="employees/new">Add employees</a> and invite them to self-service.</li>
+                        <li><a href="payroll">Run your first payroll</a>.</li>
+                    </ol>
+                    <button type="button" class="btn btn-outline-primary w-100" disabled="@Busy" @onclick="Finish">Finish setup</button>
+                </div>
+            }
+            else
+            {
+                <div class="pc-card">
+                    <h2 class="mb-2">Good to know</h2>
+                    <ul class="small ps-3 mb-0">
+                        <li>Sensitive numbers are encrypted at rest; only the last four digits are displayed.</li>
+                        <li>Every change here is recorded in the audit log.</li>
+                        <li>SUTA rates change yearly — update them each January.</li>
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private Company? company;
+    private string? newAccountNumber;
+    private bool isSetup, hasEmployees;
+
+    private decimal SutaPercent
+    {
+        get => Math.Round(company!.SutaRate * 100, 4);
+        set => company!.SutaRate = value / 100m;
+    }
+
+    private static readonly (string Id, string Label)[] TimeZones =
+    [
+        ("America/New_York", "Eastern"), ("America/Chicago", "Central"), ("America/Denver", "Mountain"),
+        ("America/Phoenix", "Arizona"), ("America/Los_Angeles", "Pacific"), ("America/Anchorage", "Alaska"),
+        ("Pacific/Honolulu", "Hawaii"), ("America/Puerto_Rico", "Atlantic (Puerto Rico)")
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        isSetup = Nav.Uri.Contains("/setup", StringComparison.OrdinalIgnoreCase);
+        await using var db = await Dbs.OpenAsync();
+        company = await db.Companies.AsNoTracking().FirstAsync();
+        hasEmployees = await db.Employees.AnyAsync();
+    }
+
+    private async Task Save()
+    {
+        var ok = await RunAsync(async () =>
+        {
+            if (!string.IsNullOrWhiteSpace(newAccountNumber))
+            {
+                var digits = SensitiveData.Digits(newAccountNumber);
+                if (digits.Length is < 4 or > 17) throw new InvalidOperationException("Bank account number must be 4–17 digits.");
+                company!.BankAccountNumberProtected = Sensitive.Protect(digits);
+                company.BankAccountLast4 = SensitiveData.Last4(digits);
+            }
+            if (!string.IsNullOrEmpty(company!.BankRoutingNumber) && !NachaFileBuilder.IsValidRouting(company.BankRoutingNumber))
+                throw new InvalidOperationException("Bank routing number fails the ABA checksum.");
+            await using var db = await Dbs.OpenAsync();
+            db.Companies.Update(company);
+            await db.SaveChangesAsync();
+            newAccountNumber = null;
+        }, "Company settings saved.");
+        if (ok && isSetup && !hasEmployees) Toast.Info("Next: load sample data or add your first employee.");
+    }
+
+    private async Task LoadSample()
+    {
+        await RunAsync(async () =>
+        {
+            var n = await Samples.LoadAsync();
+            hasEmployees = true;
+            Toast.Success($"Loaded {n} sample employees.");
+        });
+    }
+
+    private async Task Finish()
+    {
+        if (await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var c = await db.Companies.FirstAsync();
+            c.SetupCompleted = true;
+            await db.SaveChangesAsync();
+        }, "Setup complete. Welcome aboard!"))
+            Nav.NavigateTo("/", forceLoad: true);
+    }
+}

@@ -1,0 +1,47 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('pc-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-bs-theme', t);
+            } catch (e) { }
+        })();
+    </script>
+    <ResourcePreloader />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Paycrest.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/svg+xml" href="brand/wageharbor-mark.svg" />
+    <link rel="apple-touch-icon" href="brand/wageharbor-mark.svg" />
+    <meta name="theme-color" content="#0B2545" />
+    <title>WageHarbor</title>
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+
+<body>
+    <Routes @rendermode="PageRenderMode" />
+    <ReconnectModal />
+    <script src="@Assets["js/app.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["Components/Account/Shared/PasskeySubmit.razor.js"]" type="module"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}

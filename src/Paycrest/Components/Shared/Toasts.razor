@@ -1,0 +1,30 @@
+@implements IDisposable
+@inject ToastService ToastService
+
+<div class="toast-stack" aria-live="polite">
+    @foreach (var t in toasts.ToList())
+    {
+        <div class="pc-toast @t.Kind">
+            <i class="bi @(t.Kind == "success" ? "bi-check-circle-fill" : t.Kind == "danger" ? "bi-exclamation-octagon-fill" : "bi-info-circle-fill")"></i>
+            <div class="flex-grow-1">@t.Message</div>
+            <button type="button" class="btn-close btn-sm" @onclick="() => toasts.Remove(t)"></button>
+        </div>
+    }
+</div>
+
+@code {
+    private sealed record Toast(string Message, string Kind);
+    private readonly List<Toast> toasts = [];
+
+    protected override void OnInitialized() => ToastService.OnShow += Show;
+
+    private void Show(string message, string kind)
+    {
+        var t = new Toast(message, kind);
+        _ = InvokeAsync(() => { toasts.Add(t); StateHasChanged(); });
+        _ = Task.Delay(kind == "danger" ? 8000 : 4000)
+            .ContinueWith(_ => InvokeAsync(() => { toasts.Remove(t); StateHasChanged(); }));
+    }
+
+    public void Dispose() => ToastService.OnShow -= Show;
+}

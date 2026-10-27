@@ -1,0 +1,214 @@
+@page "/settings/time-off"
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@inherits AppComponentBase
+@inject TimeOffService TimeOff
+
+<PageTitle>Time off & holidays · WageHarbor</PageTitle>
+
+<PageHeader Title="Time off & holidays" Subtitle="Accrual policies and the company holiday calendar." />
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="pc-card p-0">
+            <div class="d-flex p-3 border-bottom align-items-center">
+                <h2 class="m-0">Time-off policies</h2>
+                <button class="btn btn-sm btn-soft ms-auto" @onclick="NewPolicy"><i class="bi bi-plus-lg me-1"></i>New policy</button>
+            </div>
+            <table class="table table-hover align-middle">
+                <thead><tr><th>Policy</th><th>Accrual</th><th class="num">Max balance</th><th class="num">Enrolled</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var p in policies)
+                    {
+                        <tr class="@(p.IsActive ? "" : "opacity-50")">
+                            <td><div class="fw-semibold">@p.Name</div><div class="small text-muted">Paid as @p.EarningType?.Name</div></td>
+                            <td class="small">@AccrualText(p)</td>
+                            <td class="num">@(p.MaxBalance.HasValue ? Fmt.Hours(p.MaxBalance.Value) + " h" : "—")</td>
+                            <td class="num">@enrolled.GetValueOrDefault(p.Id)</td>
+                            <td class="text-end text-nowrap">
+                                <button class="btn btn-sm btn-light" title="Enroll all active employees" @onclick="() => EnrollAll(p.Id)"><i class="bi bi-people"></i></button>
+                                @if (p.AccrualMethod == AccrualMethod.AnnualGrant)
+                                {
+                                    <button class="btn btn-sm btn-light" title="Run annual grant" @onclick="() => Grant(p.Id)"><i class="bi bi-gift"></i></button>
+                                }
+                                <button class="btn btn-sm btn-light" @onclick="() => { policy = p; showPolicy = true; }"><i class="bi bi-pencil"></i></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="p-3 small text-muted border-top">Per-pay-period and per-hour accruals post automatically when a payroll is marked paid. Many states require paid sick leave (e.g. 1 hour per 30 worked) — check your state's rules.</div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="pc-card p-0">
+            <div class="d-flex p-3 border-bottom align-items-center gap-2">
+                <h2 class="m-0">Holidays</h2>
+                <select class="form-select form-select-sm ms-auto" style="width:100px" @bind="year">
+                    @for (var y = DateTime.Today.Year - 1; y <= DateTime.Today.Year + 2; y++) { <option value="@y">@y</option> }
+                </select>
+                <button class="btn btn-sm btn-light" title="Add common US holidays" @onclick="AddUsHolidays"><i class="bi bi-flag"></i> US set</button>
+            </div>
+            <ul class="list-clean px-3">
+                @foreach (var h in holidays.Where(h => h.Date.Year == year))
+                {
+                    <li class="d-flex justify-content-between align-items-center">
+                        <div><div class="fw-semibold">@h.Name</div><div class="small text-muted">@h.Date.ToString("dddd, MMM d") · @(h.IsPaid ? "paid" : "unpaid")</div></div>
+                        <button class="btn btn-sm btn-light text-danger" @onclick="() => DeleteHoliday(h.Id)"><i class="bi bi-trash"></i></button>
+                    </li>
+                }
+            </ul>
+            <div class="p-3 border-top">
+                <div class="row g-2">
+                    <div class="col-5"><InputDate class="form-control" @bind-Value="newHoliday.Date" /></div>
+                    <div class="col-7"><input class="form-control" placeholder="Holiday name" @bind="newHoliday.Name" /></div>
+                    <div class="col-12"><button class="btn btn-soft w-100" @onclick="AddHoliday">Add holiday</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<Modal @bind-Show="showPolicy" Title="Time-off policy">
+    <ChildContent>
+        @if (policy != null)
+        {
+            <div class="row g-3">
+                <div class="col-7"><label class="form-label">Name</label><input class="form-control" @bind="policy.Name" /></div>
+                <div class="col-5">
+                    <label class="form-label">Paid as</label>
+                    <select class="form-select" @bind="policy.EarningTypeId">
+                        @foreach (var e in earningTypes) { <option value="@e.Id">@e.Name</option> }
+                    </select>
+                </div>
+                <div class="col-7">
+                    <label class="form-label">Accrual method</label>
+                    <select class="form-select" @bind="policy.AccrualMethod">
+                        <option value="@AccrualMethod.PerPayPeriod">Hours per pay period</option>
+                        <option value="@AccrualMethod.PerHourWorked">Hours per hour worked</option>
+                        <option value="@AccrualMethod.AnnualGrant">Annual grant (front-loaded)</option>
+                        <option value="@AccrualMethod.None">No accrual (manual)</option>
+                    </select>
+                </div>
+                <div class="col-5"><label class="form-label">Rate</label><input type="number" step="0.0001" class="form-control" @bind="policy.AccrualRate" /></div>
+                <div class="col-6"><label class="form-label">Max balance (h)</label><input type="number" class="form-control" @bind="policy.MaxBalance" /></div>
+                <div class="col-6 d-flex flex-column justify-content-end gap-1">
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="neg" @bind="policy.AllowNegativeBalance" /><label class="form-check-label" for="neg">Allow negative balance</label></div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="pact" @bind="policy.IsActive" /><label class="form-check-label" for="pact">Active</label></div>
+                </div>
+                <div class="col-12 form-text">Examples: 80 h/year bi-weekly = 3.0769 per period · 1 h per 30 worked = 0.0333 per hour.</div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showPolicy = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SavePolicy">Save</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<TimeOffPolicy> policies = [];
+    private List<EarningType> earningTypes = [];
+    private List<Holiday> holidays = [];
+    private Dictionary<int, int> enrolled = [];
+    private TimeOffPolicy? policy;
+    private bool showPolicy;
+    private int year = DateTime.Today.Year;
+    private Holiday newHoliday = new() { Date = DateOnly.FromDateTime(DateTime.Today) };
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        policies = await db.TimeOffPolicies.AsNoTracking().Include(p => p.EarningType).OrderBy(p => p.Name).ToListAsync();
+        earningTypes = await db.EarningTypes.AsNoTracking().Where(e => e.IsHoursBased && e.IsActive).ToListAsync();
+        holidays = await db.Holidays.AsNoTracking().OrderBy(h => h.Date).ToListAsync();
+        enrolled = await db.TimeOffBalances.GroupBy(b => b.TimeOffPolicyId).ToDictionaryAsync(g => g.Key, g => g.Count());
+    }
+
+    private static string AccrualText(TimeOffPolicy p) => p.AccrualMethod switch
+    {
+        AccrualMethod.PerPayPeriod => $"{p.AccrualRate:0.####} h per pay period",
+        AccrualMethod.PerHourWorked => $"{p.AccrualRate:0.####} h per hour worked (1 per {(p.AccrualRate == 0 ? 0 : 1 / p.AccrualRate):0.#})",
+        AccrualMethod.AnnualGrant => $"{p.AccrualRate:0.##} h granted yearly",
+        _ => "Manual"
+    };
+
+    private void NewPolicy()
+    {
+        policy = new TimeOffPolicy { EarningTypeId = earningTypes.FirstOrDefault(e => e.Code == "PTO")?.Id ?? earningTypes.First().Id };
+        showPolicy = true;
+    }
+
+    private async Task SavePolicy()
+    {
+        if (string.IsNullOrWhiteSpace(policy!.Name)) { Toast.Error("Name is required."); return; }
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            policy.EarningType = null;
+            db.Update(policy);
+            await db.SaveChangesAsync();
+        }, "Policy saved.");
+        if (ok) showPolicy = false;
+        await LoadAsync();
+    }
+
+    private async Task EnrollAll(int policyId)
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var ids = await db.Employees.Where(e => e.Status != EmployeeStatus.Terminated && e.EmploymentType != EmploymentType.Contractor1099
+                                                    && !db.TimeOffBalances.Any(b => b.EmployeeId == e.Id && b.TimeOffPolicyId == policyId))
+                .Select(e => e.Id).ToListAsync();
+            db.TimeOffBalances.AddRange(ids.Select(id => new TimeOffBalance { EmployeeId = id, TimeOffPolicyId = policyId }));
+            await db.SaveChangesAsync();
+            Toast.Success($"Enrolled {ids.Count} employee(s).");
+        });
+        await LoadAsync();
+    }
+
+    private async Task Grant(int policyId)
+    {
+        await RunAsync(async () => Toast.Success($"Granted hours to {await TimeOff.RunAnnualGrantAsync(policyId)} employee(s)."));
+    }
+
+    private async Task AddHoliday()
+    {
+        if (string.IsNullOrWhiteSpace(newHoliday.Name)) { Toast.Error("Enter a name."); return; }
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            db.Holidays.Add(newHoliday);
+            await db.SaveChangesAsync();
+            newHoliday = new() { Date = newHoliday.Date };
+        }, "Holiday added.");
+        await LoadAsync();
+    }
+
+    private async Task AddUsHolidays()
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var existing = (await db.Holidays.Where(h => h.Date.Year == year).Select(h => h.Date).ToListAsync()).ToHashSet();
+            var add = SampleDataService.UsHolidays(year).Where(h => !existing.Contains(h.Date)).ToList();
+            db.Holidays.AddRange(add);
+            await db.SaveChangesAsync();
+            Toast.Success($"Added {add.Count} holidays for {year}.");
+        });
+        await LoadAsync();
+    }
+
+    private async Task DeleteHoliday(int id)
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            db.Holidays.Remove(await db.Holidays.FirstAsync(h => h.Id == id));
+            await db.SaveChangesAsync();
+        });
+        await LoadAsync();
+    }
+}

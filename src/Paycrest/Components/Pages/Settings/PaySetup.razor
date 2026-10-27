@@ -1,0 +1,218 @@
+@page "/settings/pay-setup"
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@inherits AppComponentBase
+
+<PageTitle>Earnings & deductions · WageHarbor</PageTitle>
+
+<PageHeader Title="Earnings, deductions & departments" Subtitle="The building blocks of every paycheck." />
+
+<div class="pc-tabs">
+    <button class="@(tab == "ded" ? "active" : "")" @onclick="@(() => tab = "ded")">Benefits & deductions</button>
+    <button class="@(tab == "earn" ? "active" : "")" @onclick="@(() => tab = "earn")">Earning types</button>
+    <button class="@(tab == "dept" ? "active" : "")" @onclick="@(() => tab = "dept")">Departments</button>
+</div>
+
+@if (tab == "ded")
+{
+    <div class="pc-card p-0">
+        <div class="d-flex p-3 border-bottom align-items-center">
+            <div class="small text-muted">Tax treatment controls which wages each deduction reduces. Section 125 benefits (medical, dental, HSA, FSA) reduce federal, FICA and state; traditional 401(k) reduces federal and state only.</div>
+            <button class="btn btn-sm btn-soft ms-auto text-nowrap" @onclick="() => { ded = new DeductionType(); showDed = true; }"><i class="bi bi-plus-lg me-1"></i>New deduction</button>
+        </div>
+        <div class="table-wrap">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>Code</th><th>Name</th><th>Category</th><th class="text-center">Fed</th><th class="text-center">FICA</th><th class="text-center">State</th><th>W-2</th><th class="num">Annual limit</th><th>Employer match</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var d in deductionTypes)
+                    {
+                        <tr class="clickable @(d.IsActive ? "" : "opacity-50")" @onclick="() => { ded = d; showDed = true; }">
+                            <td><code>@d.Code</code></td><td class="fw-semibold">@d.Name</td><td>@d.Category.Label()</td>
+                            <td class="text-center">@Check(d.ReducesFederalTaxable)</td><td class="text-center">@Check(d.ReducesFicaTaxable)</td><td class="text-center">@Check(d.ReducesStateTaxable)</td>
+                            <td>@d.W2Box12Code</td><td class="num">@Fmt.Money(d.AnnualLimit)</td>
+                            <td>@(d.EmployerMatchRate > 0 ? $"{d.EmployerMatchRate:P0} up to {d.EmployerMatchCapPercent:P0} of pay" : "—")</td>
+                            <td><i class="bi bi-chevron-right text-muted"></i></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (tab == "earn")
+{
+    <div class="pc-card p-0">
+        <div class="d-flex p-3 border-bottom">
+            <div class="small text-muted">Supplemental earnings (bonus, commission) are withheld at the flat federal supplemental rate. Non-taxable earnings (reimbursements) are added to net pay without tax.</div>
+            <button class="btn btn-sm btn-soft ms-auto text-nowrap" @onclick="() => { earn = new EarningType(); showEarn = true; }"><i class="bi bi-plus-lg me-1"></i>New earning</button>
+        </div>
+        <table class="table table-hover align-middle">
+            <thead><tr><th>Code</th><th>Name</th><th class="num">Multiplier</th><th>Hours-based</th><th>Taxable</th><th>Supplemental</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var e in earningTypes)
+                {
+                    <tr class="clickable @(e.IsActive ? "" : "opacity-50")" @onclick="() => { earn = e; showEarn = true; }">
+                        <td><code>@e.Code</code> @if (e.IsSystem) { <span class="chip tone-info plain ms-1">system</span> }</td>
+                        <td class="fw-semibold">@e.Name</td><td class="num">@e.Multiplier.ToString("0.##")×</td>
+                        <td>@Check(e.IsHoursBased)</td><td>@Check(e.IsTaxable)</td><td>@Check(e.IsSupplemental)</td>
+                        <td><i class="bi bi-chevron-right text-muted"></i></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="pc-card p-0" style="max-width:820px">
+        <div class="d-flex p-3 border-bottom">
+            <button class="btn btn-sm btn-soft ms-auto" @onclick="() => { dept = new Department(); showDept = true; }"><i class="bi bi-plus-lg me-1"></i>New department</button>
+        </div>
+        <table class="table table-hover align-middle">
+            <thead><tr><th>Name</th><th>Code</th><th>Description</th><th class="num">Employees</th></tr></thead>
+            <tbody>
+                @foreach (var d in departments)
+                {
+                    <tr class="clickable" @onclick="() => { dept = d; showDept = true; }">
+                        <td class="fw-semibold">@d.Name</td><td>@d.Code</td><td class="text-muted">@d.Description</td><td class="num">@d.Employees.Count</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (departments.Count == 0) { <EmptyState Icon="diagram-3" Title="No departments" /> }
+    </div>
+}
+
+<Modal @bind-Show="showDed" Title="Deduction type" Large="true">
+    <ChildContent>
+        @if (ded != null)
+        {
+            <div class="row g-3">
+                <div class="col-md-3"><label class="form-label">Code</label><input class="form-control" maxlength="12" @bind="ded.Code" /></div>
+                <div class="col-md-5"><label class="form-label">Name</label><input class="form-control" maxlength="60" @bind="ded.Name" /></div>
+                <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" @bind="ded.Category">
+                        @foreach (var c in Enum.GetValues<DeductionCategory>()) { <option value="@c">@c.Label()</option> }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Pre-tax: reduces taxable wages for</label>
+                    <div class="d-flex gap-4">
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="rf" @bind="ded.ReducesFederalTaxable" /><label class="form-check-label" for="rf">Federal income tax</label></div>
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="rfi" @bind="ded.ReducesFicaTaxable" /><label class="form-check-label" for="rfi">Social Security & Medicare</label></div>
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="rs" @bind="ded.ReducesStateTaxable" /><label class="form-check-label" for="rs">State income tax</label></div>
+                    </div>
+                    <div class="form-text">Leave all unchecked for post-tax deductions (Roth, garnishments, loans).</div>
+                </div>
+                <div class="col-md-3"><label class="form-label">W-2 box 12 code</label><input class="form-control" maxlength="3" @bind="ded.W2Box12Code" /></div>
+                <div class="col-md-3"><label class="form-label">Annual limit ($)</label><input type="number" class="form-control" @bind="ded.AnnualLimit" /></div>
+                <div class="col-md-3"><label class="form-label">Employer match (%)</label><input type="number" step="1" class="form-control" @bind="MatchPct" /></div>
+                <div class="col-md-3"><label class="form-label">Match cap (% of pay)</label><input type="number" step="0.5" class="form-control" @bind="CapPct" /></div>
+                <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" id="dact" @bind="ded.IsActive" /><label class="form-check-label" for="dact">Active</label></div></div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showDed = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="() => Save(ded!, () => showDed = false)">Save</button>
+    </Footer>
+</Modal>
+
+<Modal @bind-Show="showEarn" Title="Earning type">
+    <ChildContent>
+        @if (earn != null)
+        {
+            <div class="row g-3">
+                <div class="col-4"><label class="form-label">Code</label><input class="form-control" maxlength="12" disabled="@earn.IsSystem" @bind="earn.Code" /></div>
+                <div class="col-8"><label class="form-label">Name</label><input class="form-control" maxlength="60" @bind="earn.Name" /></div>
+                <div class="col-4"><label class="form-label">Rate multiplier</label><input type="number" step="0.1" class="form-control" @bind="earn.Multiplier" /></div>
+                <div class="col-8 d-flex flex-wrap gap-3 align-items-end">
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="ehb" @bind="earn.IsHoursBased" /><label class="form-check-label" for="ehb">Hours-based</label></div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="etx" @bind="earn.IsTaxable" /><label class="form-check-label" for="etx">Taxable</label></div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="esu" @bind="earn.IsSupplemental" /><label class="form-check-label" for="esu">Supplemental</label></div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="eac" @bind="earn.IsActive" /><label class="form-check-label" for="eac">Active</label></div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showEarn = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="() => Save(earn!, () => showEarn = false)">Save</button>
+    </Footer>
+</Modal>
+
+<Modal @bind-Show="showDept" Title="Department">
+    <ChildContent>
+        @if (dept != null)
+        {
+            <div class="row g-3">
+                <div class="col-8"><label class="form-label">Name</label><input class="form-control" maxlength="80" @bind="dept.Name" /></div>
+                <div class="col-4"><label class="form-label">Code</label><input class="form-control" maxlength="20" @bind="dept.Code" /></div>
+                <div class="col-12"><label class="form-label">Description</label><input class="form-control" maxlength="250" @bind="dept.Description" /></div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        @if (dept?.Id > 0)
+        {
+            <button class="btn btn-outline-danger me-auto" disabled="@Busy" @onclick="DeleteDept">Delete</button>
+        }
+        <button class="btn btn-light" @onclick="() => showDept = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="() => Save(dept!, () => showDept = false)">Save</button>
+    </Footer>
+</Modal>
+
+@code {
+    private string tab = "ded";
+    private List<DeductionType> deductionTypes = [];
+    private List<EarningType> earningTypes = [];
+    private List<Department> departments = [];
+    private DeductionType? ded;
+    private EarningType? earn;
+    private Department? dept;
+    private bool showDed, showEarn, showDept;
+
+    private decimal MatchPct { get => ded!.EmployerMatchRate * 100; set => ded!.EmployerMatchRate = value / 100; }
+    private decimal CapPct { get => ded!.EmployerMatchCapPercent * 100; set => ded!.EmployerMatchCapPercent = value / 100; }
+
+    private static MarkupString Check(bool b) => new(b ? "<i class=\"bi bi-check-lg text-success\"></i>" : "<span class=\"text-muted\">—</span>");
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        deductionTypes = await db.DeductionTypes.AsNoTracking().OrderByDescending(d => d.IsActive).ThenBy(d => d.Name).ToListAsync();
+        earningTypes = await db.EarningTypes.AsNoTracking().OrderByDescending(e => e.IsSystem).ThenBy(e => e.Name).ToListAsync();
+        departments = await db.Departments.AsNoTracking().Include(d => d.Employees.Where(e => e.Status != EmployeeStatus.Terminated)).OrderBy(d => d.Name).ToListAsync();
+    }
+
+    private async Task Save<T>(T entity, Action close) where T : class
+    {
+        var ok = await RunAsync(async () =>
+        {
+            var ctx = new System.ComponentModel.DataAnnotations.ValidationContext(entity);
+            var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            if (!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(entity, ctx, results, true))
+                throw new InvalidOperationException(string.Join(" ", results.Select(r => r.ErrorMessage)));
+            if (entity is Department d) d.Employees = [];
+            await using var db = await Dbs.OpenAsync();
+            db.Update(entity);
+            await db.SaveChangesAsync();
+        }, "Saved.");
+        if (ok) close();
+        await LoadAsync();
+    }
+
+    private async Task DeleteDept()
+    {
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            db.Departments.Remove(await db.Departments.FirstAsync(x => x.Id == dept!.Id));
+            await db.SaveChangesAsync();
+        }, "Department deleted. Its employees are now unassigned.");
+        if (ok) showDept = false;
+        await LoadAsync();
+    }
+}

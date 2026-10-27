@@ -1,0 +1,323 @@
+@page "/payroll/{Id:int}"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject PayrollService Payroll
+
+<PageTitle>Payroll @run?.PayDate · WageHarbor</PageTitle>
+
+@if (run == null) { return; }
+
+<PageHeader Title="@($"Pay date {Fmt.Date(run.PayDate)}")" Subtitle="@($"{(run.RunType == PayrollRunType.Regular ? "Regular" : "Off-cycle")} · {run.PayFrequency.Label()} · {run.PeriodLabel}")">
+    <Crumbs><a href="payroll">Payroll</a> / @Fmt.Date(run.PayDate)</Crumbs>
+    <ChildContent>
+        <button class="btn btn-outline-secondary" @onclick="ExportRegister"><i class="bi bi-filetype-csv me-1"></i>Register</button>
+        @if (run.Status is PayrollRunStatus.Approved or PayrollRunStatus.Paid)
+        {
+            <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="DownloadAch"><i class="bi bi-bank me-1"></i>ACH file</button>
+        }
+        @if (canRun)
+        {
+            @switch (run.Status)
+            {
+                case PayrollRunStatus.Draft:
+                    <button class="btn btn-outline-danger" disabled="@Busy" @onclick="() => confirm = Confirm.Delete">Delete</button>
+                    <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="Recalculate"><i class="bi bi-arrow-repeat me-1"></i>Recalculate</button>
+                    <button class="btn btn-primary" disabled="@Busy" @onclick="() => confirm = Confirm.Approve"><i class="bi bi-check2-circle me-1"></i>Approve</button>
+                    break;
+                case PayrollRunStatus.Approved:
+                    <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="Reopen">Reopen</button>
+                    <button class="btn btn-success" disabled="@Busy" @onclick="() => confirm = Confirm.Pay"><i class="bi bi-send-check me-1"></i>Mark as paid</button>
+                    break;
+                case PayrollRunStatus.Paid:
+                    <button class="btn btn-outline-danger" disabled="@Busy" @onclick="() => confirm = Confirm.Void">Void</button>
+                    break;
+            }
+        }
+    </ChildContent>
+</PageHeader>
+
+<div class="steps">
+    <span class="step @(run.Status == PayrollRunStatus.Draft ? "current" : "done")"><i class="bi bi-calculator"></i>Calculate & review</span>
+    <span class="step @(run.Status == PayrollRunStatus.Approved ? "current" : run.Status == PayrollRunStatus.Paid ? "done" : "")"><i class="bi bi-check2-circle"></i>Approve</span>
+    <span class="step @(run.Status == PayrollRunStatus.Paid ? "done" : "")"><i class="bi bi-bank"></i>Fund & pay</span>
+    @if (run.Status == PayrollRunStatus.Voided) { <span class="step"><StatusChip Status="run.Status" /></span> }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3"><StatCard Label="Gross pay" Value="@Fmt.Money(run.TotalGross)" Icon="wallet2" Tone="primary" Hint="@($"{run.EmployeeCount} paychecks")" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Employee taxes & deductions" Value="@Fmt.Money(run.TotalEmployeeTaxes + run.TotalDeductions)" Icon="dash-circle" Tone="warning" Hint="@($"Taxes {Fmt.Money(run.TotalEmployeeTaxes)}")" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Net pay" Value="@Fmt.Money(run.TotalNet)" Icon="cash" Tone="success" Hint="@($"Direct deposit {Fmt.Money(directDeposit)}")" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Total employer cost" Value="@Fmt.Money(run.TotalCost)" Icon="building" Tone="info" Hint="@($"ER taxes {Fmt.Money(run.TotalEmployerTaxes)} · benefits {Fmt.Money(run.TotalEmployerContributions)}")" /></div>
+</div>
+
+@if (!string.IsNullOrEmpty(run.Warnings))
+{
+    <div class="warning-list mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i><strong>Review before approving</strong>
+        <ul>@foreach (var w in run.Warnings.Split('\n')) { <li>@w</li> }</ul>
+    </div>
+}
+
+@if (run.Status == PayrollRunStatus.Approved)
+{
+    <div class="pc-card mb-3 tone-primary border-0 small">
+        <strong>Next:</strong> download the ACH file and upload it to your bank at least 2 business days before @Fmt.Date(run.PayDate),
+        set aside @Fmt.Money(run.TotalEmployeeTaxes + run.TotalEmployerTaxes) for tax deposits, then click <b>Mark as paid</b>.
+        Marking paid assigns check numbers, locks timesheets and accrues time off.
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-xl-@(run.IsEditable ? "8" : "12")">
+        <div class="pc-card p-0">
+            <div class="d-flex align-items-center p-3 border-bottom">
+                <div class="fw-semibold">Paychecks</div>
+                <input class="form-control form-control-sm ms-auto" style="max-width:220px" placeholder="Filter" @bind="filter" @bind:event="oninput" />
+            </div>
+            @if (checks.Count == 0)
+            {
+                <EmptyState Icon="receipt" Title="No paychecks">
+                    @(run.RunType == PayrollRunType.OffCycle ? "Add earnings for employees on the right." : "No eligible employees for this frequency and period.")
+                </EmptyState>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Fed</th><th class="num">FICA</th><th class="num">State</th><th class="num">Deductions</th><th class="num">Net</th><th>Pay by</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in checks.Where(c => string.IsNullOrEmpty(filter) || c.EmployeeName.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"paystub/{c.Id}"))">
+                                    <td>
+                                        <div class="fw-semibold">@c.EmployeeName</div>
+                                        @if (c.Warnings != null) { <div class="small text-warning"><i class="bi bi-exclamation-triangle"></i> @c.Warnings.Split('\n').Length note(s)</div> }
+                                    </td>
+                                    <td class="num">@Fmt.Hours(c.TotalHours)</td>
+                                    <td class="num">@Fmt.Money(c.GrossPay)</td>
+                                    <td class="num">@Fmt.Money(c.FederalIncomeTax)</td>
+                                    <td class="num">@Fmt.Money(c.SocialSecurityTax + c.MedicareTax + c.AdditionalMedicareTax)</td>
+                                    <td class="num">@Fmt.Money(c.StateIncomeTax)</td>
+                                    <td class="num">@Fmt.Money(c.PreTaxDeductions + c.PostTaxDeductions)</td>
+                                    <td class="num fw-bold">@Fmt.Money(c.NetPay)</td>
+                                    <td class="small">@(c.PaymentMethod == PaymentMethod.DirectDeposit ? "Direct deposit" : c.CheckNumber.HasValue ? $"Check #{c.CheckNumber}" : "Check")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td>Totals</td>
+                                <td class="num">@Fmt.Hours(checks.Sum(c => c.TotalHours))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.GrossPay))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.FederalIncomeTax))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.SocialSecurityTax + c.MedicareTax + c.AdditionalMedicareTax))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.StateIncomeTax))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.PreTaxDeductions + c.PostTaxDeductions))</td>
+                                <td class="num">@Fmt.Money(checks.Sum(c => c.NetPay))</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (run.IsEditable && canRun)
+    {
+        <div class="col-xl-4">
+            <div class="pc-card">
+                <h2 class="mb-3">Add one-time earnings</h2>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <select class="form-select" @bind="adjEmployeeId">
+                            <option value="0">Select employee…</option>
+                            @foreach (var e in employees) { <option value="@e.Id">@e.FullName</option> }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <select class="form-select" @bind="adjEarningTypeId">
+                            @foreach (var t in earningTypes) { <option value="@t.Id">@t.Name</option> }
+                        </select>
+                    </div>
+                    @if (SelectedType?.IsHoursBased == true)
+                    {
+                        <div class="col-6"><input type="number" step="0.25" class="form-control" placeholder="Hours" @bind="adjHours" /></div>
+                        <div class="col-6"><input type="number" step="0.01" class="form-control" placeholder="or amount $" @bind="adjAmount" /></div>
+                    }
+                    else
+                    {
+                        <div class="col-12"><input type="number" step="0.01" class="form-control" placeholder="Amount $" @bind="adjAmount" /></div>
+                    }
+                    <div class="col-12"><input class="form-control" placeholder="Note (shown on stub)" @bind="adjNote" maxlength="200" /></div>
+                    <div class="col-12"><button class="btn btn-soft w-100" disabled="@Busy" @onclick="AddAdjustment"><i class="bi bi-plus-lg me-1"></i>Add & recalculate</button></div>
+                </div>
+                @if (run.Adjustments.Count > 0)
+                {
+                    <ul class="list-clean mt-3 small">
+                        @foreach (var a in run.Adjustments)
+                        {
+                            <li class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@a.Employee?.FullName</div>
+                                    <div class="text-muted">@a.EarningType?.Name @(a.Hours.HasValue ? $"· {Fmt.Hours(a.Hours.Value)} h" : "") @(a.Amount != 0 ? "· " + Fmt.Money(a.Amount) : "") @a.Note</div>
+                                </div>
+                                <button class="btn btn-sm btn-light text-danger" @onclick="() => RemoveAdjustment(a.Id)"><i class="bi bi-x-lg"></i></button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+            @if (run.CalculatedUtc.HasValue)
+            {
+                <div class="small text-muted mt-2 px-1">Last calculated @run.CalculatedUtc.Value.ToLocalTime().ToString("g"). Time approved after that is picked up by Recalculate.</div>
+            }
+        </div>
+    }
+</div>
+
+<Modal Show="confirm != Confirm.None" ShowChanged="_ => confirm = Confirm.None" Title="@ConfirmTitle">
+    <ChildContent>
+        @switch (confirm)
+        {
+            case Confirm.Approve:
+                <p>Approve <strong>@run.EmployeeCount</strong> paychecks totaling <strong>@Fmt.Money(run.TotalNet)</strong> net (total cost @Fmt.Money(run.TotalCost))?</p>
+                <p class="small text-muted mb-0">Approved payrolls are locked. You can reopen it until it is marked paid.</p>
+                break;
+            case Confirm.Pay:
+                <p>Confirm the payroll has been funded and paychecks issued for <strong>@Fmt.Date(run.PayDate)</strong>.</p>
+                <p class="small text-muted mb-0">This assigns check numbers, locks timesheets, accrues time off and makes pay stubs visible to employees.</p>
+                break;
+            case Confirm.Void:
+                <p class="text-danger">Void this payroll? Paychecks will be excluded from YTD totals and tax reports, timesheets are unlocked, and time-off accruals are reversed.</p>
+                <p class="small text-muted mb-0">If money has already moved, you must reverse it with your bank separately.</p>
+                break;
+            case Confirm.Delete:
+                <p>Delete this draft payroll and all of its calculated paychecks?</p>
+                break;
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => confirm = Confirm.None">Cancel</button>
+        <button class="btn @(confirm is Confirm.Void or Confirm.Delete ? "btn-danger" : "btn-primary")" disabled="@Busy" @onclick="DoConfirm">@ConfirmTitle</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private enum Confirm { None, Approve, Pay, Void, Delete }
+    private Confirm confirm;
+    private PayrollRun? run;
+    private List<Paycheck> checks = [];
+    private List<Employee> employees = [];
+    private List<EarningType> earningTypes = [];
+    private bool canRun;
+    private string? filter, adjNote;
+    private int adjEmployeeId, adjEarningTypeId;
+    private decimal? adjHours;
+    private decimal adjAmount;
+    private decimal directDeposit;
+
+    private EarningType? SelectedType => earningTypes.FirstOrDefault(t => t.Id == adjEarningTypeId);
+    private string ConfirmTitle => confirm switch
+    {
+        Confirm.Approve => "Approve payroll", Confirm.Pay => "Mark as paid", Confirm.Void => "Void payroll", Confirm.Delete => "Delete draft", _ => ""
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        canRun = await Me.IsInAnyRoleAsync(AppRoles.Admin, AppRoles.Payroll);
+        await using var db = await Dbs.OpenAsync();
+        employees = await db.Employees.AsNoTracking().Where(e => e.Status != EmployeeStatus.Terminated || e.TerminationDate >= DateOnly.FromDateTime(DateTime.Today).AddDays(-90))
+            .OrderBy(e => e.FirstName).ToListAsync();
+        earningTypes = await db.EarningTypes.AsNoTracking().Where(t => t.IsActive && t.Code != EarningType.Overtime).OrderBy(t => t.Name).ToListAsync();
+        adjEarningTypeId = earningTypes.FirstOrDefault(t => t.Code == "BONUS")?.Id ?? earningTypes.First().Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        run = await db.PayrollRuns.AsNoTracking()
+            .Include(r => r.Adjustments).ThenInclude(a => a.Employee)
+            .Include(r => r.Adjustments).ThenInclude(a => a.EarningType)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(r => r.Id == Id);
+        if (run == null) { Nav.NavigateTo("payroll"); return; }
+        checks = await db.Paychecks.AsNoTracking().Where(p => p.PayrollRunId == Id).OrderBy(p => p.EmployeeName).ToListAsync();
+        directDeposit = checks.Where(c => c.PaymentMethod == PaymentMethod.DirectDeposit).Sum(c => c.NetPay);
+    }
+
+    private async Task Recalculate()
+    {
+        await RunAsync(() => Payroll.CalculateAsync(Id), "Payroll recalculated.");
+        await LoadAsync();
+    }
+
+    private async Task Reopen()
+    {
+        await RunAsync(() => Payroll.ReopenAsync(Id), "Payroll reopened as draft.");
+        await LoadAsync();
+    }
+
+    private async Task DoConfirm()
+    {
+        var action = confirm;
+        var ok = await RunAsync(action switch
+        {
+            Confirm.Approve => () => Payroll.ApproveAsync(Id),
+            Confirm.Pay => () => Payroll.MarkPaidAsync(Id),
+            Confirm.Void => () => Payroll.VoidAsync(Id),
+            Confirm.Delete => () => Payroll.DeleteDraftAsync(Id),
+            _ => () => Task.CompletedTask
+        }, action switch
+        {
+            Confirm.Approve => "Payroll approved.", Confirm.Pay => "Payroll marked as paid. Pay stubs are now available to employees.",
+            Confirm.Void => "Payroll voided.", Confirm.Delete => "Draft deleted.", _ => null
+        });
+        confirm = Confirm.None;
+        if (ok && action == Confirm.Delete) { Nav.NavigateTo("payroll"); return; }
+        await LoadAsync();
+    }
+
+    private async Task AddAdjustment()
+    {
+        if (adjEmployeeId == 0) { Toast.Error("Select an employee."); return; }
+        if (adjAmount == 0 && (adjHours ?? 0) == 0) { Toast.Error("Enter hours or an amount."); return; }
+        if (await RunAsync(() => Payroll.AddAdjustmentAsync(Id, adjEmployeeId, adjEarningTypeId, SelectedType?.IsHoursBased == true ? adjHours : null, adjAmount, adjNote), "Earning added."))
+        {
+            adjHours = null; adjAmount = 0; adjNote = null;
+        }
+        await LoadAsync();
+    }
+
+    private async Task RemoveAdjustment(int id)
+    {
+        await RunAsync(() => Payroll.RemoveAdjustmentAsync(id), "Earning removed.");
+        await LoadAsync();
+    }
+
+    private async Task DownloadAch()
+    {
+        await RunAsync(async () =>
+        {
+            var (name, content) = await Payroll.BuildNachaAsync(Id);
+            await DownloadTextAsync(name, "text/plain", content);
+        }, "ACH file generated. Upload it to your bank's ACH portal.");
+    }
+
+    private async Task ExportRegister()
+    {
+        var csv = ReportService.ToCsv(checks,
+            ("Employee", c => c.EmployeeName), ("Pay date", c => c.PayDate.ToString("yyyy-MM-dd")), ("Hours", c => c.TotalHours),
+            ("Gross", c => c.GrossPay), ("Pre-tax deductions", c => c.PreTaxDeductions), ("Federal taxable", c => c.FederalTaxableWages),
+            ("Federal income tax", c => c.FederalIncomeTax), ("Social Security", c => c.SocialSecurityTax), ("Medicare", c => c.MedicareTax + c.AdditionalMedicareTax),
+            ("State", c => c.StateCode), ("State tax", c => c.StateIncomeTax), ("Post-tax deductions", c => c.PostTaxDeductions), ("Net pay", c => c.NetPay),
+            ("ER Social Security", c => c.EmployerSocialSecurity), ("ER Medicare", c => c.EmployerMedicare), ("FUTA", c => c.FutaTax), ("SUTA", c => c.SutaTax),
+            ("ER benefits", c => c.EmployerContributions), ("Method", c => c.PaymentMethod), ("Check #", c => c.CheckNumber));
+        await DownloadTextAsync($"payroll_register_{run!.PayDate:yyyyMMdd}.csv", "text/csv", csv);
+    }
+}

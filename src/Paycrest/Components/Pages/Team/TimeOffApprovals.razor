@@ -1,0 +1,94 @@
+@page "/time-off/approvals"
+@attribute [Authorize(Roles = AppRoles.Approvers)]
+@inherits AppComponentBase
+@inject TimeOffService TimeOff
+
+<PageTitle>Time-off requests · WageHarbor</PageTitle>
+
+<PageHeader Title="Time-off requests" Subtitle="Approving deducts the balance and adds paid time-off hours to the employee's timesheet." />
+
+<div class="pc-tabs">
+    <button class="@(showPending ? "active" : "")" @onclick="() => Switch(true)">Pending (@pendingCount)</button>
+    <button class="@(!showPending ? "active" : "")" @onclick="() => Switch(false)">History</button>
+</div>
+
+<div class="pc-card p-0">
+    @if (requests.Count == 0)
+    {
+        <EmptyState Icon="airplane" Title="@(showPending ? "No requests waiting for you" : "No requests yet")" />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table align-middle">
+                <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th class="num">Hours</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var r in requests)
+                    {
+                        <tr>
+                            <td><PersonCell Name="@r.Employee!.FullName" Sub="@($"Requested {r.RequestedUtc:MMM d}")" /></td>
+                            <td>@r.TimeOffPolicy?.Name</td>
+                            <td>@r.StartDate.ToString("ddd, MMM d")@(r.EndDate != r.StartDate ? " – " + r.EndDate.ToString("ddd, MMM d") : "")</td>
+                            <td class="num">@Fmt.Hours(r.Hours)</td>
+                            <td class="small text-muted" style="max-width:260px">@r.Reason</td>
+                            <td><StatusChip Status="r.Status" /> @if (r.ReviewedBy != null) { <div class="small text-muted">@r.ReviewedBy</div> }</td>
+                            <td class="text-end text-nowrap">
+                                @if (r.Status == ApprovalStatus.Pending)
+                                {
+                                    <button class="btn btn-sm btn-success" disabled="@Busy" @onclick="() => Review(r, true)"><i class="bi bi-check-lg"></i> Approve</button>
+                                    <button class="btn btn-sm btn-outline-danger" disabled="@Busy" @onclick="() => Review(r, false)">Deny</button>
+                                }
+                                else if (r.Status == ApprovalStatus.Approved)
+                                {
+                                    <button class="btn btn-sm btn-light" disabled="@Busy" @onclick="() => Cancel(r.Id)">Revoke</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private bool showPending = true, seeAll;
+    private int? myId;
+    private int pendingCount;
+    private List<TimeOffRequest> requests = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        seeAll = await Me.CanApproveAllAsync();
+        myId = await Me.GetEmployeeIdAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!seeAll && myId == null) return;
+        var manager = seeAll ? null : myId;
+        var pending = await TimeOff.ListRequestsAsync(status: ApprovalStatus.Pending, managerEmployeeId: manager);
+        pendingCount = pending.Count;
+        requests = showPending ? pending.OrderBy(r => r.StartDate).ToList() : await TimeOff.ListRequestsAsync(managerEmployeeId: manager);
+    }
+
+    private async Task Switch(bool pending)
+    {
+        showPending = pending;
+        await LoadAsync();
+    }
+
+    private async Task Review(TimeOffRequest r, bool approve)
+    {
+        if (!seeAll && r.EmployeeId == myId) { Toast.Error("You can't approve your own request."); return; }
+        await RunAsync(() => TimeOff.ReviewAsync(r.Id, approve, null), approve ? $"Approved {r.Employee!.FullName}'s time off." : "Request denied.");
+        await LoadAsync();
+    }
+
+    private async Task Cancel(int id)
+    {
+        await RunAsync(() => TimeOff.CancelAsync(id), "Approval revoked and balance restored.");
+        await LoadAsync();
+    }
+}

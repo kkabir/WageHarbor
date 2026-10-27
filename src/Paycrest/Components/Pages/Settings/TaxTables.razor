@@ -1,0 +1,255 @@
+@page "/settings/tax"
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@inherits AppComponentBase
+
+<PageTitle>Tax tables · WageHarbor</PageTitle>
+
+<PageHeader Title="Tax tables" Subtitle="Federal and state withholding parameters by year. Review every January against IRS Publication 15-T and your state's guide.">
+    <select class="form-select" style="width:110px" value="@year" @onchange="YearChanged">
+        @foreach (var y in years) { <option value="@y">@y</option> }
+    </select>
+    <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="CopyForward"><i class="bi bi-copy me-1"></i>Create @(years.Max() + 1) from @years.Max()</button>
+</PageHeader>
+
+<div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>
+    WageHarbor ships with best-effort tax values, but tax law changes often. You are responsible for verifying rates before running payroll.
+    State rules use a simplified method (annualized flat rate or brackets); local/city taxes, disability insurance (e.g. CA SDI, NY PFL) and reciprocity are not calculated.
+</div>
+
+@if (ty == null)
+{
+    <EmptyState Icon="bank" Title="No federal tables for this year" />
+    return;
+}
+
+<div class="row g-3">
+    <div class="col-xl-5">
+        <div class="pc-card">
+            <h2 class="mb-3">Federal · @ty.Year</h2>
+            <div class="row g-3">
+                <div class="col-6"><label class="form-label">Social Security rate (%)</label><input type="number" step="0.01" class="form-control" @bind="SsRate" /></div>
+                <div class="col-6"><label class="form-label">Social Security wage base</label><input type="number" class="form-control" @bind="ty.SocialSecurityWageBase" /></div>
+                <div class="col-6"><label class="form-label">Medicare rate (%)</label><input type="number" step="0.01" class="form-control" @bind="MedRate" /></div>
+                <div class="col-6"><label class="form-label">Additional Medicare threshold</label><input type="number" class="form-control" @bind="ty.AdditionalMedicareThreshold" /></div>
+                <div class="col-6"><label class="form-label">FUTA rate (%) after credit</label><input type="number" step="0.01" class="form-control" @bind="FutaRate" /></div>
+                <div class="col-6"><label class="form-label">FUTA wage base</label><input type="number" class="form-control" @bind="ty.FutaWageBase" /></div>
+                <div class="col-6"><label class="form-label">Supplemental rate (%)</label><input type="number" step="0.1" class="form-control" @bind="SuppRate" /></div>
+                <div class="col-6"></div>
+                <div class="col-4"><label class="form-label">Std. deduction single</label><input type="number" class="form-control" @bind="ty.StandardDeductionSingle" /></div>
+                <div class="col-4"><label class="form-label">Married jointly</label><input type="number" class="form-control" @bind="ty.StandardDeductionMarried" /></div>
+                <div class="col-4"><label class="form-label">Head of household</label><input type="number" class="form-control" @bind="ty.StandardDeductionHeadOfHousehold" /></div>
+                <div class="col-12"><label class="form-label">Notes</label><input class="form-control" @bind="ty.Notes" /></div>
+            </div>
+            <div class="form-section">
+                <h3>Income tax brackets (annual taxable income)</h3>
+                <select class="form-select mb-2" @bind="bracketStatus">
+                    @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s.Label()</option> }
+                </select>
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Over</th><th>Rate (%)</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var b in ty.Brackets.Where(b => b.FilingStatus == bracketStatus).OrderBy(b => b.Threshold))
+                        {
+                            <tr>
+                                <td><input type="number" class="form-control form-control-sm" @bind="b.Threshold" /></td>
+                                <td><input type="number" step="0.01" class="form-control form-control-sm" value="@(b.Rate * 100)" @onchange="e => b.Rate = decimal.Parse(e.Value!.ToString()!) / 100" /></td>
+                                <td><button class="btn btn-sm btn-light text-danger" @onclick="() => ty.Brackets.Remove(b)"><i class="bi bi-x"></i></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <button class="btn btn-sm btn-light" @onclick="() => ty.Brackets.Add(new FederalTaxBracket { Year = ty.Year, FilingStatus = bracketStatus, Threshold = 0, Rate = 0.10m })"><i class="bi bi-plus"></i> Add bracket</button>
+            </div>
+            <button class="btn btn-primary mt-3" disabled="@Busy" @onclick="SaveFederal"><i class="bi bi-check2 me-1"></i>Save federal</button>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="pc-card p-0">
+            <div class="d-flex p-3 border-bottom align-items-center">
+                <h2 class="m-0">State withholding · @year</h2>
+                <button class="btn btn-sm btn-soft ms-auto" @onclick="NewState"><i class="bi bi-plus-lg me-1"></i>Add state</button>
+            </div>
+            <div class="table-wrap" style="max-height:640px">
+                <table class="table table-hover table-sm align-middle">
+                    <thead><tr><th>State</th><th>Method</th><th class="num">Rate</th><th class="num">Std. deduction</th><th class="num">Per allowance</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        @foreach (var s in states)
+                        {
+                            <tr class="clickable" @onclick="() => EditState(s)">
+                                <td class="fw-semibold">@s.StateCode @if (usedStates.Contains(s.StateCode)) { <i class="bi bi-person-fill text-primary small" title="Employees work here"></i> }</td>
+                                <td>@s.Method</td>
+                                <td class="num">@(s.Method == StateTaxMethod.FlatRate ? Fmt.Pct(s.FlatRate) : s.Method == StateTaxMethod.Brackets ? $"{s.Brackets.Count} brackets" : "—")</td>
+                                <td class="num">@(s.StandardDeduction > 0 ? Fmt.Money(s.StandardDeduction) : "—")</td>
+                                <td class="num">@(s.AllowanceAmount > 0 ? Fmt.Money(s.AllowanceAmount) : "—")</td>
+                                <td class="small text-muted text-truncate" style="max-width:220px">@s.Notes</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (missing.Count > 0)
+            {
+                <div class="p-3 border-top small text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Employees work in states with no rule for @year: <strong>@string.Join(", ", missing)</strong>. Nothing will be withheld until you add them.</div>
+            }
+        </div>
+    </div>
+</div>
+
+<Modal @bind-Show="showState" Title="State rule" Large="true">
+    <ChildContent>
+        @if (state != null)
+        {
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">State</label>
+                    <select class="form-select" @bind="state.StateCode" disabled="@(state.Id != 0)">
+                        @foreach (var s in Fmt.States) { <option value="@s">@s</option> }
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">Method</label>
+                    <select class="form-select" @bind="state.Method">
+                        <option value="@StateTaxMethod.NoIncomeTax">No state income tax</option>
+                        <option value="@StateTaxMethod.FlatRate">Flat rate (annualized)</option>
+                        <option value="@StateTaxMethod.Brackets">Progressive brackets (annualized)</option>
+                        <option value="@StateTaxMethod.NotConfigured">Not configured</option>
+                    </select>
+                </div>
+                @if (state.Method == StateTaxMethod.FlatRate)
+                {
+                    <div class="col-md-4"><label class="form-label">Rate (%)</label><input type="number" step="0.001" class="form-control" value="@(state.FlatRate * 100)" @onchange="e => state.FlatRate = decimal.Parse(e.Value!.ToString()!) / 100" /></div>
+                }
+                @if (state.Method is StateTaxMethod.FlatRate or StateTaxMethod.Brackets)
+                {
+                    <div class="col-md-4"><label class="form-label">Annual standard deduction</label><input type="number" class="form-control" @bind="state.StandardDeduction" /></div>
+                    <div class="col-md-4"><label class="form-label">Annual amount per allowance</label><input type="number" class="form-control" @bind="state.AllowanceAmount" /></div>
+                }
+                <div class="col-12"><label class="form-label">Notes</label><input class="form-control" @bind="state.Notes" /></div>
+                @if (state.Method == StateTaxMethod.Brackets)
+                {
+                    <div class="col-12">
+                        <label class="form-label">Brackets</label>
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Filing status</th><th>Over ($/yr)</th><th>Rate (%)</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var b in state.Brackets.OrderBy(b => b.FilingStatus).ThenBy(b => b.Threshold))
+                                {
+                                    <tr>
+                                        <td><select class="form-select form-select-sm" @bind="b.FilingStatus">@foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s</option> }</select></td>
+                                        <td><input type="number" class="form-control form-control-sm" @bind="b.Threshold" /></td>
+                                        <td><input type="number" step="0.001" class="form-control form-control-sm" value="@(b.Rate * 100)" @onchange="e => b.Rate = decimal.Parse(e.Value!.ToString()!) / 100" /></td>
+                                        <td><button class="btn btn-sm btn-light text-danger" @onclick="() => state.Brackets.Remove(b)"><i class="bi bi-x"></i></button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <button class="btn btn-sm btn-light" @onclick="() => state.Brackets.Add(new StateTaxBracket())"><i class="bi bi-plus"></i> Add bracket</button>
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showState = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveState">Save</button>
+    </Footer>
+</Modal>
+
+@code {
+    private int year = DateTime.Today.Year;
+    private List<int> years = [];
+    private TaxYear? ty;
+    private List<StateTaxRule> states = [];
+    private HashSet<string> usedStates = [];
+    private List<string> missing = [];
+    private FilingStatus bracketStatus;
+    private StateTaxRule? state;
+    private bool showState;
+
+    private decimal SsRate { get => ty!.SocialSecurityRate * 100; set => ty!.SocialSecurityRate = value / 100; }
+    private decimal MedRate { get => ty!.MedicareRate * 100; set => ty!.MedicareRate = value / 100; }
+    private decimal FutaRate { get => ty!.FutaRate * 100; set => ty!.FutaRate = value / 100; }
+    private decimal SuppRate { get => ty!.SupplementalRate * 100; set => ty!.SupplementalRate = value / 100; }
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        years = await db.TaxYears.Select(t => t.Year).OrderByDescending(y => y).ToListAsync();
+        if (years.Count == 0) years.Add(year);
+        if (!years.Contains(year)) year = years[0];
+        ty = await db.TaxYears.AsNoTracking().Include(t => t.Brackets).FirstOrDefaultAsync(t => t.Year == year);
+        states = await db.StateTaxRules.AsNoTracking().Include(s => s.Brackets).Where(s => s.Year == year).OrderBy(s => s.StateCode).ToListAsync();
+        usedStates = (await db.Employees.Where(e => e.Status != EmployeeStatus.Terminated).Select(e => e.WorkState).Distinct().ToListAsync()).ToHashSet();
+        missing = usedStates.Where(s => !states.Any(r => r.StateCode == s && r.Method != StateTaxMethod.NotConfigured)).OrderBy(s => s).ToList();
+    }
+
+    private async Task YearChanged(ChangeEventArgs e)
+    {
+        year = int.Parse(e.Value!.ToString()!);
+        await LoadAsync();
+    }
+
+    private async Task SaveFederal()
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            await db.FederalTaxBrackets.Where(b => b.Year == ty!.Year).ExecuteDeleteAsync();
+            foreach (var b in ty!.Brackets) { b.Id = 0; b.Year = ty.Year; }
+            db.TaxYears.Update(ty);
+            await db.SaveChangesAsync();
+        }, "Federal tables saved.");
+        await LoadAsync();
+    }
+
+    private async Task CopyForward()
+    {
+        var src = years.Max();
+        var target = src + 1;
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var t = await db.TaxYears.AsNoTracking().Include(x => x.Brackets).FirstAsync(x => x.Year == src);
+            var rules = await db.StateTaxRules.AsNoTracking().Include(s => s.Brackets).Where(s => s.Year == src).ToListAsync();
+            t.Year = target;
+            t.Notes = $"Copied from {src} — UPDATE wage base, standard deductions and brackets for {target}.";
+            foreach (var b in t.Brackets) { b.Id = 0; b.Year = target; }
+            db.TaxYears.Add(t);
+            foreach (var r in rules)
+            {
+                r.Id = 0; r.Year = target;
+                foreach (var b in r.Brackets) { b.Id = 0; b.StateTaxRuleId = 0; }
+            }
+            db.StateTaxRules.AddRange(rules);
+            await db.SaveChangesAsync();
+            year = target;
+        }, $"Created {target} tables. Review and update them before the first {target} payroll.");
+        await LoadAsync();
+    }
+
+    private void NewState()
+    {
+        state = new StateTaxRule { Year = year, StateCode = missing.FirstOrDefault() ?? "CA", Method = StateTaxMethod.FlatRate };
+        showState = true;
+    }
+
+    private void EditState(StateTaxRule s) { state = s; showState = true; }
+
+    private async Task SaveState()
+    {
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            if (state!.Id != 0) await db.StateTaxBrackets.Where(b => b.StateTaxRuleId == state.Id).ExecuteDeleteAsync();
+            else if (await db.StateTaxRules.AnyAsync(s => s.StateCode == state.StateCode && s.Year == state.Year))
+                throw new InvalidOperationException($"{state.StateCode} already has a rule for {state.Year}.");
+            foreach (var b in state.Brackets) { b.Id = 0; b.StateTaxRuleId = state.Id; }
+            db.StateTaxRules.Update(state);
+            await db.SaveChangesAsync();
+        }, "State rule saved.");
+        if (ok) showState = false;
+        await LoadAsync();
+    }
+}

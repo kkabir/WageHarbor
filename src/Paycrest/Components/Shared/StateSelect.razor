@@ -1,0 +1,23 @@
+@inherits InputBase<string?>
+
+<select class="form-select @CssClass" value="@CurrentValueAsString" @onchange="e => CurrentValueAsString = e.Value?.ToString()">
+    @if (AllowEmpty)
+    {
+        <option value="">—</option>
+    }
+    @foreach (var s in Fmt.States)
+    {
+        <option value="@s">@s</option>
+    }
+</select>
+
+@code {
+    [Parameter] public bool AllowEmpty { get; set; } = true;
+
+    protected override bool TryParseValueFromString(string? value, out string? result, out string? validationErrorMessage)
+    {
+        result = string.IsNullOrEmpty(value) ? null : value;
+        validationErrorMessage = null;
+        return true;
+    }
+}

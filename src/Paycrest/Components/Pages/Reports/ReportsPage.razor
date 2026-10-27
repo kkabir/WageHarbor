@@ -1,0 +1,256 @@
+@page "/reports"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject ReportService Reports
+
+<PageTitle>Reports · WageHarbor</PageTitle>
+
+<PageHeader Title="Reports" Subtitle="Based on paid payrolls. Export any report to CSV for your accountant." >
+    <button class="btn btn-outline-secondary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print</button>
+    <button class="btn btn-primary" @onclick="Export"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
+</PageHeader>
+
+<div class="pc-tabs no-print">
+    @foreach (var (key, label) in Tabs)
+    {
+        <button class="@(tab == key ? "active" : "")" @onclick="() => SwitchTab(key)">@label</button>
+    }
+</div>
+
+<div class="pc-card mb-3 no-print">
+    <div class="d-flex flex-wrap gap-2 align-items-end">
+        @if (tab is "register" or "liability")
+        {
+            <div><label class="form-label">From</label><InputDate class="form-control" @bind-Value="from" /></div>
+            <div><label class="form-label">To</label><InputDate class="form-control" @bind-Value="to" /></div>
+            <div class="btn-group">
+                <button class="btn btn-light" @onclick="() => Preset(0)">This quarter</button>
+                <button class="btn btn-light" @onclick="() => Preset(-1)">Last quarter</button>
+                <button class="btn btn-light" @onclick="() => Preset(99)">Year to date</button>
+            </div>
+        }
+        @if (tab is "941" or "w2" or "1099")
+        {
+            <div><label class="form-label">Year</label><input type="number" class="form-control" style="width:110px" @bind="year" /></div>
+        }
+        @if (tab == "941")
+        {
+            <div>
+                <label class="form-label">Quarter</label>
+                <select class="form-select" @bind="quarter">@for (var q = 1; q <= 4; q++) { <option value="@q">Q@(q)</option> }</select>
+            </div>
+        }
+        @if (tab != "headcount")
+        {
+            <button class="btn btn-primary" @onclick="LoadAsync"><i class="bi bi-arrow-repeat me-1"></i>Run report</button>
+        }
+    </div>
+</div>
+
+@switch (tab)
+{
+    case "register":
+        <div class="pc-card p-0">
+            <div class="table-wrap">
+                <table class="table table-sm">
+                    <thead><tr><th>Pay date</th><th>Employee</th><th>Dept</th><th class="num">Gross</th><th class="num">Pre-tax</th><th class="num">Fed</th><th class="num">SS</th><th class="num">Medicare</th><th class="num">State</th><th class="num">Post-tax</th><th class="num">Net</th><th class="num">ER taxes</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in register)
+                        {
+                            <tr>
+                                <td>@c.PayDate.ToString("MM/dd/yy")</td><td>@c.EmployeeName</td><td>@c.Employee?.Department?.Name</td>
+                                <td class="num">@Fmt.Money(c.GrossPay)</td><td class="num">@Fmt.Money(c.PreTaxDeductions)</td><td class="num">@Fmt.Money(c.FederalIncomeTax)</td>
+                                <td class="num">@Fmt.Money(c.SocialSecurityTax)</td><td class="num">@Fmt.Money(c.MedicareTax + c.AdditionalMedicareTax)</td><td class="num">@Fmt.Money(c.StateIncomeTax)</td>
+                                <td class="num">@Fmt.Money(c.PostTaxDeductions)</td><td class="num fw-semibold">@Fmt.Money(c.NetPay)</td><td class="num">@Fmt.Money(c.EmployerTaxes)</td>
+                            </tr>
+                        }
+                    </tbody>
+                    @if (register.Count > 0)
+                    {
+                        <tfoot>
+                            <tr>
+                                <td colspan="3">@register.Count paychecks</td>
+                                <td class="num">@Fmt.Money(register.Sum(c => c.GrossPay))</td><td class="num">@Fmt.Money(register.Sum(c => c.PreTaxDeductions))</td>
+                                <td class="num">@Fmt.Money(register.Sum(c => c.FederalIncomeTax))</td><td class="num">@Fmt.Money(register.Sum(c => c.SocialSecurityTax))</td>
+                                <td class="num">@Fmt.Money(register.Sum(c => c.MedicareTax + c.AdditionalMedicareTax))</td><td class="num">@Fmt.Money(register.Sum(c => c.StateIncomeTax))</td>
+                                <td class="num">@Fmt.Money(register.Sum(c => c.PostTaxDeductions))</td><td class="num">@Fmt.Money(register.Sum(c => c.NetPay))</td><td class="num">@Fmt.Money(register.Sum(c => c.EmployerTaxes))</td>
+                            </tr>
+                        </tfoot>
+                    }
+                </table>
+                @if (register.Count == 0) { <EmptyState Icon="table" Title="No paid paychecks in this range" /> }
+            </div>
+        </div>
+        break;
+
+    case "liability":
+        <div class="pc-card p-0">
+            <table class="table">
+                <thead><tr><th>Tax</th><th>Paid to</th><th class="num">Taxable wages</th><th class="num">Employee</th><th class="num">Employer</th><th class="num">Total due</th></tr></thead>
+                <tbody>
+                    @foreach (var r in liability)
+                    {
+                        <tr><td class="fw-semibold">@r.Tax</td><td class="text-muted">@r.Paid</td><td class="num">@Fmt.Money(r.Wages)</td><td class="num">@Fmt.Money(r.EmployeeAmount)</td><td class="num">@Fmt.Money(r.EmployerAmount)</td><td class="num fw-bold">@Fmt.Money(r.Total)</td></tr>
+                    }
+                </tbody>
+                <tfoot><tr><td colspan="3">Total tax liability</td><td class="num">@Fmt.Money(liability.Sum(r => r.EmployeeAmount))</td><td class="num">@Fmt.Money(liability.Sum(r => r.EmployerAmount))</td><td class="num">@Fmt.Money(liability.Sum(r => r.Total))</td></tr></tfoot>
+            </table>
+        </div>
+        <p class="small text-muted mt-2">Federal deposits (941 taxes) are made through EFTPS on a monthly or semiweekly schedule. FUTA is deposited quarterly once over $500.</p>
+        break;
+
+    case "941":
+        @if (f941 != null)
+        {
+            <div class="pc-card" style="max-width:720px">
+                <h2 class="mb-3">Form 941 worksheet · Q@(f941.Quarter) @f941.Year</h2>
+                <table class="table">
+                    <tbody>
+                        <tr><td>Line 1 · Employees paid</td><td class="num">@f941.Employees</td></tr>
+                        <tr><td>Line 2 · Wages, tips and other compensation</td><td class="num">@Fmt.Money(f941.Wages)</td></tr>
+                        <tr><td>Line 3 · Federal income tax withheld</td><td class="num">@Fmt.Money(f941.FederalIncomeTax)</td></tr>
+                        <tr><td>Line 5a · Taxable Social Security wages × 12.4%</td><td class="num">@Fmt.Money(f941.SocialSecurityWages) → @Fmt.Money(f941.SocialSecurityTax)</td></tr>
+                        <tr><td>Line 5c · Taxable Medicare wages × 2.9%</td><td class="num">@Fmt.Money(f941.MedicareWages) → @Fmt.Money(f941.MedicareTax)</td></tr>
+                        <tr><td>Line 5d · Wages subject to Additional Medicare × 0.9%</td><td class="num">@Fmt.Money(f941.AdditionalMedicareWages) → @Fmt.Money(f941.AdditionalMedicareTax)</td></tr>
+                    </tbody>
+                    <tfoot><tr><td>Line 6 · Total taxes before adjustments</td><td class="num">@Fmt.Money(f941.TotalTaxes)</td></tr></tfoot>
+                </table>
+                <p class="small text-muted mb-0">Line 7 (fractions-of-cents adjustment) is the difference between line 6 and what was actually withheld and owed: @Fmt.Money(f941.TotalTaxes - quarterActual). File through IRS e-file or your tax professional.</p>
+            </div>
+        }
+        break;
+
+    case "w2":
+        <div class="alert alert-info small no-print"><i class="bi bi-info-circle me-1"></i>W-2 data for review. File W-2s/W-3 with the SSA via Business Services Online (BSO) by January 31, and furnish copies to employees.</div>
+        <div class="pc-card p-0">
+            <div class="table-wrap">
+                <table class="table table-sm">
+                    <thead><tr><th>Employee</th><th>SSN</th><th class="num">Box 1</th><th class="num">Box 2</th><th class="num">Box 3</th><th class="num">Box 4</th><th class="num">Box 5</th><th class="num">Box 6</th><th>Box 12</th><th>St</th><th class="num">Box 16</th><th class="num">Box 17</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in w2)
+                        {
+                            <tr>
+                                <td>@r.Name</td><td>@SensitiveData.MaskSsn(r.SsnLast4)</td>
+                                <td class="num">@Fmt.Money(r.Box1Wages)</td><td class="num">@Fmt.Money(r.Box2FederalTax)</td><td class="num">@Fmt.Money(r.Box3SsWages)</td>
+                                <td class="num">@Fmt.Money(r.Box4SsTax)</td><td class="num">@Fmt.Money(r.Box5MedicareWages)</td><td class="num">@Fmt.Money(r.Box6MedicareTax)</td>
+                                <td class="small">@r.Box12</td><td>@r.State</td><td class="num">@Fmt.Money(r.Box16StateWages)</td><td class="num">@Fmt.Money(r.Box17StateTax)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (w2.Count == 0) { <EmptyState Icon="file-earmark-text" Title="No W-2 wages for this year" /> }
+            </div>
+        </div>
+        break;
+
+    case "1099":
+        <div class="pc-card p-0" style="max-width:720px">
+            <table class="table">
+                <thead><tr><th>Contractor</th><th class="num">Payments</th><th class="num">Total paid (1099-NEC box 1)</th></tr></thead>
+                <tbody>
+                    @foreach (var c in contractors)
+                    {
+                        <tr><td>@c.Name</td><td class="num">@c.Count</td><td class="num fw-semibold">@Fmt.Money(c.Gross)</td></tr>
+                    }
+                </tbody>
+            </table>
+            @if (contractors.Count == 0) { <EmptyState Icon="person-badge" Title="No contractor payments" /> }
+        </div>
+        <p class="small text-muted mt-2">A 1099-NEC is required for contractors paid $600 or more in the year ($2,000 or more for payments made after 2025). Verify the current threshold.</p>
+        break;
+
+    case "headcount":
+        <div class="pc-card p-0" style="max-width:820px">
+            <table class="table">
+                <thead><tr><th>Department</th><th class="num">Active employees</th><th class="num">Annualized payroll</th><th style="width:30%"></th></tr></thead>
+                <tbody>
+                    @foreach (var h in headcount)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@h.Department</td><td class="num">@h.Active</td><td class="num">@Fmt.Money(h.AnnualPayroll)</td>
+                            <td><div class="progress-thin"><div style="width:@(headcount.Max(x => x.Active) == 0 ? 0 : h.Active * 100 / headcount.Max(x => x.Active))%"></div></div></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot><tr><td>Total</td><td class="num">@headcount.Sum(h => h.Active)</td><td class="num">@Fmt.Money(headcount.Sum(h => h.AnnualPayroll))</td><td></td></tr></tfoot>
+            </table>
+        </div>
+        break;
+}
+
+@code {
+    private static readonly (string Key, string Label)[] Tabs =
+        [("register", "Payroll register"), ("liability", "Tax liability"), ("941", "Form 941"), ("w2", "W-2 summary"), ("1099", "1099 contractors"), ("headcount", "Headcount")];
+
+    private string tab = "register";
+    private DateOnly from, to;
+    private int year = DateTime.Today.Year, quarter = (DateTime.Today.Month - 1) / 3 + 1;
+    private List<Paycheck> register = [];
+    private List<TaxLiabilityRow> liability = [];
+    private Form941Summary? f941;
+    private decimal quarterActual;
+    private List<W2Row> w2 = [];
+    private List<(string Name, decimal Gross, int Count)> contractors = [];
+    private List<(string Department, int Active, decimal AnnualPayroll)> headcount = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Preset(0);
+        await LoadAsync();
+    }
+
+    private void Preset(int which)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        if (which == 99) { from = new DateOnly(today.Year, 1, 1); to = today; return; }
+        var qStart = new DateOnly(today.Year, ((today.Month - 1) / 3) * 3 + 1, 1).AddMonths(3 * which);
+        from = qStart;
+        to = qStart.AddMonths(3).AddDays(-1);
+    }
+
+    private async Task SwitchTab(string key)
+    {
+        tab = key;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        switch (tab)
+        {
+            case "register": register = await Reports.PayrollRegisterAsync(from, to); break;
+            case "liability": liability = await Reports.TaxLiabilityAsync(from, to); break;
+            case "941":
+                f941 = await Reports.Form941Async(year, quarter);
+                var qs = new DateOnly(year, (quarter - 1) * 3 + 1, 1);
+                quarterActual = (await Reports.TaxLiabilityAsync(qs, qs.AddMonths(3).AddDays(-1)))
+                    .Where(r => r.Paid == "IRS (941)").Sum(r => r.Total);
+                break;
+            case "w2": w2 = await Reports.W2Async(year); break;
+            case "1099": contractors = await Reports.Contractors1099Async(year); break;
+            case "headcount": headcount = await Reports.HeadcountAsync(); break;
+        }
+    }
+
+    private async Task Export()
+    {
+        string csv = tab switch
+        {
+            "register" => ReportService.ToCsv(register, ("Pay date", c => c.PayDate.ToString("yyyy-MM-dd")), ("Employee", c => c.EmployeeName),
+                ("Gross", c => c.GrossPay), ("Pre-tax", c => c.PreTaxDeductions), ("Federal", c => c.FederalIncomeTax), ("Social Security", c => c.SocialSecurityTax),
+                ("Medicare", c => c.MedicareTax + c.AdditionalMedicareTax), ("State", c => c.StateIncomeTax), ("Post-tax", c => c.PostTaxDeductions),
+                ("Net", c => c.NetPay), ("Employer taxes", c => c.EmployerTaxes), ("Employer benefits", c => c.EmployerContributions)),
+            "liability" => ReportService.ToCsv(liability, ("Tax", r => r.Tax), ("Paid to", r => r.Paid), ("Wages", r => r.Wages),
+                ("Employee", r => r.EmployeeAmount), ("Employer", r => r.EmployerAmount), ("Total", r => r.Total)),
+            "941" when f941 != null => ReportService.ToCsv(new[] { f941 }, ("Year", f => f.Year), ("Quarter", f => f.Quarter), ("Employees", f => f.Employees),
+                ("Line 2 wages", f => f.Wages), ("Line 3 FIT", f => f.FederalIncomeTax), ("Line 5a SS wages", f => f.SocialSecurityWages),
+                ("Line 5c Medicare wages", f => f.MedicareWages), ("Line 5d Addl Medicare wages", f => f.AdditionalMedicareWages), ("Line 6 total", f => f.TotalTaxes)),
+            "w2" => ReportService.ToCsv(w2, ("Employee #", r => r.EmployeeNumber), ("Name", r => r.Name), ("Box 1", r => r.Box1Wages), ("Box 2", r => r.Box2FederalTax),
+                ("Box 3", r => r.Box3SsWages), ("Box 4", r => r.Box4SsTax), ("Box 5", r => r.Box5MedicareWages), ("Box 6", r => r.Box6MedicareTax),
+                ("Box 12", r => r.Box12), ("State", r => r.State), ("Box 16", r => r.Box16StateWages), ("Box 17", r => r.Box17StateTax)),
+            "1099" => ReportService.ToCsv(contractors, ("Contractor", c => c.Name), ("Payments", c => c.Count), ("Total", c => c.Gross)),
+            _ => ReportService.ToCsv(headcount, ("Department", h => h.Department), ("Active", h => h.Active), ("Annualized payroll", h => h.AnnualPayroll))
+        };
+        await DownloadTextAsync($"{tab}_report_{DateTime.Today:yyyyMMdd}.csv", "text/csv", csv);
+    }
+}

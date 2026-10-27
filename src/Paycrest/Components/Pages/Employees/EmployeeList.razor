@@ -1,0 +1,93 @@
+@page "/employees"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+
+<PageTitle>Employees · WageHarbor</PageTitle>
+
+<PageHeader Title="Employees" Subtitle="@($"{employees.Count(e => e.Status != EmployeeStatus.Terminated)} active · {employees.Count} total")">
+    <button class="btn btn-outline-secondary" @onclick="Export"><i class="bi bi-download me-1"></i>Export</button>
+    <a href="employees/new" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Add employee</a>
+</PageHeader>
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap gap-2 p-3 border-bottom">
+        <div class="input-group" style="max-width:320px">
+            <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
+            <input class="form-control" placeholder="Search name, title, email, #" @bind="search" @bind:event="oninput" />
+        </div>
+        <select class="form-select" style="max-width:180px" @bind="deptFilter">
+            <option value="0">All departments</option>
+            @foreach (var d in departments) { <option value="@d.Id">@d.Name</option> }
+        </select>
+        <select class="form-select" style="max-width:160px" @bind="statusFilter">
+            <option value="">Current staff</option>
+            <option value="all">All statuses</option>
+            @foreach (var s in Enum.GetValues<EmployeeStatus>()) { <option value="@s">@s</option> }
+        </select>
+    </div>
+    @if (Filtered.Count == 0)
+    {
+        <EmptyState Icon="people" Title="No employees found">
+            @if (employees.Count == 0)
+            {
+                <span>Add your first employee, or <a href="setup">load sample data</a>.</span>
+            }
+        </EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr><th>Employee</th><th>#</th><th>Department</th><th>Type</th><th class="num">Pay</th><th>Hired</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Filtered)
+                    {
+                        <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"employees/{e.Id}"))">
+                            <td><PersonCell Name="@e.FullName" Sub="@e.JobTitle" /></td>
+                            <td class="text-muted">@e.EmployeeNumber</td>
+                            <td>@(e.Department?.Name ?? "—")</td>
+                            <td>@e.EmploymentType.Label()</td>
+                            <td class="num">@(e.PayType == PayType.Salary ? Fmt.Money(e.PayRate) + "/yr" : Fmt.Money(e.PayRate) + "/hr")</td>
+                            <td>@Fmt.Date(e.HireDate)</td>
+                            <td><StatusChip Status="e.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Employee> employees = [];
+    private List<Department> departments = [];
+    private string search = "";
+    private int deptFilter;
+    private string statusFilter = "";
+
+    private List<Employee> Filtered => employees.Where(e =>
+            (string.IsNullOrWhiteSpace(search) ||
+             $"{e.FirstName} {e.LastName} {e.PreferredName} {e.JobTitle} {e.Email} {e.EmployeeNumber}".Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+            (deptFilter == 0 || e.DepartmentId == deptFilter) &&
+            (statusFilter == "all" || (statusFilter == "" ? e.Status != EmployeeStatus.Terminated : e.Status.ToString() == statusFilter)))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        employees = await db.Employees.AsNoTracking().Include(e => e.Department).OrderBy(e => e.LastName).ThenBy(e => e.FirstName).ToListAsync();
+        departments = await db.Departments.AsNoTracking().OrderBy(d => d.Name).ToListAsync();
+    }
+
+    private async Task Export()
+    {
+        var csv = ReportService.ToCsv(Filtered,
+            ("Employee #", e => e.EmployeeNumber), ("First name", e => e.FirstName), ("Last name", e => e.LastName),
+            ("Email", e => e.Email), ("Phone", e => e.Phone), ("Title", e => e.JobTitle), ("Department", e => e.Department?.Name),
+            ("Status", e => e.Status), ("Type", e => e.EmploymentType), ("Hire date", e => e.HireDate.ToString("yyyy-MM-dd")),
+            ("Pay type", e => e.PayType), ("Pay rate", e => e.PayRate), ("Frequency", e => e.PayFrequency), ("Work state", e => e.WorkState));
+        await DownloadTextAsync($"employees_{DateTime.Today:yyyyMMdd}.csv", "text/csv", csv);
+    }
+}

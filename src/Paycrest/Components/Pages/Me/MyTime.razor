@@ -1,0 +1,204 @@
+@page "/me/time"
+@attribute [Authorize]
+@inherits AppComponentBase
+@implements IDisposable
+@inject TimeService Time
+@inject Clock Clock
+
+<PageTitle>My time · WageHarbor</PageTitle>
+
+<PageHeader Title="My time" Subtitle="Clock in and out, or enter hours manually. Your manager approves time before payroll." />
+
+@if (myId == null)
+{
+    <NoEmployeeRecord />
+    return;
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="pc-card h-100 text-center d-flex flex-column justify-content-center">
+            <div class="text-muted small">@now.ToString("dddd, MMMM d")</div>
+            <div class="clock-face my-2">@now.ToString("h:mm:ss tt")</div>
+            @if (openPunch != null)
+            {
+                <div class="mb-3"><span class="chip tone-success">Clocked in since @openPunchLocal.ToString("h:mm tt") · @Elapsed</span></div>
+                <input class="form-control mb-2" placeholder="What did you work on? (optional)" @bind="clockNote" />
+                <button class="btn btn-danger btn-lg" disabled="@Busy" @onclick="ClockOut"><i class="bi bi-stop-circle me-1"></i>Clock out</button>
+            }
+            else
+            {
+                <div class="mb-3"><span class="chip tone-info">Not clocked in</span></div>
+                <button class="btn btn-success btn-lg" disabled="@Busy" @onclick="ClockIn"><i class="bi bi-play-circle me-1"></i>Clock in</button>
+            }
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="row g-3">
+            <div class="col-sm-4"><StatCard Label="This week" Value="@($"{Fmt.Hours(weekHours)} h")" Icon="calendar-week" /></div>
+            <div class="col-sm-4"><StatCard Label="This period" Value="@($"{Fmt.Hours(entries.Sum(e => e.Hours))} h")" Icon="calendar-range" Tone="info" /></div>
+            <div class="col-sm-4"><StatCard Label="Pending approval" Value="@entries.Count(e => e.Status == ApprovalStatus.Pending).ToString()" Icon="hourglass-split" Tone="warning" /></div>
+        </div>
+        <div class="pc-card mt-3">
+            <h2 class="mb-3">Add hours manually</h2>
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-3"><label class="form-label">Date</label><InputDate class="form-control" @bind-Value="manual.WorkDate" /></div>
+                <div class="col-sm-2"><label class="form-label">Hours</label><input type="number" step="0.25" class="form-control" @bind="manual.Hours" /></div>
+                <div class="col-sm-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" @bind="manual.EarningTypeId">
+                        @foreach (var t in earningTypes) { <option value="@t.Id">@t.Name</option> }
+                    </select>
+                </div>
+                <div class="col-sm-4"><button class="btn btn-soft w-100" disabled="@Busy" @onclick="AddManual"><i class="bi bi-plus-lg me-1"></i>Add entry</button></div>
+                <div class="col-12"><input class="form-control" placeholder="Notes" @bind="manual.Notes" /></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="pc-card p-0">
+    <div class="d-flex align-items-center gap-2 p-3 border-bottom">
+        <div class="fw-semibold">Timesheet</div>
+        <div class="ms-auto d-flex gap-2 align-items-center">
+            <button class="btn btn-sm btn-light" @onclick="() => Shift(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="small">@Fmt.Date(from) – @Fmt.Date(to)</span>
+            <button class="btn btn-sm btn-light" @onclick="() => Shift(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </div>
+    @if (entries.Count == 0)
+    {
+        <EmptyState Icon="clock" Title="No time entered for this period" />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table align-middle">
+                <thead><tr><th>Date</th><th>Type</th><th>In / out</th><th class="num">Hours</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var e in entries)
+                    {
+                        <tr>
+                            <td>@e.WorkDate.ToString("ddd, MMM d")</td>
+                            <td>@e.EarningType?.Name</td>
+                            <td class="small">@PunchText(e)</td>
+                            <td class="num">@(e.IsOpenPunch ? "…" : Fmt.Hours(e.Hours))</td>
+                            <td class="small text-muted">@e.Notes</td>
+                            <td>@if (e.IsLocked) { <span class="chip tone-success plain"><i class="bi bi-lock"></i> Paid</span> } else { <StatusChip Status="e.Status" /> }</td>
+                            <td class="text-end">
+                                @if (!e.IsLocked && e.Status != ApprovalStatus.Approved && !e.IsOpenPunch)
+                                {
+                                    <button class="btn btn-sm btn-light text-danger" @onclick="() => Delete(e.Id)"><i class="bi bi-trash"></i></button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private int? myId;
+    private DateTime now;
+    private TimeEntry? openPunch;
+    private DateTime openPunchLocal;
+    private string? clockNote;
+    private DateOnly from, to;
+    private PayFrequency freq;
+    private DayOfWeek weekStart;
+    private decimal weekHours;
+    private List<TimeEntry> entries = [];
+    private List<EarningType> earningTypes = [];
+    private TimeEntry manual = new();
+    private Timer? timer;
+    private TimeZoneInfo? tz;
+
+    private string Elapsed
+    {
+        get
+        {
+            var span = DateTime.UtcNow - openPunch!.ClockInUtc!.Value;
+            return $"{(int)span.TotalHours}h {span.Minutes:00}m";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        myId = await Me.GetEmployeeIdAsync();
+        if (myId == null) return;
+        tz = await Clock.GetZoneAsync();
+        now = await Clock.NowAsync();
+        await using var db = await Dbs.OpenAsync();
+        var emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == myId);
+        var company = await db.Companies.AsNoTracking().FirstAsync();
+        freq = emp.PayFrequency;
+        weekStart = company.WorkWeekStart;
+        earningTypes = await db.EarningTypes.AsNoTracking().Where(t => t.IsActive && t.IsHoursBased && t.Code != EarningType.Overtime && t.Code != "PTO" && t.Code != "SICK").ToListAsync();
+        (from, to) = PayPeriods.Containing(freq, DateOnly.FromDateTime(now), weekStart);
+        ResetManual();
+        await LoadAsync();
+        timer = new Timer(_ => InvokeAsync(() => { now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz!); StateHasChanged(); }), null, 1000, 1000);
+    }
+
+    private void ResetManual() => manual = new TimeEntry
+    {
+        EmployeeId = myId!.Value, WorkDate = DateOnly.FromDateTime(now), Hours = 8,
+        EarningTypeId = earningTypes.FirstOrDefault(t => t.Code == EarningType.Regular)?.Id ?? 0
+    };
+
+    private async Task LoadAsync()
+    {
+        openPunch = await Time.GetOpenPunchAsync(myId!.Value);
+        if (openPunch != null) openPunchLocal = await Clock.ToLocalAsync(openPunch.ClockInUtc!.Value);
+        entries = await Time.ListAsync(from, to, myId);
+        var ws = PayrollCalculator.WeekStart(DateOnly.FromDateTime(now), weekStart);
+        weekHours = (await Time.ListAsync(ws, ws.AddDays(6), myId)).Sum(e => e.Hours);
+    }
+
+    private string PunchText(TimeEntry e)
+    {
+        if (!e.ClockInUtc.HasValue) return e.Source == "TimeOff" ? "Time off" : "Manual";
+        var i = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(e.ClockInUtc.Value, DateTimeKind.Utc), tz!);
+        var o = e.ClockOutUtc.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(e.ClockOutUtc.Value, DateTimeKind.Utc), tz!).ToString("h:mm tt") : "now";
+        return $"{i:h:mm tt} – {o}";
+    }
+
+    private async Task Shift(int dir)
+    {
+        var anchor = dir < 0 ? from.AddDays(-1) : to.AddDays(1);
+        (from, to) = PayPeriods.Containing(freq, anchor, weekStart);
+        await LoadAsync();
+    }
+
+    private async Task ClockIn()
+    {
+        await RunAsync(() => Time.ClockInAsync(myId!.Value), "Clocked in. Have a great shift!");
+        await LoadAsync();
+    }
+
+    private async Task ClockOut()
+    {
+        decimal hours = 0;
+        if (await RunAsync(async () => hours = await Time.ClockOutAsync(myId!.Value, clockNote)))
+            Toast.Success($"Clocked out · {Fmt.Hours(hours)} hours recorded.");
+        clockNote = null;
+        await LoadAsync();
+    }
+
+    private async Task AddManual()
+    {
+        if (await RunAsync(() => Time.SaveAsync(manual, selfService: true), "Time entry submitted for approval."))
+            ResetManual();
+        await LoadAsync();
+    }
+
+    private async Task Delete(int id)
+    {
+        await RunAsync(() => Time.DeleteAsync(id, selfService: true), "Entry removed.");
+        await LoadAsync();
+    }
+
+    public void Dispose() => timer?.Dispose();
+}
