@@ -1,0 +1,41 @@
+@inject Db Dbs
+
+@if (!closed && Saying is { } s)
+{
+    <figure class="pc-card wisdom-card no-print" @key="s.Id" aria-live="polite">
+        <div class="wisdom-head">
+            <i class="bi bi-stars"></i><span>Words of wisdom</span>
+            <button type="button" class="wisdom-btn ms-auto" title="Another saying" @onclick="Next"><i class="bi bi-arrow-repeat"></i></button>
+            <button type="button" class="wisdom-btn" title="Close" @onclick="() => closed = true"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <blockquote>“@s.Text”</blockquote>
+        <figcaption>
+            <span class="who">@s.Source</span>
+            @if (!string.IsNullOrWhiteSpace(s.Reference))
+            {
+                <text> · @s.Reference</text>
+            }
+        </figcaption>
+        <i class="bi bi-quote wisdom-mark" aria-hidden="true"></i>
+    </figure>
+}
+
+@code {
+    // Survives prerendering, so the saying doesn't change when the page becomes interactive.
+    [PersistentState] public WiseSaying? Saying { get; set; }
+    private bool closed;
+
+    protected override async Task OnInitializedAsync() => Saying ??= await PickAsync(null);
+
+    private async Task Next() => Saying = await PickAsync(Saying?.Id) ?? Saying;
+
+    /// <summary>A random active saying other than <paramref name="exceptId"/>, or null when there is none.</summary>
+    private async Task<WiseSaying?> PickAsync(int? exceptId)
+    {
+        await using var db = await Dbs.OpenAsync();
+        var ids = await db.WiseSayings.Where(w => w.IsActive && w.Id != exceptId).Select(w => w.Id).ToListAsync();
+        if (ids.Count == 0) return null;
+        var id = ids[Random.Shared.Next(ids.Count)];
+        return await db.WiseSayings.AsNoTracking().FirstAsync(w => w.Id == id);
+    }
+}

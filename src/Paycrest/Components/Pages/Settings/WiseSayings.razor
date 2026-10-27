@@ -1,0 +1,144 @@
+@page "/settings/sayings"
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@inherits AppComponentBase
+
+<PageTitle>Words of wisdom · WageHarbor</PageTitle>
+
+<PageHeader Title="Words of wisdom" Subtitle="Sayings shown at random on the dashboard. Only active sayings are shown.">
+    <button class="btn btn-primary" @onclick="New"><i class="bi bi-plus-lg me-1"></i>Add saying</button>
+</PageHeader>
+
+<div class="pc-card p-0">
+    <div class="d-flex p-3 border-bottom align-items-center gap-2">
+        <h2 class="m-0">Sayings</h2>
+        <span class="small text-muted">@sayings.Count(w => w.IsActive) active of @sayings.Count</span>
+        <input class="form-control form-control-sm ms-auto" style="max-width:260px" placeholder="Search…" @bind="search" @bind:event="oninput" />
+    </div>
+    @if (sayings.Count == 0)
+    {
+        <EmptyState Icon="quote" Title="No sayings yet">Add one and it will appear on the dashboard.</EmptyState>
+    }
+    else
+    {
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Saying</th><th>Source</th><th>Active</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var w in Filtered)
+                {
+                    <tr class="@(w.IsActive ? "" : "opacity-50")">
+                        <td style="min-width:280px">“@w.Text”</td>
+                        <td class="small"><div class="fw-semibold">@w.Source</div><div class="text-muted">@w.Reference</div></td>
+                        <td>
+                            <div class="form-check form-switch m-0">
+                                <input type="checkbox" class="form-check-input" role="switch" title="Show on dashboard" checked="@w.IsActive" @onchange="() => ToggleActive(w)" />
+                            </div>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <button class="btn btn-sm btn-light" title="Edit" @onclick="() => Edit(w)"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-light text-danger" title="Delete" @onclick="() => deleting = w"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<Modal @bind-Show="showEdit" Title="@(editing?.Id == 0 ? "Add saying" : "Edit saying")">
+    <ChildContent>
+        @if (editing != null)
+        {
+            <div class="mb-3"><label class="form-label">Saying</label><textarea class="form-control" rows="4" maxlength="600" @bind="editing.Text"></textarea></div>
+            <div class="row g-3">
+                <div class="col-6"><label class="form-label">Said by / source</label><input class="form-control" maxlength="120" placeholder="e.g. Prophet Muhammad ﷺ" @bind="editing.Source" /></div>
+                <div class="col-6"><label class="form-label">Reference (optional)</label><input class="form-control" maxlength="160" placeholder="e.g. Sunan Ibn Majah 2443" @bind="editing.Reference" /></div>
+                <div class="col-12"><div class="form-check"><input type="checkbox" class="form-check-input" id="wactive" @bind="editing.IsActive" /><label class="form-check-label" for="wactive">Show on the dashboard</label></div></div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showEdit = false">Cancel</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="Save">Save</button>
+    </Footer>
+</Modal>
+
+<Modal Show="deleting != null" ShowChanged="v => { if (!v) deleting = null; }" Title="Delete saying">
+    <ChildContent>
+        <p class="mb-1">Delete this saying? This can't be undone.</p>
+        <p class="small text-muted mb-0">“@deleting?.Text”</p>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => deleting = null">Cancel</button>
+        <button class="btn btn-danger" disabled="@Busy" @onclick="Delete">Delete</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<WiseSaying> sayings = [];
+    private WiseSaying? editing, deleting;
+    private bool showEdit;
+    private string search = "";
+
+    private IEnumerable<WiseSaying> Filtered => string.IsNullOrWhiteSpace(search)
+        ? sayings
+        : sayings.Where(w => $"{w.Text} {w.Source} {w.Reference}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        sayings = await db.WiseSayings.AsNoTracking().OrderByDescending(w => w.IsActive).ThenBy(w => w.Source).ThenBy(w => w.Id).ToListAsync();
+    }
+
+    private void New() { editing = new WiseSaying(); showEdit = true; }
+
+    // Edit a copy so Cancel leaves the list unchanged.
+    private void Edit(WiseSaying w)
+    {
+        editing = new WiseSaying { Id = w.Id, Text = w.Text, Source = w.Source, Reference = w.Reference, IsActive = w.IsActive };
+        showEdit = true;
+    }
+
+    private async Task Save()
+    {
+        editing!.Text = editing.Text.Trim();
+        editing.Source = editing.Source.Trim();
+        editing.Reference = string.IsNullOrWhiteSpace(editing.Reference) ? null : editing.Reference.Trim();
+        if (editing.Text.Length == 0 || editing.Source.Length == 0) { Toast.Error("Saying and source are required."); return; }
+
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            db.Update(editing);
+            await db.SaveChangesAsync();
+        }, "Saying saved.");
+        if (ok) showEdit = false;
+        await LoadAsync();
+    }
+
+    private async Task ToggleActive(WiseSaying w)
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var row = await db.WiseSayings.FirstAsync(x => x.Id == w.Id);
+            row.IsActive = !row.IsActive;
+            await db.SaveChangesAsync();
+        });
+        await LoadAsync();
+    }
+
+    private async Task Delete()
+    {
+        var id = deleting!.Id;
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            db.WiseSayings.Remove(await db.WiseSayings.FirstAsync(x => x.Id == id));
+            await db.SaveChangesAsync();
+        }, "Saying deleted.");
+        if (ok) deleting = null;
+        await LoadAsync();
+    }
+}

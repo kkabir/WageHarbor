@@ -61,11 +61,41 @@ public static class SeedData
                 new TimeOffPolicy { Name = "Sick leave", EarningTypeId = sick.Id, AccrualMethod = AccrualMethod.PerHourWorked, AccrualRate = 0.0333m, MaxBalance = 48m });
         }
 
+        if (!await db.WiseSayings.AnyAsync())
+            db.WiseSayings.AddRange(WiseSayings());
+
         await SeedTaxYearAsync(db, Tax2025());
         await SeedTaxYearAsync(db, Tax2026());
         await SeedStateRulesAsync(db, 2025);
         await SeedStateRulesAsync(db, 2026);
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>Starter sayings on fair pay and honest work; admins edit them under Settings › Words of wisdom.</summary>
+    private static WiseSaying[] WiseSayings()
+    {
+        const string prophet = "Prophet Muhammad ﷺ", quran = "The Qur'an";
+        static WiseSaying S(string text, string source, string reference) => new() { Text = text, Source = source, Reference = reference };
+        return
+        [
+            S("Give the worker his wages before his sweat dries.", prophet, "Sunan Ibn Majah 2443"),
+            S("No one has ever eaten better food than what he eats from the work of his own hands.", prophet, "Sahih al-Bukhari 2072"),
+            S("Allah says: I will be an opponent of three on the Day of Resurrection… among them one who hires a worker, takes full work from him, and does not pay him his wages.", prophet, "Sahih al-Bukhari 2227"),
+            S("Your servants are your brothers whom Allah has placed under your care. Do not burden them beyond what they can bear, and if you do, then help them.", prophet, "Sahih al-Bukhari 30"),
+            S("Allah loves that when one of you does a job, he does it with excellence.", prophet, "al-Bayhaqi, Shu'ab al-Iman"),
+            S("Delay in paying what is owed, by one who is able to pay, is injustice.", prophet, "Sahih al-Bukhari 2400"),
+            S("May Allah have mercy on one who is generous when he sells, when he buys, and when he asks for what he is owed.", prophet, "Sahih al-Bukhari 2076"),
+            S("The truthful, trustworthy merchant will be with the prophets, the truthful and the martyrs.", prophet, "Jami' at-Tirmidhi 1209"),
+            S("Whoever does not thank people has not thanked Allah.", prophet, "Sunan Abi Dawud 4811"),
+            S("The best of people are those most beneficial to people.", prophet, "al-Tabarani, al-Mu'jam al-Awsat"),
+            S("Make things easy and do not make them difficult.", prophet, "Sahih al-Bukhari 69"),
+            S("The upper hand is better than the lower hand.", prophet, "Sahih al-Bukhari 1429"),
+            S("And that there is not for man except that for which he strives.", quran, "An-Najm 53:39"),
+            S("Give full measure and weight in justice, and do not deprive people of their due.", quran, "Hud 11:85"),
+            S("O you who believe, fulfil your contracts.", quran, "Al-Ma'idah 5:1"),
+            S("Allah commands you to render trusts to whom they are due, and when you judge between people, to judge with justice.", quran, "An-Nisa 4:58"),
+            S("Woe to those who give less than due — who take in full when they receive from people, but give less when they measure or weigh for them.", quran, "Al-Mutaffifin 83:1–3"),
+        ];
     }
 
     private static async Task SeedTaxYearAsync(ApplicationDbContext db, TaxYear ty)

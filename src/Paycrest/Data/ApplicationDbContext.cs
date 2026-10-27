@@ -16,6 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<WiseSaying> WiseSayings => Set<WiseSaying>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     public DbSet<Employee> Employees => Set<Employee>();

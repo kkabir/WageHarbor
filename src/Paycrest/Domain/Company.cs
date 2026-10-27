@@ -80,6 +80,16 @@ public class Announcement
     public DateTime PostedUtc { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A saying shown at random on the dashboard's "Words of wisdom" card.</summary>
+public class WiseSaying
+{
+    public int Id { get; set; }
+    [Required, StringLength(600)] public string Text { get; set; } = "";
+    [Required, StringLength(120)] public string Source { get; set; } = "";
+    [StringLength(160)] public string? Reference { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
 public class AuditLog
 {
     public long Id { get; set; }

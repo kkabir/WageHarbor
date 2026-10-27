@@ -191,6 +191,24 @@ tr.clickable { cursor: pointer; }
 .pc-toast.danger i { color: var(--pc-danger); }
 .pc-toast.info i { color: var(--pc-info); }
 
+/* ---------- Wisdom card (dashboard) ---------- */
+.wisdom-card {
+    position: fixed; left: calc(252px + 1.5rem); bottom: 1.5rem; z-index: 30; margin: 0;
+    width: min(380px, calc(100vw - 252px - 3rem)); padding: 1rem 1.25rem 1.1rem 1.5rem; overflow: hidden;
+    animation: wisdom-in .45s ease-out both;
+}
+.wisdom-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(180deg, #2dd4bf, #0e7c86 55%, #0b2545); }
+.wisdom-head { display: flex; align-items: center; gap: .45rem; margin-bottom: .55rem; font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--pc-primary); }
+.wisdom-btn { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--pc-muted); font-size: .9rem; }
+.wisdom-btn:hover { background: var(--pc-surface-2); color: var(--pc-text); }
+.wisdom-card blockquote { position: relative; z-index: 1; margin: 0 0 .6rem; font-size: .98rem; line-height: 1.5; font-weight: 500; color: var(--pc-text); }
+.wisdom-card figcaption { position: relative; z-index: 1; font-size: .78rem; color: var(--pc-muted); }
+.wisdom-card .who { font-weight: 600; color: var(--pc-text); }
+.wisdom-mark { position: absolute; right: .6rem; bottom: -1.1rem; font-size: 5.5rem; line-height: 1; color: var(--pc-primary); opacity: .08; pointer-events: none; }
+@keyframes wisdom-in { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@media (max-width: 991.98px) { .wisdom-card { left: 1rem; right: 1rem; bottom: 1rem; width: auto; } }
+@media (prefers-reduced-motion: reduce) { .wisdom-card { animation: none; } }
+
 /* ---------- Misc ---------- */
 .empty { text-align: center; padding: 2.5rem 1rem; color: var(--pc-muted); }
 .empty i { font-size: 2rem; display: block; margin-bottom: .5rem; opacity: .6; }
