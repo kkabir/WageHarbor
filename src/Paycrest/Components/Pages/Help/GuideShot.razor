@@ -1,0 +1,12 @@
+@* A screenshot in a help guide. Click opens it full size. *@
+<figure class="guide-shot">
+    <a href="help/img/@Image" target="_blank" rel="noopener" title="Open full size">
+        <img src="help/img/@Image" alt="@Caption" loading="lazy" />
+    </a>
+    <figcaption>@Caption</figcaption>
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public string Image { get; set; } = "";
+    [Parameter, EditorRequired] public string Caption { get; set; } = "";
+}

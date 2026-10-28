@@ -87,6 +87,8 @@ a { text-decoration: none; }
 }
 .app-topbar .company { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .app-topbar .company-logo { height: 38px; max-width: 160px; object-fit: contain; flex-shrink: 0; }
+/* Most logos are drawn for light backgrounds. */
+[data-bs-theme=dark] .app-topbar .company-logo { background: #fff; border-radius: 8px; padding: 3px 6px; }
 .app-topbar .company-name { font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 575.98px) { .app-topbar .company-logo { height: 30px; max-width: 96px; } .app-topbar .company-name { font-size: 1rem; } }
 .logo-preview { height: 96px; border: 1px dashed var(--pc-border); border-radius: 12px; display: grid; place-items: center; padding: .75rem; background: var(--pc-surface-2); }
@@ -278,3 +280,43 @@ tr.clickable { cursor: pointer; }
 .brand-accent { color: #5eead4; }
 .auth-hero li i { color: #5eead4; }
 [data-bs-theme=dark] .btn-primary { color: #0b2545; }
+
+/* ---------- Help guides ---------- */
+.guide-card { padding: 1.5rem; transition: transform .12s, box-shadow .12s; }
+.guide-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(16, 24, 40, .1); }
+.guide-card .icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 1.4rem; margin-bottom: .9rem; }
+.guide-card h2 { font-size: 1.15rem; margin-bottom: .4rem; }
+.guide { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 2rem; align-items: start; }
+.guide-toc { position: sticky; top: 80px; display: flex; flex-direction: column; gap: .15rem; font-size: .85rem; }
+.guide-toc-title { font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--pc-muted); margin-bottom: .4rem; }
+.guide-toc a { color: var(--pc-muted); padding: .3rem .6rem; border-radius: 8px; border-left: 2px solid transparent; }
+.guide-toc a:hover { color: var(--pc-text); background: var(--pc-surface); border-left-color: var(--pc-primary); }
+.guide-body { max-width: 860px; }
+.guide-step { background: var(--pc-surface); border: 1px solid var(--pc-border); border-radius: var(--pc-radius); box-shadow: var(--pc-shadow); padding: 1.5rem 1.75rem; margin-bottom: 1.25rem; scroll-margin-top: 80px; }
+.guide-step h2 { display: flex; align-items: center; gap: .7rem; font-size: 1.2rem; font-weight: 700; margin-bottom: .9rem; }
+.guide-step h2 .num { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--pc-primary-soft); color: var(--pc-primary); font-size: .95rem; }
+.guide-step p, .guide-step li { line-height: 1.65; }
+.guide-step ul, .guide-step ol { padding-left: 1.25rem; }
+.guide-step li { margin-bottom: .3rem; }
+.badge-optional { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--pc-muted); border: 1px solid var(--pc-border); border-radius: 999px; padding: .1rem .5rem; }
+.guide-shot { margin: 1.1rem 0 .4rem; }
+.guide-shot img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--pc-border); box-shadow: 0 8px 30px rgba(16, 24, 40, .1); }
+.guide-shot figcaption { font-size: .8rem; color: var(--pc-muted); margin-top: .5rem; text-align: center; }
+.guide-callout { display: flex; gap: .75rem; padding: .9rem 1.1rem; margin: 0 0 1.25rem; border-radius: 12px; background: var(--pc-primary-soft); color: var(--pc-text); }
+.guide-callout i { color: var(--pc-primary); font-size: 1.2rem; }
+.guide-step .guide-callout { margin: 1rem 0; }
+.guide-faq dt { font-weight: 600; margin-top: .9rem; }
+.guide-faq dt:first-child { margin-top: 0; }
+.guide-faq dd { color: var(--pc-muted); margin: .2rem 0 0; }
+@media (max-width: 991.98px) {
+    .guide { grid-template-columns: 1fr; }
+    .guide-toc { position: static; flex-direction: row; flex-wrap: wrap; gap: .35rem; }
+    .guide-toc-title { width: 100%; }
+    .guide-toc a { border: 1px solid var(--pc-border); background: var(--pc-surface); }
+    .guide-step { padding: 1.1rem 1.15rem; }
+}
+@media print {
+    .guide { display: block; }
+    .guide-step { break-inside: avoid-page; box-shadow: none; }
+    .guide-shot img { box-shadow: none; max-height: 420px; object-fit: contain; }
+}

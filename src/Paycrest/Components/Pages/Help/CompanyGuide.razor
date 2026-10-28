@@ -1,0 +1,176 @@
+@page "/help/company"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+
+<PageTitle>Company guide · WageHarbor</PageTitle>
+
+<PageHeader Title="Company guide" Subtitle="Everything an owner, HR or payroll person needs, from sign-up to the first paid payroll.">
+    <Crumbs><a href="help">Help</a> / Company guide</Crumbs>
+    <ChildContent>
+        <button class="btn btn-outline-secondary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print guide</button>
+    </ChildContent>
+</PageHeader>
+
+<div class="guide">
+    <nav class="guide-toc no-print" aria-label="On this page">
+        <div class="guide-toc-title">On this page</div>
+        <a href="help/company#register">1. Register your company</a>
+        <a href="help/company#setup">2. Finish company setup</a>
+        <a href="help/company#logo">3. Add your logo</a>
+        <a href="help/company#employees">4. Add employees</a>
+        <a href="help/company#logins">5. Give employees a login</a>
+        <a href="help/company#roles">6. Roles and users</a>
+        <a href="help/company#time">7. Approve time and time off</a>
+        <a href="help/company#payroll">8. Run payroll</a>
+        <a href="help/company#reports">9. Pay stubs and reports</a>
+        <a href="help/company#settings">10. Other settings</a>
+        <a href="help/company#tips">11. Good habits</a>
+    </nav>
+
+    <div class="guide-body">
+        <div class="guide-callout">
+            <i class="bi bi-lightbulb"></i>
+            <div><strong>Try it first.</strong> On a brand-new company you can click <strong>Load sample company</strong> on the setup page to add 12 practice employees and explore safely before entering real people.</div>
+        </div>
+
+        <section id="register" class="guide-step">
+            <h2><span class="num">1</span>Register your company</h2>
+            <p>Go to <strong>wageharbor.com</strong>, click <strong>Register your company</strong> under the sign-in box and fill in:</p>
+            <ul>
+                <li><strong>Company name</strong> and the <strong>state</strong> your company is based in.</li>
+                <li><strong>Your work email</strong> and a password of at least 8 characters. This becomes the company's first <em>Admin</em> login.</li>
+            </ul>
+            <p>Each company's data is completely separate. Nobody at another company can see your employees or payroll.</p>
+            <GuideShot Image="admin-register.jpg" Caption="Register your company: name, state, your email and a password." />
+        </section>
+
+        <section id="setup" class="guide-step">
+            <h2><span class="num">2</span>Finish company setup</h2>
+            <p>Right after registering you land on <strong>Welcome to WageHarbor</strong>. You can come back any time under <a href="settings/company">Administration › Company</a>.</p>
+            <ol>
+                <li><strong>Company profile</strong>: legal name (as registered with the IRS), federal EIN, phone, address and <strong>time zone</strong> (used for the time clock and for "today").</li>
+                <li><strong>Payroll &amp; taxes</strong>: default pay frequency (weekly, bi-weekly, semi-monthly or monthly), how many days after the period ends you pay, overtime threshold and your state unemployment (SUTA) rate and wage base.</li>
+                <li><strong>Direct deposit bank</strong>: the account payroll is paid from and your bank's ACH company ID. Needed only if you pay by direct deposit.</li>
+                <li>Click <strong>Save changes</strong>.</li>
+            </ol>
+            <GuideShot Image="admin-company.jpg" Caption="Company settings: profile, payroll defaults and the payroll bank account." />
+        </section>
+
+        <section id="logo" class="guide-step">
+            <h2><span class="num">3</span>Add your logo <span class="badge-optional">optional</span></h2>
+            <p>On the same page, use <strong>Company logo › Upload logo</strong>. Your logo then appears next to your company name at the top of every page and on every printed pay stub.</p>
+            <ul>
+                <li>PNG, JPG or WebP, up to 512 KB.</li>
+                <li>A transparent PNG around <strong>400 × 160 px</strong> (wide) or <strong>256 × 256 px</strong> (square) looks best.</li>
+                <li>Use <strong>Replace</strong> or <strong>Remove</strong> to change it later.</li>
+            </ul>
+            <GuideShot Image="admin-logo.jpg" Caption="The logo card with a preview of your current logo." />
+        </section>
+
+        <section id="employees" class="guide-step">
+            <h2><span class="num">4</span>Add employees</h2>
+            <p>Open <a href="employees">Employees</a> and click <strong>Add employee</strong>. Work through the tabs; only the starred fields are required to save:</p>
+            <ul>
+                <li><strong>Personal</strong>: name, address, date of birth, SSN (stored encrypted) and emergency contact.</li>
+                <li><strong>Job &amp; pay</strong>: title, department, manager, hire date, hourly or salary, pay rate and pay frequency.</li>
+                <li><strong>Tax withholding</strong>: the employee's federal W-4 and state withholding.</li>
+                <li><strong>Direct deposit</strong>: one or more bank accounts, or pay by check.</li>
+                <li><strong>Benefits &amp; deductions</strong>: 401(k), health insurance, HSA, garnishments and more.</li>
+                <li><strong>Time off</strong>, <strong>Pay history</strong> and <strong>Documents</strong> fill in as you go.</li>
+            </ul>
+            <GuideShot Image="admin-employees.jpg" Caption="The employee list. Filter by department or status, or export to CSV." />
+        </section>
+
+        <section id="logins" class="guide-step">
+            <h2><span class="num">5</span>Give employees their own login</h2>
+            <p>Employees can see their pay stubs, clock in and out and request time off on their own. To invite someone:</p>
+            <ol>
+                <li>Open the employee and choose the <strong>Self-service</strong> tab.</li>
+                <li>Check the <strong>Login email</strong>.</li>
+                <li>Tick any <strong>additional roles</strong> (for example <em>Manager</em> for a team lead). Everyone gets the <em>Employee</em> role automatically.</li>
+                <li>Click <strong>Create login</strong>. A <strong>temporary password</strong> appears once. Share it privately (in person or by phone, not in a group chat) and ask them to change it after signing in.</li>
+            </ol>
+            <GuideShot Image="admin-create-login.jpg" Caption="The Self-service tab: login email, extra roles and Create login." />
+            <p>Send them the <a href="help/employee">Employee guide</a> link too. It shows them everything step by step.</p>
+        </section>
+
+        <section id="roles" class="guide-step">
+            <h2><span class="num">6</span>Roles and users</h2>
+            <p>Roles decide what each person can see. They only apply inside your company.</p>
+            <div class="table-wrap mb-3">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Role</th><th>Can do</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Admin</strong></td><td>Everything, including users, roles and the audit log.</td></tr>
+                        <tr><td><strong>Payroll</strong></td><td>Run, approve and pay payroll; employees; reports.</td></tr>
+                        <tr><td><strong>HR</strong></td><td>Employees, time off, documents, reports and settings. Can preview but not approve payroll.</td></tr>
+                        <tr><td><strong>Manager</strong></td><td>Approves time and time off for their direct reports.</td></tr>
+                        <tr><td><strong>Employee</strong></td><td>Self-service only: own pay stubs, W-4, time clock and time off.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>Admins manage everyone under <a href="settings/users">Administration › Users &amp; roles</a>: change roles, <strong>reset a password</strong> (a new temporary password is shown) or <strong>disable sign-in</strong> when someone leaves.</p>
+            <GuideShot Image="admin-users.jpg" Caption="Users & roles: who can sign in, their roles and whether two-step sign-in is on." />
+        </section>
+
+        <section id="time" class="guide-step">
+            <h2><span class="num">7</span>Approve time and time off</h2>
+            <p>Hourly employees clock in and out (or enter hours) under <em>My time</em>. Only <strong>approved</strong> hours are paid, so approve them before each payroll:</p>
+            <ul>
+                <li><a href="time/approvals">Team › Timesheets</a>: tick entries and click <strong>Approve selected</strong>, or add hours for someone with <strong>Add time</strong>.</li>
+                <li><a href="time-off/approvals">Team › Time-off requests</a>: approving deducts the balance and adds the paid time-off hours to the employee's timesheet.</li>
+            </ul>
+            <p>The dashboard's <strong>Action items</strong> card shows how many are waiting.</p>
+            <GuideShot Image="admin-timesheets.jpg" Caption="Timesheets waiting for approval." />
+        </section>
+
+        <section id="payroll" class="guide-step">
+            <h2><span class="num">8</span>Run payroll</h2>
+            <p>Go to <a href="payroll">Payroll</a> and click <strong>Run regular payroll</strong> (or <strong>Off-cycle / bonus</strong> for a one-off payment). Then follow the three steps across the top of the payroll:</p>
+            <ol>
+                <li><strong>Calculate &amp; review.</strong> Check the pay period and pay date, then <strong>Calculate payroll</strong>. Review every paycheck: hours, gross, taxes, deductions and net. Need a bonus or a correction? Add it and the draft recalculates automatically.</li>
+                <li><strong>Approve.</strong> Click <strong>Approve</strong> and confirm the totals. Approved payrolls are locked; use <strong>Reopen</strong> if you spot a mistake before paying.</li>
+                <li><strong>Fund &amp; pay.</strong> Download the <strong>ACH file</strong> and upload it to your bank at least 2 business days before the pay date, set aside the tax deposit shown, then click <strong>Mark as paid</strong>.</li>
+            </ol>
+            <div class="guide-callout">
+                <i class="bi bi-check2-circle"></i>
+                <div><strong>Mark as paid</strong> assigns check numbers, locks the timesheets, adds time-off accruals and <strong>makes the pay stubs visible to employees</strong>.</div>
+            </div>
+            <GuideShot Image="admin-payroll-run.jpg" Caption="A paid payroll: totals, employer cost and every paycheck." />
+        </section>
+
+        <section id="reports" class="guide-step">
+            <h2><span class="num">9</span>Pay stubs and reports</h2>
+            <p>Every paycheck has a printable pay stub with your logo. Open it from the payroll, from the employee's <strong>Pay history</strong> tab, or, for employees, from <em>My pay</em>.</p>
+            <p><a href="reports">Reports</a> are built from paid payrolls. Pick a date range and click <strong>Run report</strong>, then <strong>Print</strong> or <strong>Export CSV</strong> for your accountant:</p>
+            <ul>
+                <li><strong>Payroll register</strong>: every paycheck in the range.</li>
+                <li><strong>Tax liability</strong>: what you owe and to whom.</li>
+                <li><strong>Form 941</strong>: the quarterly federal worksheet.</li>
+                <li><strong>W-2 summary</strong> and <strong>1099 contractors</strong> for year end.</li>
+                <li><strong>Headcount</strong>: staff by department and status.</li>
+            </ul>
+            <GuideShot Image="admin-reports.jpg" Caption="Reports: payroll register, taxes, 941, W-2, 1099 and headcount." />
+        </section>
+
+        <section id="settings" class="guide-step">
+            <h2><span class="num">10</span>Other settings</h2>
+            <ul>
+                <li><a href="settings/pay-setup">Earnings &amp; deductions</a>: bonus, commission, reimbursement and other pay types; benefits and deductions; departments.</li>
+                <li><a href="settings/time-off">Time off &amp; holidays</a>: vacation and sick leave accrual rules, and your holiday calendar (the <strong>US set</strong> button adds the common federal holidays).</li>
+                <li><a href="settings/sayings">Words of wisdom</a>: the sayings shown on the dashboard. Add your own, turn some off, or edit them.</li>
+                <li><a href="settings/tax">Tax tables</a>: federal and state withholding rates. These are shared by all companies and kept up to date by WageHarbor, so you can review them but not change them.</li>
+                <li><a href="settings/audit">Audit log</a> (Admins): who changed what, and when.</li>
+            </ul>
+        </section>
+
+        <section id="tips" class="guide-step">
+            <h2><span class="num">11</span>Good habits</h2>
+            <ul>
+                <li>Turn on <strong>two-step sign-in</strong> for everyone with Admin or Payroll: click your email at the top right › <strong>Two-factor authentication</strong>.</li>
+                <li>Keep the number of Admins small; give people the least role they need.</li>
+                <li>When someone leaves, set their status to <strong>Terminated</strong> and <strong>disable sign-in</strong> under Users &amp; roles. Their pay history is kept.</li>
+                <li>Check that tax rates and your SUTA rate are right before your first payroll each January.</li>
+            </ul>
+        </section>
+    </div>
+</div>

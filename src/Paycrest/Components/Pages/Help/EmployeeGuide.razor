@@ -1,0 +1,126 @@
+@page "/help/employee"
+@attribute [Authorize]
+
+<PageTitle>Employee guide · WageHarbor</PageTitle>
+
+<PageHeader Title="Employee guide" Subtitle="How to see your pay, print pay stubs, track your time and request time off.">
+    <Crumbs><a href="help">Help</a> / Employee guide</Crumbs>
+    <ChildContent>
+        <button class="btn btn-outline-secondary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print guide</button>
+    </ChildContent>
+</PageHeader>
+
+<div class="guide">
+    <nav class="guide-toc no-print" aria-label="On this page">
+        <div class="guide-toc-title">On this page</div>
+        <a href="help/employee#signin">1. Sign in the first time</a>
+        <a href="help/employee#dashboard">2. Your dashboard</a>
+        <a href="help/employee#pay">3. My pay</a>
+        <a href="help/employee#stub">4. View and print a pay stub</a>
+        <a href="help/employee#time">5. Clock in and out</a>
+        <a href="help/employee#timeoff">6. Request time off</a>
+        <a href="help/employee#profile">7. Your details and W-4</a>
+        <a href="help/employee#managers">8. For managers</a>
+        <a href="help/employee#faq">9. Questions</a>
+    </nav>
+
+    <div class="guide-body">
+        <section id="signin" class="guide-step">
+            <h2><span class="num">1</span>Sign in the first time</h2>
+            <p>Your company's administrator creates your login and gives you a <strong>temporary password</strong>.</p>
+            <ol>
+                <li>Go to <strong>wageharbor.com</strong> and sign in with your work email and the temporary password.</li>
+                <li>Click your email at the top right to open <strong>Account settings</strong>, choose <strong>Password</strong> and set a new password only you know.</li>
+                <li>Recommended: on the same page, turn on <strong>Two-factor authentication</strong> with an authenticator app, so nobody else can get into your pay information.</li>
+            </ol>
+            <p>Your company's name and logo show at the top of every page, so you always know you're in the right place.</p>
+        </section>
+
+        <section id="dashboard" class="guide-step">
+            <h2><span class="num">2</span>Your dashboard</h2>
+            <p>After signing in you see your <strong>Dashboard</strong>: your last paycheck (with a <strong>View pay stub</strong> button), your time-off balances, company announcements and upcoming holidays. A short <em>Words of wisdom</em> card appears at the bottom left. Press <i class="bi bi-arrow-repeat"></i> for another saying or <i class="bi bi-x-lg"></i> to close it.</p>
+            <p>The menu on the left has everything that's yours under <strong>Me</strong>. On a phone, tap <i class="bi bi-list"></i> at the top left to open it.</p>
+            <GuideShot Image="employee-dashboard.jpg" Caption="An employee's dashboard." />
+        </section>
+
+        <section id="pay" class="guide-step">
+            <h2><span class="num">3</span>My pay</h2>
+            <p>Open <a href="me/pay">My pay</a> to see:</p>
+            <ul>
+                <li>Your <strong>year-to-date</strong> gross pay, taxes, deductions and net pay.</li>
+                <li>Every <strong>pay stub</strong> for the year (choose another year from the list).</li>
+                <li>Where your pay goes (<strong>direct deposit</strong> accounts, shown masked) and your <strong>benefits &amp; deductions</strong>.</li>
+            </ul>
+            <p>A new pay stub appears as soon as your company marks that payroll as paid.</p>
+            <GuideShot Image="employee-my-pay.jpg" Caption="My pay: year-to-date totals, pay stubs, direct deposit and deductions." />
+        </section>
+
+        <section id="stub" class="guide-step">
+            <h2><span class="num">4</span>View and print a pay stub</h2>
+            <ol>
+                <li>In <strong>My pay</strong>, click a pay stub.</li>
+                <li>Check your earnings, taxes, deductions and year-to-date totals.</li>
+                <li>Click <strong>Print / save PDF</strong>. Choose your printer, or pick <strong>Save as PDF</strong> to keep a copy, for example for a loan or rental application.</li>
+            </ol>
+            <GuideShot Image="employee-paystub.jpg" Caption="A pay stub with your company's logo, ready to print or save as PDF." />
+        </section>
+
+        <section id="time" class="guide-step">
+            <h2><span class="num">5</span>Clock in and out</h2>
+            <p>If you're paid by the hour, open <a href="me/time">My time</a>:</p>
+            <ul>
+                <li>Press <strong>Clock in</strong> when you start and <strong>Clock out</strong> when you finish.</li>
+                <li>Forgot? Under <strong>Add hours manually</strong>, enter the date, hours and type, then click <strong>Add entry</strong>.</li>
+                <li>The cards show your hours <strong>this week</strong>, <strong>this period</strong> and how many are <strong>pending approval</strong>. Your timesheet below lists each entry; use the arrows to see other pay periods.</li>
+            </ul>
+            <p>Your manager approves your time before payroll. Only approved hours are paid.</p>
+            <GuideShot Image="employee-my-time.jpg" Caption="My time: the clock, your hours and their approval status." />
+        </section>
+
+        <section id="timeoff" class="guide-step">
+            <h2><span class="num">6</span>Request time off</h2>
+            <ol>
+                <li>Open <a href="me/time-off">My time off</a> to see your vacation and sick-leave balances and the company holidays.</li>
+                <li>Click <strong>Request time off</strong>, choose the type, the first and last day and the hours (weekdays × 8 is filled in for you), add a note for your manager and <strong>Submit request</strong>.</li>
+                <li>Your request shows as <em>Pending</em> until your manager approves it. You can <strong>Cancel</strong> a pending request, or an approved one that hasn't started yet.</li>
+            </ol>
+            <GuideShot Image="employee-time-off-request.jpg" Caption="Requesting time off." />
+        </section>
+
+        <section id="profile" class="guide-step">
+            <h2><span class="num">7</span>Your details and W-4</h2>
+            <p>Open <a href="me/profile">My profile</a>:</p>
+            <ul>
+                <li><strong>Contact</strong>: preferred name, phone, home address and emergency contact.</li>
+                <li><strong>Tax withholding (W-4)</strong>: your federal W-4 (filing status, dependents, other income, deductions, extra withholding) and state withholding. Changes apply from your next paycheck.</li>
+                <li><strong>My documents</strong>: files your company has shared with you.</li>
+            </ul>
+            <p>To change your <strong>bank account</strong>, contact HR. For your security, bank changes are made and verified by your company.</p>
+            <GuideShot Image="employee-profile.jpg" Caption="My profile: contact details, W-4 and documents." />
+        </section>
+
+        <section id="managers" class="guide-step">
+            <h2><span class="num">8</span>For managers</h2>
+            <p>If you have the <em>Manager</em> role, you also see a <strong>Team</strong> section in the menu:</p>
+            <ul>
+                <li><a href="time/approvals">Timesheets</a>: tick your team's entries and click <strong>Approve selected</strong> before each payroll.</li>
+                <li><a href="time-off/approvals">Time-off requests</a>: <strong>Approve</strong> or <strong>Deny</strong>. Approving deducts the balance and adds the hours to the timesheet.</li>
+            </ul>
+            <GuideShot Image="manager-timesheets.jpg" Caption="A manager's Timesheets page." />
+        </section>
+
+        <section id="faq" class="guide-step">
+            <h2><span class="num">9</span>Questions</h2>
+            <dl class="guide-faq mb-0">
+                <dt>I forgot my password.</dt>
+                <dd>Use <strong>Forgot your password?</strong> on the sign-in page, or ask your administrator to reset it. They'll give you a new temporary password.</dd>
+                <dt>My pay stub isn't there yet.</dt>
+                <dd>Pay stubs appear once your company marks that payroll as paid, usually on or just before payday.</dd>
+                <dt>Something on my pay stub looks wrong.</dt>
+                <dd>Contact your HR or payroll person. They can correct it on the next payroll.</dd>
+                <dt>Who can see my pay and personal details?</dt>
+                <dd>Only people at your own company with an HR, Payroll or Admin role, and your manager for your time. Nobody at other companies can see your data. Your Social Security and bank numbers are encrypted.</dd>
+            </dl>
+        </section>
+    </div>
+</div>
