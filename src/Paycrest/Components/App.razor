@@ -24,7 +24,15 @@
     <link rel="icon" type="image/svg+xml" href="brand/wageharbor-mark.svg" />
     <link rel="apple-touch-icon" href="brand/wageharbor-mark.svg" />
     <meta name="theme-color" content="#0B2545" />
-    <title>WageHarbor</title>
+    @* Each page sets its own <title> with <PageTitle>; a fixed one here would come first and win in search results. *@
+    @if (Config["Site:GoogleVerification"] is { Length: > 0 } google)
+    {
+        <meta name="google-site-verification" content="@google" />
+    }
+    @if (Config["Site:BingVerification"] is { Length: > 0 } bing)
+    {
+        <meta name="msvalidate.01" content="@bing" />
+    }
     @if (Config["Analytics:PlausibleDomain"] is { Length: > 0 } analyticsDomain)
     {
         @* Cookie-free analytics, only when configured. *@

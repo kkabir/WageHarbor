@@ -67,6 +67,9 @@ builder.Services.AddScoped<TimeOffService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<SampleDataService>();
 
+// Permanent redirects, so search engines move their index to the https:// address.
+builder.Services.AddHttpsRedirection(o => o.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);
+
 // Every Error/Critical log entry is stored in the database and emailed (see ErrorLogging.cs).
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
@@ -91,6 +94,18 @@ else
     if (httpsEnabled) app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+// Site:CanonicalHost (e.g. www.wageharbor.com): the bare domain redirects there so search engines see one site.
+if (app.Configuration["Site:CanonicalHost"] is { Length: > 0 } canonicalHost && canonicalHost.StartsWith("www."))
+{
+    var bareHost = canonicalHost[4..];
+    app.Use(async (ctx, next) =>
+    {
+        if (!string.Equals(ctx.Request.Host.Host, bareHost, StringComparison.OrdinalIgnoreCase)) { await next(); return; }
+        ctx.Response.StatusCode = StatusCodes.Status301MovedPermanently;
+        ctx.Response.Headers.Location = $"https://{canonicalHost}{ctx.Request.PathBase}{ctx.Request.Path}{ctx.Request.QueryString}";
+    });
+}
 if (httpsEnabled) app.UseHttpsRedirection();
 
 app.UseAntiforgery();

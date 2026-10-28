@@ -455,3 +455,6 @@ tr.clickable { cursor: pointer; }
 .contact-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .contact-done { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 1rem; font-size: 2rem; background: var(--pc-success-soft); color: var(--pc-success); }
 @media (max-width: 991.98px) { .contact-grid { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+.lp-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem .9rem; margin: -.25rem 0 .5rem; font-size: .85rem; font-weight: 600; color: var(--pc-text); }
+.lp-trust i { color: var(--pc-primary); margin-right: .3rem; }
