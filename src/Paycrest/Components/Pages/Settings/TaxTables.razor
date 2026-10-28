@@ -8,7 +8,7 @@
     <select class="form-select" style="width:110px" value="@year" @onchange="YearChanged">
         @foreach (var y in years) { <option value="@y">@y</option> }
     </select>
-    @if (canEdit)
+    @if (canEdit && years.Count > 0) @* years is empty until the page has loaded *@
     {
         <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="CopyForward"><i class="bi bi-copy me-1"></i>Create @(years.Max() + 1) from @years.Max()</button>
     }
