@@ -35,10 +35,19 @@ public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender
             logger.LogWarning("SMTP not configured; email to {To} with subject '{Subject}' was not sent.", to, subject);
             return;
         }
-        using var client = new SmtpClient(options.Host, options.Port) { EnableSsl = options.EnableSsl };
-        if (!string.IsNullOrEmpty(options.UserName))
-            client.Credentials = new NetworkCredential(options.UserName, options.Password);
-        using var msg = new MailMessage(options.From!, to, subject, html) { IsBodyHtml = true };
-        await client.SendMailAsync(msg);
+        try
+        {
+            using var client = new SmtpClient(options.Host, options.Port) { EnableSsl = options.EnableSsl };
+            if (!string.IsNullOrEmpty(options.UserName))
+                client.Credentials = new NetworkCredential(options.UserName, options.Password);
+            using var msg = new MailMessage(options.From!, to, subject, html) { IsBodyHtml = true };
+            await client.SendMailAsync(msg);
+            logger.LogInformation("Email '{Subject}' sent to {To}.", subject, to);
+        }
+        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException)
+        {
+            // Don't break the page (or reveal whether an account exists); the log says what to fix.
+            logger.LogError(ex, "Sending email '{Subject}' to {To} via {Host}:{Port} failed.", subject, to, options.Host, options.Port);
+        }
     }
 }
