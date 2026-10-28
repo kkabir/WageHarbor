@@ -351,6 +351,41 @@ namespace Paycrest.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.CaseNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ContactMessageId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ErrorLogId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactMessageId");
+
+                    b.HasIndex("ErrorLogId");
+
+                    b.ToTable("CaseNotes");
+                });
+
             modelBuilder.Entity("Paycrest.Domain.Company", b =>
                 {
                     b.Property<int>("Id")
@@ -494,6 +529,71 @@ namespace Paycrest.Migrations
                     b.HasKey("CompanyId");
 
                     b.ToTable("CompanyLogos");
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.ContactMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CompanyName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("HandledBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("HandledUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "CreatedUtc");
+
+                    b.ToTable("ContactMessages");
                 });
 
             modelBuilder.Entity("Paycrest.Domain.DeductionType", b =>
@@ -994,6 +1094,83 @@ namespace Paycrest.Migrations
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("EmployeeDocuments");
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.ErrorLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Count")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExceptionType")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("FirstSeenUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastSeenUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Method")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("ResolvedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("ResolvedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fingerprint")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "LastSeenUtc");
+
+                    b.ToTable("ErrorLogs");
                 });
 
             modelBuilder.Entity("Paycrest.Domain.FederalTaxBracket", b =>
@@ -1999,6 +2176,19 @@ namespace Paycrest.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.CaseNote", b =>
+                {
+                    b.HasOne("Paycrest.Domain.ContactMessage", null)
+                        .WithMany("Notes")
+                        .HasForeignKey("ContactMessageId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Paycrest.Domain.ErrorLog", null)
+                        .WithMany("Notes")
+                        .HasForeignKey("ErrorLogId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
             modelBuilder.Entity("Paycrest.Domain.CompanyLogo", b =>
                 {
                     b.HasOne("Paycrest.Domain.Company", null)
@@ -2359,6 +2549,11 @@ namespace Paycrest.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.ContactMessage", b =>
+                {
+                    b.Navigation("Notes");
+                });
+
             modelBuilder.Entity("Paycrest.Domain.Department", b =>
                 {
                     b.Navigation("Employees");
@@ -2373,6 +2568,11 @@ namespace Paycrest.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("TimeOffBalances");
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.ErrorLog", b =>
+                {
+                    b.Navigation("Notes");
                 });
 
             modelBuilder.Entity("Paycrest.Domain.Paycheck", b =>

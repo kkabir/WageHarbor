@@ -23,6 +23,14 @@
         EmployeeStatus.Active => "success",
         EmployeeStatus.OnLeave => "warning",
         EmployeeStatus.Terminated => "danger",
+        ErrorStatus.New => "danger",
+        ErrorStatus.Investigating => "warning",
+        ErrorStatus.Resolved => "success",
+        ErrorStatus.Ignored => "info",
+        ContactStatus.New => "warning",
+        ContactStatus.Replied => "primary",
+        ContactStatus.Closed => "success",
+        ContactStatus.Spam => "danger",
         _ => "info"
     };
 }

@@ -1,0 +1,254 @@
+@page "/platform/errors"
+@attribute [Authorize(Roles = AppRoles.PlatformOwner)]
+@inherits AppComponentBase
+@inject ILogger<Errors> Logger
+
+<PageTitle>Error log · WageHarbor platform</PageTitle>
+
+<PageHeader Title="Error log" Subtitle="Every error the site records, grouped by kind. New errors, and resolved errors that come back, are also emailed to you.">
+    <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="LogTestError" title="Records a harmless error to check that logging and the alert email work"><i class="bi bi-bug me-1"></i>Log a test error</button>
+</PageHeader>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><StatCard Label="New" Value="@counts.GetValueOrDefault(ErrorStatus.New).ToString()" Icon="exclamation-octagon" Tone="danger" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Investigating" Value="@counts.GetValueOrDefault(ErrorStatus.Investigating).ToString()" Icon="search" Tone="warning" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Resolved" Value="@counts.GetValueOrDefault(ErrorStatus.Resolved).ToString()" Icon="check2-circle" Tone="success" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Ignored" Value="@counts.GetValueOrDefault(ErrorStatus.Ignored).ToString()" Icon="eye-slash" Tone="info" /></div>
+</div>
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap p-3 border-bottom align-items-center gap-2">
+        <select class="form-select form-select-sm" style="width:auto" value="@filter" @onchange="FilterChanged">
+            <option value="open">Open (new + investigating)</option>
+            <option value="New">New</option>
+            <option value="Investigating">Investigating</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Ignored">Ignored</option>
+            <option value="all">All</option>
+        </select>
+        <input class="form-control form-control-sm" style="max-width:280px" placeholder="Search message, page or user…" @bind="search" @bind:event="oninput" />
+        @if (selected.Count > 0)
+        {
+            <button class="btn btn-sm btn-success ms-auto" disabled="@Busy" @onclick="() => BulkSetStatus(ErrorStatus.Resolved)"><i class="bi bi-check2-all me-1"></i>Resolve @selected.Count selected</button>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-light ms-auto" disabled="@Busy" @onclick="() => confirmCleanup = true" title="Delete resolved and ignored errors not seen for 90 days"><i class="bi bi-trash me-1"></i>Clean up old</button>
+        }
+    </div>
+    @if (Filtered.Count == 0)
+    {
+        <EmptyState Icon="check2-circle" Title="No errors here">Nothing matches this filter. 🎉</EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th style="width:32px"><input type="checkbox" class="form-check-input" checked="@(selected.Count == Filtered.Count)" @onchange="ToggleAll" /></th><th>Error</th><th>Page</th><th class="num">Times</th><th>Last seen</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var e in Filtered)
+                    {
+                        <tr class="clickable">
+                            <td @onclick:stopPropagation="true"><input type="checkbox" class="form-check-input" checked="@selected.Contains(e.Id)" @onchange="ev => Toggle(e.Id, (bool)ev.Value!)" /></td>
+                            <td @onclick="() => Open(e.Id)" style="min-width:280px">
+                                <div class="fw-semibold text-truncate" style="max-width:520px">@e.Message</div>
+                                <div class="small text-muted">#@e.Id · @(e.ExceptionType?.Split('.').Last() ?? e.Level) · @e.Source?.Split('.').Last()</div>
+                            </td>
+                            <td @onclick="() => Open(e.Id)" class="small text-muted">@(e.Path ?? "—")</td>
+                            <td @onclick="() => Open(e.Id)" class="num">@e.Count</td>
+                            <td @onclick="() => Open(e.Id)" class="small text-nowrap">@Local(e.LastSeenUtc)</td>
+                            <td @onclick="() => Open(e.Id)"><StatusChip Status="e.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modal Show="current != null" ShowChanged="v => { if (!v) current = null; }" Title="@($"Error #{current?.Id}")" Large="true">
+    <ChildContent>
+        @if (current != null)
+        {
+            <div class="d-flex align-items-start gap-2 mb-3">
+                <StatusChip Status="current.Status" />
+                <div class="fw-semibold">@current.Message</div>
+            </div>
+            <dl class="kv mb-3">
+                <dt>Type</dt><dd>@(current.ExceptionType ?? current.Level)</dd>
+                <dt>Source</dt><dd class="text-break">@current.Source</dd>
+                <dt>Page</dt><dd>@current.Method @(current.Path ?? "—")</dd>
+                <dt>User</dt><dd>@(current.UserName ?? "—")</dd>
+                <dt>Times seen</dt><dd>@current.Count</dd>
+                <dt>First seen</dt><dd>@Local(current.FirstSeenUtc)</dd>
+                <dt>Last seen</dt><dd>@Local(current.LastSeenUtc)</dd>
+                @if (current.ResolvedUtc != null)
+                {
+                    <dt>Resolved</dt><dd>@Local(current.ResolvedUtc.Value) by @current.ResolvedBy</dd>
+                }
+            </dl>
+            <details class="mb-3">
+                <summary class="fw-semibold small">Details and stack trace</summary>
+                <pre class="error-details">@current.Details</pre>
+            </details>
+
+            <h3 class="h6 fw-bold">History &amp; remarks</h3>
+            @if (current.Notes.Count == 0)
+            {
+                <p class="small text-muted">No remarks yet.</p>
+            }
+            else
+            {
+                <ul class="case-notes">
+                    @foreach (var n in current.Notes.OrderBy(n => n.CreatedUtc))
+                    {
+                        <li><div class="small text-muted">@Local(n.CreatedUtc) · @n.CreatedBy</div><div style="white-space:pre-line">@n.Text</div></li>
+                    }
+                </ul>
+            }
+            <div class="row g-2 mt-1">
+                <div class="col-sm-4">
+                    <label class="form-label small">Status</label>
+                    <select class="form-select" @bind="newStatus">
+                        @foreach (var s in Enum.GetValues<ErrorStatus>()) { <option value="@s">@s</option> }
+                    </select>
+                </div>
+                <div class="col-sm-8">
+                    <label class="form-label small">Remark</label>
+                    <textarea class="form-control" rows="2" maxlength="4000" placeholder="What you found or fixed…" @bind="remark"></textarea>
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => current = null">Close</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveCurrent">Save</button>
+    </Footer>
+</Modal>
+
+<Modal Show="confirmCleanup" ShowChanged="v => confirmCleanup = v" Title="Clean up old errors">
+    <ChildContent><p class="mb-0">Delete resolved and ignored errors that haven't happened for 90 days? Their history is deleted too.</p></ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => confirmCleanup = false">Cancel</button>
+        <button class="btn btn-danger" disabled="@Busy" @onclick="Cleanup">Delete</button>
+    </Footer>
+</Modal>
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")] public int? OpenId { get; set; }
+
+    private List<ErrorLog> rows = [];
+    private Dictionary<ErrorStatus, int> counts = [];
+    private HashSet<int> selected = [];
+    private string filter = "open", search = "";
+    private ErrorLog? current;
+    private ErrorStatus newStatus;
+    private string remark = "";
+    private bool confirmCleanup;
+    private TimeZoneInfo zone = TimeZoneInfo.Utc;
+
+    private List<ErrorLog> Filtered => rows
+        .Where(e => filter switch
+        {
+            "open" => e.Status is ErrorStatus.New or ErrorStatus.Investigating,
+            "all" => true,
+            _ => e.Status.ToString() == filter
+        })
+        .Where(e => string.IsNullOrWhiteSpace(search) || $"{e.Message} {e.Path} {e.UserName} {e.ExceptionType}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York"); } catch { }
+        await LoadAsync();
+        if (OpenId is int id) await Open(id);
+    }
+
+    private string Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone).ToString("MMM d, yyyy h:mm tt") + " ET";
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        rows = await db.ErrorLogs.AsNoTracking().OrderByDescending(e => e.LastSeenUtc).Take(1000).ToListAsync();
+        counts = await db.ErrorLogs.GroupBy(e => e.Status).ToDictionaryAsync(g => g.Key, g => g.Count());
+        selected.IntersectWith(rows.Select(r => r.Id));
+    }
+
+    private async Task FilterChanged(ChangeEventArgs e) { filter = e.Value?.ToString() ?? "open"; selected.Clear(); await Task.CompletedTask; }
+    private void Toggle(int id, bool on) { if (on) selected.Add(id); else selected.Remove(id); }
+    private void ToggleAll(ChangeEventArgs e) { if ((bool)e.Value!) selected = Filtered.Select(r => r.Id).ToHashSet(); else selected.Clear(); }
+
+    private async Task Open(int id)
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        current = await db.ErrorLogs.AsNoTracking().Include(e => e.Notes).FirstOrDefaultAsync(e => e.Id == id);
+        if (current == null) { Toast.Error($"Error #{id} no longer exists."); return; }
+        newStatus = current.Status;
+        remark = "";
+    }
+
+    private async Task SaveCurrent()
+    {
+        var id = current!.Id;
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenPlatformAsync();
+            var row = await db.ErrorLogs.Include(e => e.Notes).FirstAsync(e => e.Id == id);
+            if (!ApplyChange(row, newStatus, remark, db.AuditUser)) throw new InvalidOperationException("Change the status or write a remark first.");
+            await db.SaveChangesAsync();
+        }, "Saved.");
+        await LoadAsync();
+        if (ok) await Open(id);
+    }
+
+    private async Task BulkSetStatus(ErrorStatus status)
+    {
+        var ids = selected.ToList();
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenPlatformAsync();
+            foreach (var row in await db.ErrorLogs.Include(e => e.Notes).Where(e => ids.Contains(e.Id)).ToListAsync())
+                ApplyChange(row, status, "", db.AuditUser);
+            await db.SaveChangesAsync();
+            selected.Clear();
+        }, $"{ids.Count} error(s) marked {status.ToString().ToLowerInvariant()}.");
+        await LoadAsync();
+    }
+
+    /// <summary>Applies a status change and/or remark, recording both as a dated note. Returns false when nothing changed.</summary>
+    private static bool ApplyChange(ErrorLog row, ErrorStatus status, string remarkText, string? by)
+    {
+        var text = remarkText.Trim();
+        if (status != row.Status)
+        {
+            text = $"Status: {row.Status} → {status}" + (text.Length > 0 ? "\n" + text : "");
+            row.Status = status;
+            row.ResolvedUtc = status == ErrorStatus.Resolved ? DateTime.UtcNow : null;
+            row.ResolvedBy = status == ErrorStatus.Resolved ? by : null;
+        }
+        if (text.Length == 0) return false;
+        row.Notes.Add(new CaseNote { CreatedBy = by, Text = text });
+        return true;
+    }
+
+    private async Task Cleanup()
+    {
+        await RunAsync(async () =>
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-90);
+            await using var db = await Dbs.OpenPlatformAsync();
+            var n = await db.ErrorLogs.Where(e => (e.Status == ErrorStatus.Resolved || e.Status == ErrorStatus.Ignored) && e.LastSeenUtc < cutoff).ExecuteDeleteAsync();
+            Toast.Success($"Deleted {n} old error(s).");
+        });
+        confirmCleanup = false;
+        await LoadAsync();
+    }
+
+    private async Task LogTestError()
+    {
+        Logger.LogError(new InvalidOperationException("Test error from the error log page. Safe to resolve."), "Test error logged by {User}", await Me.GetNameAsync());
+        Toast.Info("Test error logged. It appears here within a few seconds, and an alert email is sent if email is set up.");
+        await Task.Delay(2500);
+        await LoadAsync();
+    }
+}

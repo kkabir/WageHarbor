@@ -20,6 +20,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<WiseSaying> WiseSayings => Set<WiseSaying>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
+    public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeBankAccount> EmployeeBankAccounts => Set<EmployeeBankAccount>();
@@ -101,6 +104,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<FederalTaxBracket>().HasOne<TaxYear>().WithMany(t => t.Brackets).HasForeignKey(b => b.Year);
         builder.Entity<StateTaxRule>().HasIndex(x => new { x.StateCode, x.Year }).IsUnique();
         builder.Entity<AuditLog>().HasIndex(x => x.TimestampUtc);
+        builder.Entity<ErrorLog>(e =>
+        {
+            e.HasIndex(x => x.Fingerprint).IsUnique();
+            e.HasIndex(x => new { x.Status, x.LastSeenUtc });
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasMany(x => x.Notes).WithOne().HasForeignKey(n => n.ErrorLogId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<ContactMessage>(e =>
+        {
+            e.HasIndex(x => new { x.Status, x.CreatedUtc });
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasMany(x => x.Notes).WithOne().HasForeignKey(n => n.ContactMessageId).OnDelete(DeleteBehavior.Cascade);
+        });
         builder.Entity<CompanyLogo>().HasKey(x => x.CompanyId);
         builder.Entity<CompanyLogo>().Property(x => x.CompanyId).ValueGeneratedNever();
 

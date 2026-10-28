@@ -1,0 +1,174 @@
+@page "/platform/messages"
+@attribute [Authorize(Roles = AppRoles.PlatformOwner)]
+@inherits AppComponentBase
+
+<PageTitle>Messages · WageHarbor platform</PageTitle>
+
+<PageHeader Title="Messages" Subtitle="Questions sent through the Contact us page. Each one is also emailed to your contact address." />
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><StatCard Label="New" Value="@counts.GetValueOrDefault(ContactStatus.New).ToString()" Icon="envelope-exclamation" Tone="warning" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Replied" Value="@counts.GetValueOrDefault(ContactStatus.Replied).ToString()" Icon="reply" Tone="primary" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Closed" Value="@counts.GetValueOrDefault(ContactStatus.Closed).ToString()" Icon="check2-circle" Tone="success" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Spam" Value="@counts.GetValueOrDefault(ContactStatus.Spam).ToString()" Icon="slash-circle" Tone="danger" /></div>
+</div>
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap p-3 border-bottom align-items-center gap-2">
+        <select class="form-select form-select-sm" style="width:auto" @bind="filter">
+            <option value="open">Open (new + replied)</option>
+            <option value="New">New</option>
+            <option value="Replied">Replied</option>
+            <option value="Closed">Closed</option>
+            <option value="Spam">Spam</option>
+            <option value="all">All</option>
+        </select>
+        <input class="form-control form-control-sm" style="max-width:280px" placeholder="Search name, email or text…" @bind="search" @bind:event="oninput" />
+    </div>
+    @if (Filtered.Count == 0)
+    {
+        <EmptyState Icon="envelope-open" Title="No messages here">Messages from the Contact us page appear here.</EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>From</th><th>Topic &amp; message</th><th>Received</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Filtered)
+                    {
+                        <tr class="clickable" @onclick="() => Open(m.Id)">
+                            <td><div class="fw-semibold">@m.Name</div><div class="small text-muted">@m.Email@(m.CompanyName != null ? " · " + m.CompanyName : "")</div></td>
+                            <td style="min-width:260px"><div class="small fw-semibold">@m.Topic</div><div class="small text-muted text-truncate" style="max-width:460px">@m.Message</div></td>
+                            <td class="small text-nowrap">@Local(m.CreatedUtc)</td>
+                            <td><StatusChip Status="m.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modal Show="current != null" ShowChanged="v => { if (!v) current = null; }" Title="@($"Message #{current?.Id}: {current?.Topic}")" Large="true">
+    <ChildContent>
+        @if (current != null)
+        {
+            <dl class="kv mb-3">
+                <dt>From</dt><dd>@current.Name &lt;<a href="mailto:@current.Email">@current.Email</a>&gt;</dd>
+                <dt>Company</dt><dd>@(current.CompanyName ?? "—")</dd>
+                <dt>Phone</dt><dd>@(current.Phone ?? "—")</dd>
+                <dt>Received</dt><dd>@Local(current.CreatedUtc)</dd>
+                <dt>Signed-in user</dt><dd>@(current.UserId != null ? $"Yes (company #{current.CompanyId})" : "No")</dd>
+                <dt>Status</dt><dd><StatusChip Status="current.Status" />@if (current.HandledUtc != null) { <span class="small text-muted ms-2">@Local(current.HandledUtc.Value) by @current.HandledBy</span> }</dd>
+            </dl>
+            <div class="contact-message-body mb-3">@current.Message</div>
+            <a class="btn btn-sm btn-outline-primary mb-3" href="@ReplyLink(current)"><i class="bi bi-reply me-1"></i>Reply by email</a>
+
+            <h3 class="h6 fw-bold">History &amp; remarks</h3>
+            @if (current.Notes.Count == 0)
+            {
+                <p class="small text-muted">No remarks yet.</p>
+            }
+            else
+            {
+                <ul class="case-notes">
+                    @foreach (var n in current.Notes.OrderBy(n => n.CreatedUtc))
+                    {
+                        <li><div class="small text-muted">@Local(n.CreatedUtc) · @n.CreatedBy</div><div style="white-space:pre-line">@n.Text</div></li>
+                    }
+                </ul>
+            }
+            <div class="row g-2 mt-1">
+                <div class="col-sm-4">
+                    <label class="form-label small">Status</label>
+                    <select class="form-select" @bind="newStatus">
+                        @foreach (var s in Enum.GetValues<ContactStatus>()) { <option value="@s">@s</option> }
+                    </select>
+                </div>
+                <div class="col-sm-8">
+                    <label class="form-label small">Remark</label>
+                    <textarea class="form-control" rows="2" maxlength="4000" placeholder="What you replied, or what happens next…" @bind="remark"></textarea>
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => current = null">Close</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveCurrent">Save</button>
+    </Footer>
+</Modal>
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")] public int? OpenId { get; set; }
+
+    private List<ContactMessage> rows = [];
+    private Dictionary<ContactStatus, int> counts = [];
+    private string filter = "open", search = "";
+    private ContactMessage? current;
+    private ContactStatus newStatus;
+    private string remark = "";
+    private TimeZoneInfo zone = TimeZoneInfo.Utc;
+
+    private List<ContactMessage> Filtered => rows
+        .Where(m => filter switch
+        {
+            "open" => m.Status is ContactStatus.New or ContactStatus.Replied,
+            "all" => true,
+            _ => m.Status.ToString() == filter
+        })
+        .Where(m => string.IsNullOrWhiteSpace(search) || $"{m.Name} {m.Email} {m.CompanyName} {m.Topic} {m.Message}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York"); } catch { }
+        await LoadAsync();
+        if (OpenId is int id) await Open(id);
+    }
+
+    private string Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone).ToString("MMM d, yyyy h:mm tt") + " ET";
+
+    private static string ReplyLink(ContactMessage m) =>
+        $"mailto:{Uri.EscapeDataString(m.Email)}?subject={Uri.EscapeDataString($"Re: {m.Topic} (WageHarbor #{m.Id})")}";
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        rows = await db.ContactMessages.AsNoTracking().OrderByDescending(m => m.CreatedUtc).Take(1000).ToListAsync();
+        counts = await db.ContactMessages.GroupBy(m => m.Status).ToDictionaryAsync(g => g.Key, g => g.Count());
+    }
+
+    private async Task Open(int id)
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        current = await db.ContactMessages.AsNoTracking().Include(m => m.Notes).FirstOrDefaultAsync(m => m.Id == id);
+        if (current == null) { Toast.Error($"Message #{id} no longer exists."); return; }
+        newStatus = current.Status;
+        remark = "";
+    }
+
+    private async Task SaveCurrent()
+    {
+        var id = current!.Id;
+        var ok = await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenPlatformAsync();
+            var row = await db.ContactMessages.Include(m => m.Notes).FirstAsync(m => m.Id == id);
+            var text = remark.Trim();
+            if (newStatus != row.Status)
+            {
+                text = $"Status: {row.Status} → {newStatus}" + (text.Length > 0 ? "\n" + text : "");
+                row.Status = newStatus;
+                var handled = newStatus is ContactStatus.Replied or ContactStatus.Closed or ContactStatus.Spam;
+                row.HandledUtc = handled ? DateTime.UtcNow : null;
+                row.HandledBy = handled ? db.AuditUser : null;
+            }
+            if (text.Length == 0) throw new InvalidOperationException("Change the status or write a remark first.");
+            row.Notes.Add(new CaseNote { CreatedBy = db.AuditUser, Text = text });
+            await db.SaveChangesAsync();
+        }, "Saved.");
+        await LoadAsync();
+        if (ok) await Open(id);
+    }
+}

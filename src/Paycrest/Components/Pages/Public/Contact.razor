@@ -1,0 +1,210 @@
+@page "/contact"
+@layout Paycrest.Components.Layout.PublicLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Caching.Memory
+@using Paycrest.Data
+@inject Db Dbs
+@inject CurrentUser Me
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject IMemoryCache Cache
+@inject IConfiguration Config
+@inject ILogger<Contact> Logger
+
+<PageTitle>Contact us · WageHarbor</PageTitle>
+<HeadContent>
+    <meta name="description" content="Questions about WageHarbor payroll? Send us a message and we'll get back to you." />
+    <link rel="canonical" href="https://www.wageharbor.com/contact" />
+</HeadContent>
+
+<div class="contact-grid">
+    <div class="prose m-0">
+        <h1>Contact us</h1>
+        <p class="prose-sub">Questions, feedback or trouble with WageHarbor? Send us a message and we'll reply by email, usually within one business day.</p>
+        <ul class="lp-checks">
+            <li><i class="bi bi-question-circle"></i><span>Many answers are already in <a href="help">Help &amp; guides</a>.</span></li>
+            <li><i class="bi bi-envelope"></i><span>Prefer email? Write to <a href="mailto:@ContactEmail">@ContactEmail</a>.</span></li>
+            <li><i class="bi bi-shield-lock"></i><span>Please don't send Social Security or bank numbers in a message.</span></li>
+        </ul>
+    </div>
+
+    <div class="pc-card contact-card">
+        @if (sent)
+        {
+            <div class="text-center py-4">
+                <div class="contact-done"><i class="bi bi-check2"></i></div>
+                <h2 class="h4 fw-bold">Thanks, your message is on its way</h2>
+                <p class="text-muted mb-4">We'll reply to <strong>@sentTo</strong>. Your reference is <strong>#@reference</strong>.</p>
+                <a href="help" class="btn btn-outline-secondary">Browse Help &amp; guides</a>
+            </div>
+        }
+        else
+        {
+            @if (error != null)
+            {
+                <div class="alert alert-danger small">@error</div>
+            }
+            <EditForm Model="Input" method="post" OnValidSubmit="SendAsync" FormName="contact" Enhance="false">
+                <DataAnnotationsValidator />
+                <input type="hidden" name="Input.RenderedAtTicks" value="@Input.RenderedAtTicks" />
+                @* Honeypot: hidden from people, often filled in by bots. *@
+                <div class="contact-hp" aria-hidden="true">
+                    <label for="Input.Website">Website</label>
+                    <InputText id="Input.Website" @bind-Value="Input.Website" tabindex="-1" autocomplete="off" />
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="Input.Name">Your name *</label>
+                        <InputText id="Input.Name" class="form-control" @bind-Value="Input.Name" autocomplete="name" />
+                        <ValidationMessage For="() => Input.Name" class="text-danger small" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="Input.Email">Email *</label>
+                        <InputText id="Input.Email" type="email" class="form-control" @bind-Value="Input.Email" autocomplete="email" />
+                        <ValidationMessage For="() => Input.Email" class="text-danger small" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="Input.CompanyName">Company</label>
+                        <InputText id="Input.CompanyName" class="form-control" @bind-Value="Input.CompanyName" autocomplete="organization" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="Input.Phone">Phone</label>
+                        <InputText id="Input.Phone" type="tel" class="form-control" @bind-Value="Input.Phone" autocomplete="tel" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="Input.Topic">Topic *</label>
+                        <InputSelect id="Input.Topic" class="form-select" @bind-Value="Input.Topic">
+                            <option value="">Choose…</option>
+                            @foreach (var t in Topics) { <option value="@t">@t</option> }
+                        </InputSelect>
+                        <ValidationMessage For="() => Input.Topic" class="text-danger small" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="Input.Message">Message *</label>
+                        <InputTextArea id="Input.Message" class="form-control" rows="6" @bind-Value="Input.Message" maxlength="5000" />
+                        <ValidationMessage For="() => Input.Message" class="text-danger small" />
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-send me-1"></i>Send message</button>
+                        <p class="small text-muted mt-2 mb-0">We use your details only to answer you. See our <a href="privacy">Privacy policy</a>.</p>
+                    </div>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly string[] Topics =
+        ["General question", "Pricing or plans", "Help using WageHarbor", "Report a problem", "Accountants and partners", "Privacy or security", "Other"];
+
+    private const int MaxPerHour = 5;
+    private static readonly TimeSpan MinFillTime = TimeSpan.FromSeconds(3);
+
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm] private InputModel Input { get; set; } = default!;
+
+    private bool sent;
+    private string? error, sentTo;
+    private int reference;
+
+    private string ContactEmail => Config["Site:ContactEmail"] is { Length: > 0 } e ? e : "contact@wageharbor.com";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Input != null) return; // posted form
+        Input = new() { RenderedAtTicks = DateTime.UtcNow.Ticks };
+        if ((await Me.GetPrincipalAsync()).Identity?.IsAuthenticated == true)
+            Input.Email = await Me.GetNameAsync() ?? "";
+        if (HttpContext.Request.Query["topic"].ToString() is { Length: > 0 } topic && Topics.Contains(topic))
+            Input.Topic = topic;
+    }
+
+    private async Task SendAsync()
+    {
+        // Bots: pretend it worked so they don't adapt, but store and send nothing.
+        var tooFast = DateTime.UtcNow - new DateTime(Math.Clamp(Input.RenderedAtTicks, 0, DateTime.MaxValue.Ticks), DateTimeKind.Utc) < MinFillTime;
+        if (!string.IsNullOrEmpty(Input.Website) || tooFast)
+        {
+            Logger.LogInformation("Contact form submission dropped as likely spam.");
+            (sent, sentTo, reference) = (true, Input.Email, 0);
+            return;
+        }
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = "contact:" + ip;
+        var recent = Cache.GetOrCreate(key, e => { e.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1); return 0; });
+        if (recent >= MaxPerHour)
+        {
+            error = $"You've sent several messages in the last hour. Please try again later, or email {ContactEmail}.";
+            return;
+        }
+        Cache.Set(key, recent + 1, TimeSpan.FromHours(1));
+
+        var signedIn = (await Me.GetPrincipalAsync()).Identity?.IsAuthenticated == true;
+        var msg = new ContactMessage
+        {
+            Name = Input.Name.Trim(),
+            Email = Input.Email.Trim(),
+            CompanyName = string.IsNullOrWhiteSpace(Input.CompanyName) ? null : Input.CompanyName.Trim(),
+            Phone = string.IsNullOrWhiteSpace(Input.Phone) ? null : Input.Phone.Trim(),
+            Topic = Topics.Contains(Input.Topic) ? Input.Topic : "Other",
+            Message = Input.Message.Trim(),
+            UserId = signedIn ? await Me.GetUserIdAsync() : null,
+            CompanyId = signedIn ? await Me.GetCompanyIdAsync() : null,
+        };
+        await using (var db = await Dbs.OpenPlatformAsync())
+        {
+            db.ContactMessages.Add(msg);
+            await db.SaveChangesAsync();
+        }
+
+        if (EmailSender is SmtpEmailSender smtp)
+            await smtp.SendAsync(ContactEmail, $"[WageHarbor contact] {msg.Topic}: {OneLine(msg.Name)}", EmailBody(msg), replyTo: msg.Email);
+
+        (sent, sentTo, reference) = (true, msg.Email, msg.Id);
+    }
+
+    private string EmailBody(ContactMessage m)
+    {
+        var h = (string? s) => WebUtility.HtmlEncode(s ?? "—");
+        var baseUrl = (Config["Site:BaseUrl"] is { Length: > 0 } b ? b : "https://www.wageharbor.com").TrimEnd('/');
+        return $"""
+            <h2 style="font-family:Segoe UI,Arial;color:#0b2545;margin:0 0 8px">New message #{m.Id}: {h(m.Topic)}</h2>
+            <table style="font-family:Segoe UI,Arial;font-size:14px;border-collapse:collapse">
+              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">From</td><td>{h(m.Name)} &lt;{h(m.Email)}&gt;</td></tr>
+              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Company</td><td>{h(m.CompanyName)}</td></tr>
+              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Phone</td><td>{h(m.Phone)}</td></tr>
+              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Signed in</td><td>{(m.UserId != null ? "Yes" : "No")}</td></tr>
+            </table>
+            <div style="font-family:Segoe UI,Arial;font-size:15px;white-space:pre-line;background:#f3f4f6;padding:12px;margin:12px 0;border-radius:6px">{h(m.Message)}</div>
+            <p style="font-family:Segoe UI,Arial">Reply to this email to answer {h(m.Name)} directly, then <a href="{baseUrl}/platform/messages?id={m.Id}">mark it replied in WageHarbor</a>.</p>
+            """;
+    }
+
+    private static string OneLine(string s) => s.ReplaceLineEndings(" ").Trim();
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Please tell us your name."), StringLength(120)]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "We need your email to reply."), EmailAddress, StringLength(256)]
+        public string Email { get; set; } = "";
+
+        [StringLength(160)] public string? CompanyName { get; set; }
+        [StringLength(40)] public string? Phone { get; set; }
+
+        [Required(ErrorMessage = "Please choose a topic.")]
+        public string Topic { get; set; } = "";
+
+        [Required(ErrorMessage = "Please write a message."), StringLength(5000, MinimumLength = 10, ErrorMessage = "Please write at least a sentence (10 characters).")]
+        public string Message { get; set; } = "";
+
+        public string? Website { get; set; }
+        public long RenderedAtTicks { get; set; }
+    }
+}

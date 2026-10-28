@@ -12,6 +12,7 @@ public abstract class AppComponentBase : ComponentBase
     [Inject] protected NavigationManager Nav { get; set; } = default!;
     [Inject] protected CurrentUser Me { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
+    [Inject] private ILoggerFactory LoggerFactory { get; set; } = default!;
 
     protected bool Busy { get; private set; }
 
@@ -27,7 +28,12 @@ public abstract class AppComponentBase : ComponentBase
             return true;
         }
         catch (InvalidOperationException ex) { Toast.Error(ex.Message); }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) { Toast.Error("Could not save: " + (ex.InnerException?.Message ?? ex.Message)); }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            // Shown to the user, and recorded in the error log for the platform owner.
+            LoggerFactory.CreateLogger(GetType()).LogError(ex, "Save failed on {Page}", GetType().Name);
+            Toast.Error("Could not save: " + (ex.InnerException?.Message ?? ex.Message));
+        }
         finally { Busy = false; StateHasChanged(); }
         return false;
     }

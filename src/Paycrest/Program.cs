@@ -67,6 +67,13 @@ builder.Services.AddScoped<TimeOffService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<SampleDataService>();
 
+// Every Error/Critical log entry is stored in the database and emailed (see ErrorLogging.cs).
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ErrorLogQueue>();
+builder.Services.AddSingleton<ILoggerProvider, DatabaseErrorLoggerProvider>();
+builder.Services.AddHostedService<ErrorLogWriter>();
+
 var app = builder.Build();
 
 await SeedData.InitializeAsync(app.Services);

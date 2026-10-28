@@ -28,7 +28,8 @@ public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender
     public Task SendPasswordResetCodeAsync(ApplicationUser user, string email, string resetCode) =>
         SendAsync(email, "Your WageHarbor password reset code", $"Your password reset code is: <b>{WebUtility.HtmlEncode(resetCode)}</b>");
 
-    public async Task SendAsync(string to, string subject, string html)
+    /// <summary>Sends an HTML email. <paramref name="replyTo"/> makes "Reply" in the mail app answer that address.</summary>
+    public async Task SendAsync(string to, string subject, string html, string? replyTo = null)
     {
         if (!options.IsConfigured)
         {
@@ -41,6 +42,7 @@ public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender
             if (!string.IsNullOrEmpty(options.UserName))
                 client.Credentials = new NetworkCredential(options.UserName, options.Password);
             using var msg = new MailMessage(options.From!, to, subject, html) { IsBodyHtml = true };
+            if (!string.IsNullOrWhiteSpace(replyTo)) msg.ReplyToList.Add(replyTo);
             await client.SendMailAsync(msg);
             logger.LogInformation("Email '{Subject}' sent to {To}.", subject, to);
         }
