@@ -49,6 +49,8 @@ public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender
             if (!string.IsNullOrEmpty(options.UserName))
                 client.Credentials = new NetworkCredential(options.UserName, options.Password);
             using var msg = new MailMessage(options.From!, to, subject, html) { IsBodyHtml = true };
+            // SmtpClient doesn't add a Message-ID; Gmail and others expect one and score mail without it as spammier.
+            msg.Headers.Add("Message-ID", $"<{Guid.NewGuid():N}@{msg.From!.Host}>");
             if (!string.IsNullOrWhiteSpace(replyTo)) msg.ReplyToList.Add(replyTo);
             await client.SendMailAsync(msg);
             logger.LogInformation("Email '{Subject}' sent to {To}.", subject, to);
