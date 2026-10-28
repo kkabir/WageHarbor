@@ -1,23 +1,20 @@
 @page "/help"
-@attribute [Authorize]
-@inherits AppComponentBase
+@layout Paycrest.Components.Layout.HelpLayout
+@attribute [AllowAnonymous]
 
 <PageTitle>Help · WageHarbor</PageTitle>
 
-<PageHeader Title="Help" Subtitle="Step-by-step guides with pictures. Pick the one that fits you." />
+<PageHeader Title="WageHarbor help" Subtitle="Step-by-step guides with pictures for companies and their employees. Pick the one that fits you." />
 
 <div class="row g-3 mb-4">
-    @if (isCompanyAdmin)
-    {
-        <div class="col-lg-6">
-            <a class="pc-card guide-card d-block h-100 text-reset" href="help/company">
-                <div class="icon tone-primary"><i class="bi bi-buildings"></i></div>
-                <h2>Company guide</h2>
-                <p class="text-muted mb-2">For owners, HR and payroll staff: set up your company, add employees, give them logins, approve time and run payroll.</p>
-                <span class="small fw-semibold">Read the company guide →</span>
-            </a>
-        </div>
-    }
+    <div class="col-lg-6">
+        <a class="pc-card guide-card d-block h-100 text-reset" href="help/company">
+            <div class="icon tone-primary"><i class="bi bi-buildings"></i></div>
+            <h2>Company guide</h2>
+            <p class="text-muted mb-2">For owners, HR and payroll staff: register your company, add employees, give them logins, approve time and run payroll.</p>
+            <span class="small fw-semibold">Read the company guide →</span>
+        </a>
+    </div>
     <div class="col-lg-6">
         <a class="pc-card guide-card d-block h-100 text-reset" href="help/employee">
             <div class="icon tone-success"><i class="bi bi-person-badge"></i></div>
@@ -41,9 +38,3 @@
         <dd>Only people at your own company with the right role. Other companies on WageHarbor can never see your data. Social Security and bank numbers are encrypted and shown masked.</dd>
     </dl>
 </div>
-
-@code {
-    private bool isCompanyAdmin;
-
-    protected override async Task OnInitializedAsync() => isCompanyAdmin = await Me.CanManagePeopleAsync();
-}

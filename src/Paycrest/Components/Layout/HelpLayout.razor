@@ -1,0 +1,30 @@
+@inherits LayoutComponentBase
+
+@* Help is public: signed-in users get the normal app shell, visitors a simple public page. *@
+<AuthorizeView>
+    <Authorized>
+        <MainLayout Body="@Body" />
+    </Authorized>
+    <NotAuthorized>
+        <div class="public-shell">
+            <header class="public-topbar">
+                <a href="help" class="public-brand" title="WageHarbor help">
+                    <img src="brand/wageharbor-logo.svg" class="light-only" alt="WageHarbor" height="34" />
+                    <img src="brand/wageharbor-logo-dark.svg" class="dark-only" alt="WageHarbor" height="34" />
+                </a>
+                <nav class="ms-auto d-flex align-items-center gap-2">
+                    <ThemeToggle />
+                    <a href="Account/Login" class="btn btn-sm btn-outline-secondary">Sign in</a>
+                    <a href="Account/Register" class="btn btn-sm btn-primary d-none d-sm-inline-block">Register your company</a>
+                </nav>
+            </header>
+            <main class="public-content">
+                @Body
+            </main>
+            <footer class="public-footer">
+                wageharbor.com · Payroll &amp; HR, free for small business ·
+                <a href="Account/Login">Sign in</a> · <a href="Account/Register">Register your company</a>
+            </footer>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>

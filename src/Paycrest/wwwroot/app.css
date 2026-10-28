@@ -320,3 +320,17 @@ tr.clickable { cursor: pointer; }
     .guide-step { break-inside: avoid-page; box-shadow: none; }
     .guide-shot img { box-shadow: none; max-height: 420px; object-fit: contain; }
 }
+
+/* ---------- Public pages (Help for visitors) ---------- */
+.dark-only { display: none !important; }
+[data-bs-theme=dark] .dark-only { display: inline-block !important; }
+[data-bs-theme=dark] .light-only { display: none !important; }
+.public-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.public-topbar { position: sticky; top: 0; z-index: 20; height: 64px; display: flex; align-items: center; gap: 1rem; padding: 0 1.75rem; background: var(--pc-surface); border-bottom: 1px solid var(--pc-border); }
+.public-brand { display: flex; align-items: center; }
+.public-content { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 1.75rem; }
+.public-footer { text-align: center; font-size: .8rem; color: var(--pc-muted); padding: 1.5rem 1rem 2rem; border-top: 1px solid var(--pc-border); }
+@media (max-width: 575.98px) { .public-topbar { padding: 0 1rem; } .public-content { padding: 1rem; } }
+@media print { .public-topbar, .public-footer { display: none !important; } .public-content { padding: 0; max-width: none; } }
+.auth-help-link { color: #5eead4; font-weight: 600; }
+.auth-help-link:hover { color: #fff; }
