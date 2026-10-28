@@ -2,10 +2,15 @@
 @attribute [Authorize(Roles = AppRoles.PlatformOwner)]
 @inherits AppComponentBase
 @inject ILogger<Errors> Logger
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject IConfiguration Config
+@using Microsoft.AspNetCore.Identity
+@using Paycrest.Data
 
 <PageTitle>Error log · WageHarbor platform</PageTitle>
 
 <PageHeader Title="Error log" Subtitle="Every error the site records, grouped by kind. New errors, and resolved errors that come back, are also emailed to you.">
+    <button class="btn btn-outline-secondary" @onclick="OpenEmailTest" title="Send a test email and see straight away whether the mail server accepts it"><i class="bi bi-envelope-check me-1"></i>Send test email</button>
     <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="LogTestError" title="Records a harmless error to check that logging and the alert email work"><i class="bi bi-bug me-1"></i>Log a test error</button>
 </PageHeader>
 
@@ -134,6 +139,23 @@
     </Footer>
 </Modal>
 
+<Modal Show="showEmailTest" ShowChanged="v => showEmailTest = v" Title="Send a test email">
+    <ChildContent>
+        <p class="small text-muted mb-2">Settings in use (from appsettings.Production.json):</p>
+        <div class="small mb-3 p-2 rounded" style="background:var(--pc-surface-2)">@SmtpSummary</div>
+        <label class="form-label">Send to</label>
+        <input class="form-control" type="email" @bind="testTo" placeholder="you@gmail.com" />
+        @if (testResult != null)
+        {
+            <div class="alert @(testOk ? "alert-success" : "alert-danger") small mt-3 mb-0" style="white-space:pre-line">@testResult</div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showEmailTest = false">Close</button>
+        <button class="btn btn-primary" disabled="@sendingTest" @onclick="SendTestEmail">@(sendingTest ? "Sending…" : "Send")</button>
+    </Footer>
+</Modal>
+
 @code {
     [SupplyParameterFromQuery(Name = "id")] public int? OpenId { get; set; }
 
@@ -145,6 +167,34 @@
     private ErrorStatus newStatus;
     private string remark = "";
     private bool confirmCleanup;
+    private bool showEmailTest, sendingTest, testOk;
+    private string testTo = "";
+    private string? testResult;
+
+    private string SmtpSummary => EmailSender is SmtpEmailSender smtp ? smtp.SettingsSummary : "Email sending isn't available.";
+
+    private async Task OpenEmailTest()
+    {
+        testTo = Config["Site:ContactEmail"] ?? await Me.GetNameAsync() ?? "";
+        testResult = null;
+        showEmailTest = true;
+    }
+
+    private async Task SendTestEmail()
+    {
+        if (EmailSender is not SmtpEmailSender smtp || string.IsNullOrWhiteSpace(testTo)) return;
+        sendingTest = true;
+        testResult = null;
+        StateHasChanged();
+        var error = await smtp.TrySendAsync(testTo.Trim(), "WageHarbor test email",
+            $"<p style=\"font-family:Segoe UI,Arial\">This is a test email from WageHarbor, sent {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. If you can read it, email sending works.</p>");
+        testOk = error == null;
+        testResult = error == null
+            ? $"The mail server accepted the email for {testTo.Trim()}.\nIf it doesn't arrive within a few minutes, check Spam, and check the contact@ inbox for a bounce message."
+            : "The mail server did not accept it:\n" + error;
+        sendingTest = false;
+    }
+
     private TimeZoneInfo zone = TimeZoneInfo.Utc;
 
     private List<ErrorLog> Filtered => rows
