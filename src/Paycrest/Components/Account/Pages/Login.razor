@@ -15,12 +15,6 @@
 
 <h1 class="h3 fw-bold mb-1">Sign in</h1>
 <p class="text-muted mb-4">Welcome back. Sign in to manage payroll or view your pay.</p>
-@if (firstRun)
-{
-    <div class="alert alert-primary small">
-        <i class="bi bi-stars me-1"></i>New installation — <a class="fw-semibold" href="Account/Register">create the administrator account</a> to set up your company.
-    </div>
-}
 <div>
     <div>
         <section>
@@ -55,7 +49,7 @@
                 <hr />
                 <div class="small d-flex justify-content-between">
                     <a href="Account/ForgotPassword">Forgot your password?</a>
-                    <span class="text-muted">No account? Ask your HR administrator.</span>
+                    <span class="text-muted">New to WageHarbor? <a class="fw-semibold" href="Account/Register">Register your company</a></span>
                 </div>
             </EditForm>
         </section>
@@ -75,13 +69,11 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    private bool firstRun;
 
     protected override async Task OnInitializedAsync()
     {
         Input ??= new();
         editContext = new EditContext(Input);
-        firstRun = !await UserManager.Users.AnyAsync();
 
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
@@ -132,6 +124,10 @@
         {
             Logger.LogWarning("User account locked out.");
             RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else if (result.IsNotAllowed)
+        {
+            errorMessage = "Error: Your company's WageHarbor account is turned off. Contact WageHarbor support.";
         }
         else
         {

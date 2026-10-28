@@ -69,7 +69,7 @@ public sealed class EmployeeService(Db dbs, SensitiveData sensitive, UserManager
     {
         await using var db = await dbs.OpenAsync();
         var e = await db.Employees.FirstAsync(x => x.Id == employeeId);
-        db.AuditLogs.Add(new AuditLog { UserName = await currentUser.GetNameAsync(), Action = "ViewedSSN", EntityType = nameof(Employee), EntityId = employeeId.ToString() });
+        db.AuditLogs.Add(new AuditLog { CompanyId = db.CurrentCompanyId, UserName = await currentUser.GetNameAsync(), Action = "ViewedSSN", EntityType = nameof(Employee), EntityId = employeeId.ToString() });
         await db.SaveChangesAsync();
         var ssn = sensitive.Unprotect(e.SsnProtected);
         return ssn is { Length: 9 } ? $"{ssn[..3]}-{ssn[3..5]}-{ssn[5..]}" : null;
@@ -118,11 +118,13 @@ public sealed class EmployeeService(Db dbs, SensitiveData sensitive, UserManager
         string? tempPassword = null;
         if (user == null)
         {
-            user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, CompanyId = emp.CompanyId };
             tempPassword = GeneratePassword();
             var result = await users.CreateAsync(user, tempPassword);
             if (!result.Succeeded) throw new InvalidOperationException(string.Join(" ", result.Errors.Select(x => x.Description)));
         }
+        else if (user.CompanyId != emp.CompanyId)
+            throw new InvalidOperationException("That email is already used by a login at another company.");
         else if (await db.Employees.AnyAsync(e => e.UserId == user.Id))
             throw new InvalidOperationException("That login is already linked to another employee.");
 

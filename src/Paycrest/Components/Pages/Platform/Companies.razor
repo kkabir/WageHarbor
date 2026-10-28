@@ -1,0 +1,126 @@
+@page "/platform/companies"
+@attribute [Authorize(Roles = AppRoles.PlatformOwner)]
+@inherits AppComponentBase
+
+<PageTitle>Companies · WageHarbor platform</PageTitle>
+
+<PageHeader Title="Companies" Subtitle="Every company registered on WageHarbor. Turning a company off blocks sign-in for all its users; its data is kept." />
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-4"><StatCard Label="Companies" Value="@rows.Count.ToString()" Icon="buildings" Tone="primary" Hint="@($"{rows.Count(r => r.IsActive)} active")" /></div>
+    <div class="col-sm-4"><StatCard Label="Employees" Value="@rows.Sum(r => r.Employees).ToString()" Icon="people" Tone="info" Hint="Not terminated" /></div>
+    <div class="col-sm-4"><StatCard Label="Logins" Value="@rows.Sum(r => r.Users).ToString()" Icon="person-badge" Tone="success" /></div>
+</div>
+
+<div class="pc-card p-0">
+    <div class="d-flex p-3 border-bottom align-items-center gap-2">
+        <h2 class="m-0">Registered companies</h2>
+        <input class="form-control form-control-sm ms-auto" style="max-width:260px" placeholder="Search name or admin…" @bind="search" @bind:event="oninput" />
+    </div>
+    @if (rows.Count == 0)
+    {
+        <EmptyState Icon="buildings" Title="No companies yet">Companies appear here when they register.</EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Company</th><th>Admins</th><th class="num">Employees</th><th class="num">Logins</th><th>Registered</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var r in Filtered)
+                    {
+                        <tr class="@(r.IsActive ? "" : "opacity-50")">
+                            <td><div class="fw-semibold">@r.Name</div><div class="small text-muted">@r.State@(r.SetupCompleted ? "" : " · setup not finished")</div></td>
+                            <td class="small">@(r.Admins.Count == 0 ? "—" : string.Join(", ", r.Admins))</td>
+                            <td class="num">@r.Employees</td>
+                            <td class="num">@r.Users</td>
+                            <td class="small">@r.CreatedUtc.ToString("MMM d, yyyy")</td>
+                            <td>@if (r.IsActive) { <span class="chip tone-success">Active</span> } else { <span class="chip tone-danger">Turned off</span> }</td>
+                            <td class="text-end text-nowrap">
+                                @if (r.Id != myCompanyId)
+                                {
+                                    <button class="btn btn-sm @(r.IsActive ? "btn-outline-danger" : "btn-outline-success")" disabled="@Busy" @onclick="() => confirming = r">@(r.IsActive ? "Turn off" : "Turn on")</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modal Show="confirming != null" ShowChanged="v => { if (!v) confirming = null; }" Title="@(confirming?.IsActive == true ? "Turn off company" : "Turn on company")">
+    <ChildContent>
+        @if (confirming?.IsActive == true)
+        {
+            <p class="mb-0">Turn off <strong>@confirming.Name</strong>? Nobody at this company will be able to sign in until you turn it back on. Their data is kept. People already signed in are signed out within 30 minutes.</p>
+        }
+        else
+        {
+            <p class="mb-0">Turn <strong>@confirming?.Name</strong> back on? Its users will be able to sign in again.</p>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => confirming = null">Cancel</button>
+        <button class="btn @(confirming?.IsActive == true ? "btn-danger" : "btn-primary")" disabled="@Busy" @onclick="ToggleActive">Confirm</button>
+    </Footer>
+</Modal>
+
+@code {
+    private sealed record Row(int Id, string Name, string? State, bool IsActive, bool SetupCompleted, DateTime CreatedUtc, int Employees, int Users, List<string> Admins);
+
+    private List<Row> rows = [];
+    private Row? confirming;
+    private int? myCompanyId;
+    private string search = "";
+
+    private IEnumerable<Row> Filtered => string.IsNullOrWhiteSpace(search)
+        ? rows
+        : rows.Where(r => r.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || r.Admins.Any(a => a.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        myCompanyId = await Me.GetCompanyIdAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        var companies = await db.Companies.IgnoreQueryFilters().AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+        var employees = await db.Employees.IgnoreQueryFilters().Where(e => e.Status != EmployeeStatus.Terminated)
+            .GroupBy(e => e.CompanyId).ToDictionaryAsync(g => g.Key, g => g.Count());
+        var users = await db.Users.Where(u => u.CompanyId != null).GroupBy(u => u.CompanyId!.Value).ToDictionaryAsync(g => g.Key, g => g.Count());
+        var admins = await (from u in db.Users
+                            join ur in db.UserRoles on u.Id equals ur.UserId
+                            join r in db.Roles on ur.RoleId equals r.Id
+                            where r.Name == AppRoles.Admin && u.CompanyId != null
+                            select new { CompanyId = u.CompanyId!.Value, u.Email }).ToListAsync();
+
+        rows = companies.Select(c => new Row(c.Id, c.Name, c.State, c.IsActive, c.SetupCompleted, c.CreatedUtc,
+            employees.GetValueOrDefault(c.Id), users.GetValueOrDefault(c.Id),
+            admins.Where(a => a.CompanyId == c.Id).Select(a => a.Email ?? "").ToList())).ToList();
+    }
+
+    private async Task ToggleActive()
+    {
+        var id = confirming!.Id;
+        var ok = await RunAsync(async () =>
+        {
+            if (id == myCompanyId) throw new InvalidOperationException("You can't turn off your own company.");
+            await using var db = await Dbs.OpenPlatformAsync();
+            var company = await db.Companies.IgnoreQueryFilters().FirstAsync(c => c.Id == id);
+            company.IsActive = !company.IsActive;
+            await db.SaveChangesAsync();
+            if (!company.IsActive)
+            {
+                // Rotating security stamps signs out people who are already signed in at the next revalidation.
+                await db.Users.Where(u => u.CompanyId == id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.SecurityStamp, _ => Guid.NewGuid().ToString()));
+            }
+        }, "Company updated.");
+        if (ok) confirming = null;
+        await LoadAsync();
+    }
+}

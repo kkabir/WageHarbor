@@ -14,28 +14,38 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject Db Dbs
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Register your company</PageTitle>
 
-@if (!registrationOpen)
-{
-    <h1 class="h3 fw-bold">Registration is closed</h1>
-    <p class="text-muted">Accounts are created by your company's administrator. Ask HR to send you an invitation, then <a href="Account/Login">sign in</a>.</p>
-    return;
-}
-
-<h1 class="h3 fw-bold mb-1">Create administrator account</h1>
-<p class="text-muted mb-4">This is the first account on this installation. It will have full administrator access.</p>
+<h1 class="h3 fw-bold mb-1">Register your company</h1>
+<p class="text-muted mb-4">Create your company's WageHarbor account. You'll be its administrator and can then add your employees and give them their own logins.</p>
 
 <div>
     <div>
         <StatusMessage Message="@Message" />
-        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+        <EditForm Model="Input" method="post" OnValidSubmit="RegisterCompany" FormName="register">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.CompanyName" id="Input.CompanyName" class="form-control" autocomplete="organization" aria-required="true" placeholder="Company name" />
+                <label for="Input.CompanyName">Company name</label>
+                <ValidationMessage For="() => Input.CompanyName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputSelect @bind-Value="Input.State" id="Input.State" class="form-select" aria-required="true">
+                    <option value="">Choose…</option>
+                    @foreach (var st in Fmt.States)
+                    {
+                        <option value="@st">@st</option>
+                    }
+                </InputSelect>
+                <label for="Input.State">Company state</label>
+                <ValidationMessage For="() => Input.State" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
+                <label for="Input.Email">Your work email</label>
                 <ValidationMessage For="() => Input.Email" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
@@ -45,10 +55,11 @@
             </div>
             <div class="form-floating mb-3">
                 <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
+                <label for="Input.ConfirmPassword">Confirm password</label>
                 <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Create account</button>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Create company account</button>
+            <p class="small text-muted text-center mt-3 mb-0">Already registered? <a href="Account/Login">Sign in</a>. Employees get their login from their company's administrator.</p>
         </EditForm>
     </div>
 </div>
@@ -64,38 +75,47 @@
 
     private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
 
-    private bool registrationOpen;
+    protected override void OnInitialized() => Input ??= new();
 
-    protected override async Task OnInitializedAsync()
+    public async Task RegisterCompany(EditContext editContext)
     {
-        Input ??= new();
-        // Only the very first user may self-register; they become the Administrator.
-        registrationOpen = !await UserManager.Users.AnyAsync();
-    }
-
-    public async Task RegisterUser(EditContext editContext)
-    {
-        if (await UserManager.Users.AnyAsync())
+        if (await UserManager.FindByEmailAsync(Input.Email) != null)
         {
-            registrationOpen = false;
+            identityErrors = [new IdentityError { Description = "An account with that email already exists. Sign in instead, or use a different email." }];
             return;
         }
+
+        // Check the password first so a rejected password doesn't leave an empty company behind.
         var user = CreateUser();
+        foreach (var validator in UserManager.PasswordValidators)
+        {
+            var check = await validator.ValidateAsync(UserManager, user, Input.Password);
+            if (!check.Succeeded) { identityErrors = check.Errors; return; }
+        }
+
+        await using var db = await Dbs.OpenPlatformAsync();
+        var company = new Company { Name = Input.CompanyName.Trim(), State = Input.State, Email = Input.Email };
+        db.Companies.Add(company);
+        await db.SaveChangesAsync();
+
+        user.CompanyId = company.Id;
         user.EmailConfirmed = true;
-
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
-        var emailStore = GetEmailStore();
-        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        await GetEmailStore().SetEmailAsync(user, Input.Email, CancellationToken.None);
         var result = await UserManager.CreateAsync(user, Input.Password);
-
         if (!result.Succeeded)
         {
+            db.Companies.Remove(company);
+            await db.SaveChangesAsync();
             identityErrors = result.Errors;
             return;
         }
 
-        Logger.LogInformation("First administrator account created.");
-        await UserManager.AddToRolesAsync(user, [Paycrest.Services.AppRoles.Admin, Paycrest.Services.AppRoles.Employee]);
+        db.CurrentCompanyId = company.Id;
+        await SeedData.SeedCompanyDefaultsAsync(db);
+
+        Logger.LogInformation("Company {CompanyId} registered by {Email}.", company.Id, Input.Email);
+        await UserManager.AddToRolesAsync(user, [AppRoles.Admin, AppRoles.Employee]);
 
         await SignInManager.SignInAsync(user, isPersistent: false);
         RedirectManager.RedirectTo("setup");
@@ -125,13 +145,21 @@
 
     private sealed class InputModel
     {
+        [Required, StringLength(120)]
+        [Display(Name = "Company name")]
+        public string CompanyName { get; set; } = "";
+
+        [Required(ErrorMessage = "Choose your company's state.")]
+        [Display(Name = "Company state")]
+        public string? State { get; set; }
+
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
 
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 8)]
         [DataType(DataType.Password)]
         [Display(Name = "Password")]
         public string Password { get; set; } = "";

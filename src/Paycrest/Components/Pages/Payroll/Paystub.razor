@@ -28,6 +28,10 @@
 <div class="stub" style="max-width:900px">
     <div class="d-flex justify-content-between flex-wrap gap-3">
         <div>
+            @if (logoVersion != null)
+            {
+                <img src="company-logo?v=@logoVersion" alt="" style="max-height:56px;max-width:200px;object-fit:contain" class="mb-2 d-block" />
+            }
             <div class="fs-5 fw-bold">@(company.LegalName ?? company.Name)</div>
             <div class="small text-secondary">@company.AddressSingleLine</div>
             @if (!string.IsNullOrEmpty(company.Ein)) { <div class="small text-secondary">EIN @company.Ein</div> }
@@ -147,6 +151,7 @@
     private Paycheck? check;
     private Employee? emp;
     private Company? company;
+    private long? logoVersion;
     private PayrollRunStatus status;
     private bool denied, isAdmin;
     private List<Paycheck> ytd = [];
@@ -167,6 +172,7 @@
 
         emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == check.EmployeeId);
         company = await db.Companies.AsNoTracking().FirstAsync();
+        logoVersion = await db.CompanyLogos.Select(l => (long?)l.UpdatedUtc.Ticks).FirstOrDefaultAsync();
         var yearStart = new DateOnly(check.PayDate.Year, 1, 1);
         ytd = await db.Paychecks.AsNoTracking().Include(p => p.Lines)
             .Where(p => p.EmployeeId == check.EmployeeId && p.PayDate >= yearStart && p.PayDate <= check.PayDate &&

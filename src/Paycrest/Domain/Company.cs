@@ -2,6 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Paycrest.Domain;
 
+/// <summary>Data that belongs to one company. The DbContext filters it to the signed-in user's company and stamps new rows.</summary>
+public interface ICompanyOwned
+{
+    int CompanyId { get; set; }
+}
+
 public class Company
 {
     public int Id { get; set; }
@@ -47,13 +53,29 @@ public class Company
 
     public bool SetupCompleted { get; set; }
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    /// <summary>Set to false by the platform owner to block sign-in for everyone in this company.</summary>
+    public bool IsActive { get; set; } = true;
 
     public string AddressSingleLine =>
         string.Join(", ", new[] { AddressLine1, AddressLine2, City, $"{State} {PostalCode}".Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }
 
-public class Department
+/// <summary>The company's logo, kept apart from <see cref="Company"/> so payroll queries don't load the image.</summary>
+public class CompanyLogo : ICompanyOwned
 {
+    public const int MaxBytes = 512 * 1024;
+    public static readonly string[] AllowedTypes = ["image/png", "image/jpeg", "image/webp"];
+
+    /// <summary>Also the primary key: one logo per company.</summary>
+    public int CompanyId { get; set; }
+    public byte[] Data { get; set; } = [];
+    [Required, StringLength(40)] public string ContentType { get; set; } = "";
+    public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class Department : ICompanyOwned
+{
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(80)] public string Name { get; set; } = "";
     [StringLength(20)] public string? Code { get; set; }
@@ -61,16 +83,18 @@ public class Department
     public List<Employee> Employees { get; set; } = [];
 }
 
-public class Holiday
+public class Holiday : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public DateOnly Date { get; set; }
     [Required, StringLength(80)] public string Name { get; set; } = "";
     public bool IsPaid { get; set; } = true;
 }
 
-public class Announcement
+public class Announcement : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(120)] public string Title { get; set; } = "";
     [Required, StringLength(4000)] public string Body { get; set; } = "";
@@ -81,8 +105,9 @@ public class Announcement
 }
 
 /// <summary>A saying shown at random on the dashboard's "Words of wisdom" card.</summary>
-public class WiseSaying
+public class WiseSaying : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(600)] public string Text { get; set; } = "";
     [Required, StringLength(120)] public string Source { get; set; } = "";
@@ -93,6 +118,8 @@ public class WiseSaying
 public class AuditLog
 {
     public long Id { get; set; }
+    /// <summary>Company whose data changed; null for shared data such as tax tables.</summary>
+    public int? CompanyId { get; set; }
     public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
     [StringLength(256)] public string? UserName { get; set; }
     [StringLength(40)] public string Action { get; set; } = "";

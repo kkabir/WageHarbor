@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -42,7 +43,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
+    .AddSignInManager<CompanySignInManager>()
     .AddDefaultTokenProviders();
 
 // Keys must persist across app-pool recycles, otherwise encrypted SSNs/bank numbers and login cookies break.
@@ -92,5 +93,18 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+// The signed-in user's company logo. ?v= changes when the logo does, so browsers may cache it.
+app.MapGet("/company-logo", async (HttpContext http, IDbContextFactory<ApplicationDbContext> factory) =>
+{
+    var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    await using var db = await factory.CreateDbContextAsync();
+    db.CurrentCompanyId = await db.Users.Where(u => u.Id == userId).Select(u => u.CompanyId).FirstOrDefaultAsync();
+    var logo = await db.CompanyLogos.AsNoTracking().FirstOrDefaultAsync();
+    if (logo == null) return Results.NotFound();
+    http.Response.Headers.CacheControl = "private, max-age=604800";
+    http.Response.Headers.XContentTypeOptions = "nosniff";
+    return Results.File(logo.Data, logo.ContentType);
+}).RequireAuthorization();
 
 app.Run();

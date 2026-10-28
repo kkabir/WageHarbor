@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public DbSet<Company> Companies => Set<Company>();
+    public DbSet<CompanyLogo> CompanyLogos => Set<CompanyLogo>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
@@ -46,6 +48,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     /// <summary>User name recorded in the audit log for changes saved through this context.</summary>
     public string? AuditUser { get; set; }
 
+    /// <summary>
+    /// The company this context works for. Company data is filtered to it and new rows are stamped with it.
+    /// Null sees no company data at all; platform-wide code opts out with IgnoreQueryFilters().
+    /// </summary>
+    public int? CurrentCompanyId { get; set; }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<decimal>().HavePrecision(18, 4);
@@ -58,13 +66,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<Employee>(e =>
         {
-            e.HasIndex(x => x.EmployeeNumber).IsUnique();
+            e.HasIndex(x => new { x.CompanyId, x.EmployeeNumber }).IsUnique();
             e.HasIndex(x => x.UserId);
             e.HasOne(x => x.Manager).WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Department).WithMany(d => d.Employees).HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.SetNull);
         });
-        builder.Entity<DeductionType>().HasIndex(x => x.Code).IsUnique();
-        builder.Entity<EarningType>().HasIndex(x => x.Code).IsUnique();
+        builder.Entity<DeductionType>().HasIndex(x => new { x.CompanyId, x.Code }).IsUnique();
+        builder.Entity<EarningType>().HasIndex(x => new { x.CompanyId, x.Code }).IsUnique();
         builder.Entity<TimeOffBalance>().HasIndex(x => new { x.EmployeeId, x.TimeOffPolicyId }).IsUnique();
         builder.Entity<TimeEntry>().HasIndex(x => new { x.EmployeeId, x.WorkDate });
         builder.Entity<TimeEntry>().HasOne(x => x.EarningType).WithMany().OnDelete(DeleteBehavior.Restrict);
@@ -93,6 +101,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<FederalTaxBracket>().HasOne<TaxYear>().WithMany(t => t.Brackets).HasForeignKey(b => b.Year);
         builder.Entity<StateTaxRule>().HasIndex(x => new { x.StateCode, x.Year }).IsUnique();
         builder.Entity<AuditLog>().HasIndex(x => x.TimestampUtc);
+        builder.Entity<CompanyLogo>().HasKey(x => x.CompanyId);
+        builder.Entity<CompanyLogo>().Property(x => x.CompanyId).ValueGeneratedNever();
+
+        // ---------- Company isolation ----------
+        builder.Entity<ApplicationUser>().HasOne<Company>().WithMany().HasForeignKey(u => u.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Company>().HasQueryFilter(c => c.Id == CurrentCompanyId);
+        builder.Entity<AuditLog>().HasQueryFilter(a => a.CompanyId == CurrentCompanyId);
+        builder.Entity<AuditLog>().HasOne<Company>().WithMany().HasForeignKey(a => a.CompanyId).OnDelete(DeleteBehavior.Restrict);
+
+        var configure = GetType().GetMethod(nameof(ConfigureCompanyOwned), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        foreach (var type in builder.Model.GetEntityTypes().Select(t => t.ClrType).Where(typeof(ICompanyOwned).IsAssignableFrom).ToList())
+            configure.MakeGenericMethod(type).Invoke(this, [builder]);
+    }
+
+    private void ConfigureCompanyOwned<T>(ModelBuilder builder) where T : class, ICompanyOwned
+    {
+        builder.Entity<T>().HasQueryFilter(e => e.CompanyId == CurrentCompanyId);
+        builder.Entity<T>().HasOne<Company>().WithMany().HasForeignKey(e => e.CompanyId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    /// <summary>Stamps new company rows with <see cref="CurrentCompanyId"/> and refuses changes to another company's rows.</summary>
+    private void ApplyCompanyRules()
+    {
+        foreach (var entry in ChangeTracker.Entries<ICompanyOwned>())
+        {
+            if (entry.State == EntityState.Added && entry.Entity.CompanyId == 0)
+                entry.Entity.CompanyId = CurrentCompanyId ?? throw new InvalidOperationException($"No company set for new {entry.Entity.GetType().Name}.");
+            else if (entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
+                     && CurrentCompanyId != null && entry.Entity.CompanyId != CurrentCompanyId)
+                throw new InvalidOperationException("That record belongs to a different company.");
+        }
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyCompanyRules();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     // ---------- Audit trail ----------
@@ -109,6 +154,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        ApplyCompanyRules();
         var pending = ChangeTracker.Entries()
             .Where(e => AuditedTypes.Contains(e.Entity.GetType()) &&
                         e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
@@ -123,6 +169,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             AuditLogs.Add(new AuditLog
             {
+                CompanyId = entry.Entity switch { ICompanyOwned o => o.CompanyId, Company c => c.Id, _ => null },
                 UserName = AuditUser ?? "system",
                 Action = action,
                 EntityType = entry.Entity.GetType().Name,

@@ -96,7 +96,7 @@
     // Edit a copy so Cancel leaves the list unchanged.
     private void Edit(WiseSaying w)
     {
-        editing = new WiseSaying { Id = w.Id, Text = w.Text, Source = w.Source, Reference = w.Reference, IsActive = w.IsActive };
+        editing = new WiseSaying { Id = w.Id, CompanyId = w.CompanyId, Text = w.Text, Source = w.Source, Reference = w.Reference, IsActive = w.IsActive };
         showEdit = true;
     }
 

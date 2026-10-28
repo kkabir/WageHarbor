@@ -37,6 +37,12 @@
             <NavLink href="settings/audit"><i class="bi bi-journal-text"></i>Audit log</NavLink>
         </AuthorizeView>
     </AuthorizeView>
+
+    <AuthorizeView Roles="@AppRoles.PlatformOwner" Context="ownerCtx">
+        <div class="nav-section">WageHarbor platform</div>
+        <NavLink href="platform/companies"><i class="bi bi-globe2"></i>Companies</NavLink>
+        <NavLink href="settings/tax"><i class="bi bi-bank"></i>Tax tables</NavLink>
+    </AuthorizeView>
 </nav>
 
 <div class="sidebar-footer">wageharbor.com · Free for small business</div>

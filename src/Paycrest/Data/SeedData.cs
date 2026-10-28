@@ -15,12 +15,41 @@ public static class SeedData
         await db.Database.MigrateAsync();
 
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        foreach (var role in AppRoles.All)
+        foreach (var role in AppRoles.All.Append(AppRoles.PlatformOwner))
             if (!await roles.RoleExistsAsync(role))
                 await roles.CreateAsync(new IdentityRole(role));
 
-        if (!await db.Companies.AnyAsync())
-            db.Companies.Add(new Company { Name = "My Company", State = "TX" });
+        // Shared by every company.
+        await SeedTaxYearAsync(db, Tax2025());
+        await SeedTaxYearAsync(db, Tax2026());
+        await SeedStateRulesAsync(db, 2025);
+        await SeedStateRulesAsync(db, 2026);
+        await db.SaveChangesAsync();
+
+        // Fill in defaults added since each company signed up.
+        foreach (var companyId in await db.Companies.IgnoreQueryFilters().Select(c => c.Id).ToListAsync())
+        {
+            db.CurrentCompanyId = companyId;
+            await SeedCompanyDefaultsAsync(db);
+            db.ChangeTracker.Clear();
+        }
+        db.CurrentCompanyId = null;
+
+        // Platform owners are named in configuration (Platform:OwnerEmails, separated by ';').
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var owners = scope.ServiceProvider.GetRequiredService<IConfiguration>()["Platform:OwnerEmails"] ?? "";
+        foreach (var email in owners.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            if (await users.FindByEmailAsync(email) is { } owner && !await users.IsInRoleAsync(owner, AppRoles.PlatformOwner))
+                await users.AddToRoleAsync(owner, AppRoles.PlatformOwner);
+    }
+
+    /// <summary>
+    /// Earning and deduction types, time-off policies and sayings a company starts with.
+    /// Works on <paramref name="db"/>'s current company and only adds what that company is missing.
+    /// </summary>
+    public static async Task SeedCompanyDefaultsAsync(ApplicationDbContext db)
+    {
+        if (db.CurrentCompanyId == null) throw new InvalidOperationException("Set CurrentCompanyId before seeding company defaults.");
 
         if (!await db.EarningTypes.AnyAsync())
         {
@@ -52,10 +81,11 @@ public static class SeedData
             await db.SaveChangesAsync();
         }
 
-        if (!await db.TimeOffPolicies.AnyAsync())
+        // Skipped if the company has removed or renamed the PTO/SICK earning types.
+        if (!await db.TimeOffPolicies.AnyAsync()
+            && await db.EarningTypes.FirstOrDefaultAsync(e => e.Code == "PTO") is { } pto
+            && await db.EarningTypes.FirstOrDefaultAsync(e => e.Code == "SICK") is { } sick)
         {
-            var pto = await db.EarningTypes.FirstAsync(e => e.Code == "PTO");
-            var sick = await db.EarningTypes.FirstAsync(e => e.Code == "SICK");
             db.TimeOffPolicies.AddRange(
                 new TimeOffPolicy { Name = "Vacation", EarningTypeId = pto.Id, AccrualMethod = AccrualMethod.PerPayPeriod, AccrualRate = 3.0769m, MaxBalance = 160m },
                 new TimeOffPolicy { Name = "Sick leave", EarningTypeId = sick.Id, AccrualMethod = AccrualMethod.PerHourWorked, AccrualRate = 0.0333m, MaxBalance = 48m });
@@ -64,10 +94,6 @@ public static class SeedData
         if (!await db.WiseSayings.AnyAsync())
             db.WiseSayings.AddRange(WiseSayings());
 
-        await SeedTaxYearAsync(db, Tax2025());
-        await SeedTaxYearAsync(db, Tax2026());
-        await SeedStateRulesAsync(db, 2025);
-        await SeedStateRulesAsync(db, 2026);
         await db.SaveChangesAsync();
     }
 

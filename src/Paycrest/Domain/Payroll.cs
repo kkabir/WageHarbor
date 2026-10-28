@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Paycrest.Domain;
 
-public class EarningType
+public class EarningType : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(12)] public string Code { get; set; } = "";
     [Required, StringLength(60)] public string Name { get; set; } = "";
@@ -22,8 +23,9 @@ public class EarningType
     public const string Overtime = "OT";
 }
 
-public class PayrollRun
+public class PayrollRun : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public PayrollRunType RunType { get; set; } = PayrollRunType.Regular;
     public PayFrequency PayFrequency { get; set; }
@@ -60,8 +62,9 @@ public class PayrollRun
 }
 
 /// <summary>One-time earning (bonus, commission, reimbursement, extra hours) for an employee in a run.</summary>
-public class PayrollAdjustment
+public class PayrollAdjustment : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int PayrollRunId { get; set; }
     public PayrollRun? PayrollRun { get; set; }
@@ -74,8 +77,9 @@ public class PayrollAdjustment
     [StringLength(200)] public string? Note { get; set; }
 }
 
-public class Paycheck
+public class Paycheck : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int PayrollRunId { get; set; }
     public PayrollRun? PayrollRun { get; set; }
@@ -124,8 +128,9 @@ public class Paycheck
     [NotMapped] public decimal EmployerTaxes => EmployerSocialSecurity + EmployerMedicare + FutaTax + SutaTax;
 }
 
-public class PaycheckLine
+public class PaycheckLine : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int PaycheckId { get; set; }
     public PaycheckLineType LineType { get; set; }
@@ -139,8 +144,9 @@ public class PaycheckLine
 }
 
 /// <summary>Snapshot of where net pay was deposited, used for ACH file generation.</summary>
-public class PaycheckDeposit
+public class PaycheckDeposit : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int PaycheckId { get; set; }
     [StringLength(60)] public string? BankName { get; set; }

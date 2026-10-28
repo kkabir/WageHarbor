@@ -15,6 +15,9 @@ public static class AppRoles
     public const string Manager = "Manager";
     public const string Employee = "Employee";
 
+    /// <summary>Runs the WageHarbor platform: sees every company. Not one of the company roles in <see cref="All"/>.</summary>
+    public const string PlatformOwner = "PlatformOwner";
+
     public static readonly string[] All = [Admin, HR, Payroll, Manager, Employee];
 
     // Combined role lists for [Authorize(Roles = ...)]
@@ -28,8 +31,8 @@ public static class AppRoles
 public sealed class CurrentUser(AuthenticationStateProvider auth, IDbContextFactory<ApplicationDbContext> factory)
 {
     private ClaimsPrincipal? _principal;
-    private int? _employeeId;
-    private bool _employeeLoaded;
+    private int? _employeeId, _companyId;
+    private bool _employeeLoaded, _companyLoaded;
 
     public async Task<ClaimsPrincipal> GetPrincipalAsync() =>
         _principal ??= (await auth.GetAuthenticationStateAsync()).User;
@@ -47,6 +50,22 @@ public sealed class CurrentUser(AuthenticationStateProvider auth, IDbContextFact
     public Task<bool> CanManagePeopleAsync() => IsInAnyRoleAsync(AppRoles.Admin, AppRoles.HR, AppRoles.Payroll);
     public Task<bool> CanApproveAllAsync() => IsInAnyRoleAsync(AppRoles.Admin, AppRoles.HR, AppRoles.Payroll);
 
+    public Task<bool> IsPlatformOwnerAsync() => IsInAnyRoleAsync(AppRoles.PlatformOwner);
+
+    /// <summary>The company this login belongs to; every <see cref="Db"/> context is limited to it.</summary>
+    public async Task<int?> GetCompanyIdAsync()
+    {
+        if (_companyLoaded) return _companyId;
+        var userId = await GetUserIdAsync();
+        if (userId != null)
+        {
+            await using var db = await factory.CreateDbContextAsync();
+            _companyId = await db.Users.Where(u => u.Id == userId).Select(u => u.CompanyId).FirstOrDefaultAsync();
+        }
+        _companyLoaded = true;
+        return _companyId;
+    }
+
     /// <summary>The employee record linked to this login, if any.</summary>
     public async Task<int?> GetEmployeeIdAsync()
     {
@@ -55,20 +74,31 @@ public sealed class CurrentUser(AuthenticationStateProvider auth, IDbContextFact
         if (userId != null)
         {
             await using var db = await factory.CreateDbContextAsync();
-            _employeeId = await db.Employees.Where(e => e.UserId == userId).Select(e => (int?)e.Id).FirstOrDefaultAsync();
+            // UserId is unique across companies, so no company filter is needed here.
+            _employeeId = await db.Employees.IgnoreQueryFilters().Where(e => e.UserId == userId).Select(e => (int?)e.Id).FirstOrDefaultAsync();
         }
         _employeeLoaded = true;
         return _employeeId;
     }
 }
 
-/// <summary>Creates DbContexts stamped with the current user for the audit trail.</summary>
+/// <summary>Creates DbContexts limited to the current user's company and stamped with the user for the audit trail.</summary>
 public sealed class Db(IDbContextFactory<ApplicationDbContext> factory, CurrentUser user)
 {
     public async Task<ApplicationDbContext> OpenAsync()
     {
         var db = await factory.CreateDbContextAsync();
         db.AuditUser = await user.GetNameAsync();
+        db.CurrentCompanyId = await user.GetCompanyIdAsync();
+        return db;
+    }
+
+    /// <summary>A context for platform-wide work (company sign-up, the platform owner's pages). Company filters still
+    /// apply unless the query calls IgnoreQueryFilters(), so set <see cref="ApplicationDbContext.CurrentCompanyId"/> to work inside one company.</summary>
+    public async Task<ApplicationDbContext> OpenPlatformAsync()
+    {
+        var db = await factory.CreateDbContextAsync();
+        db.AuditUser = await user.GetNameAsync() ?? "system";
         return db;
     }
 }
@@ -94,14 +124,14 @@ public sealed class SensitiveData(IDataProtectionProvider provider)
 }
 
 /// <summary>Company-local date and time.</summary>
-public sealed class Clock(IDbContextFactory<ApplicationDbContext> factory)
+public sealed class Clock(Db dbs)
 {
     private TimeZoneInfo? _tz;
 
     public async Task<TimeZoneInfo> GetZoneAsync()
     {
         if (_tz != null) return _tz;
-        await using var db = await factory.CreateDbContextAsync();
+        await using var db = await dbs.OpenAsync();
         var id = await db.Companies.Select(c => c.TimeZoneId).FirstOrDefaultAsync();
         try { _tz = TimeZoneInfo.FindSystemTimeZoneById(id ?? "America/New_York"); }
         catch { _tz = TimeZoneInfo.Local; }

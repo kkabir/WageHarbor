@@ -1,5 +1,5 @@
 @page "/settings/tax"
-@attribute [Authorize(Roles = AppRoles.SettingsAdmins)]
+@attribute [Authorize(Roles = AppRoles.SettingsAdmins + "," + AppRoles.PlatformOwner)]
 @inherits AppComponentBase
 
 <PageTitle>Tax tables · WageHarbor</PageTitle>
@@ -8,8 +8,16 @@
     <select class="form-select" style="width:110px" value="@year" @onchange="YearChanged">
         @foreach (var y in years) { <option value="@y">@y</option> }
     </select>
-    <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="CopyForward"><i class="bi bi-copy me-1"></i>Create @(years.Max() + 1) from @years.Max()</button>
+    @if (canEdit)
+    {
+        <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="CopyForward"><i class="bi bi-copy me-1"></i>Create @(years.Max() + 1) from @years.Max()</button>
+    }
 </PageHeader>
+
+@if (!canEdit)
+{
+    <div class="alert alert-info small"><i class="bi bi-lock me-1"></i>Tax tables are shared by every company on WageHarbor and are maintained by the platform owner. You can review them here.</div>
+}
 
 <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>
     WageHarbor ships with best-effort tax values, but tax law changes often. You are responsible for verifying rates before running payroll.
@@ -22,6 +30,7 @@
     return;
 }
 
+<fieldset disabled="@(!canEdit)">
 <div class="row g-3">
     <div class="col-xl-5">
         <div class="pc-card">
@@ -60,14 +69,14 @@
                 </table>
                 <button class="btn btn-sm btn-light" @onclick="() => ty.Brackets.Add(new FederalTaxBracket { Year = ty.Year, FilingStatus = bracketStatus, Threshold = 0, Rate = 0.10m })"><i class="bi bi-plus"></i> Add bracket</button>
             </div>
-            <button class="btn btn-primary mt-3" disabled="@Busy" @onclick="SaveFederal"><i class="bi bi-check2 me-1"></i>Save federal</button>
+            <button class="btn btn-primary mt-3 @(canEdit ? "" : "d-none")" disabled="@Busy" @onclick="SaveFederal"><i class="bi bi-check2 me-1"></i>Save federal</button>
         </div>
     </div>
     <div class="col-xl-7">
         <div class="pc-card p-0">
             <div class="d-flex p-3 border-bottom align-items-center">
                 <h2 class="m-0">State withholding · @year</h2>
-                <button class="btn btn-sm btn-soft ms-auto" @onclick="NewState"><i class="bi bi-plus-lg me-1"></i>Add state</button>
+                <button class="btn btn-sm btn-soft ms-auto @(canEdit ? "" : "d-none")" @onclick="NewState"><i class="bi bi-plus-lg me-1"></i>Add state</button>
             </div>
             <div class="table-wrap" style="max-height:640px">
                 <table class="table table-hover table-sm align-middle">
@@ -94,6 +103,7 @@
         </div>
     </div>
 </div>
+</fieldset>
 
 <Modal @bind-Show="showState" Title="State rule" Large="true">
     <ChildContent>
@@ -151,7 +161,10 @@
     </ChildContent>
     <Footer>
         <button class="btn btn-light" @onclick="() => showState = false">Cancel</button>
-        <button class="btn btn-primary" disabled="@Busy" @onclick="SaveState">Save</button>
+        @if (canEdit)
+        {
+            <button class="btn btn-primary" disabled="@Busy" @onclick="SaveState">Save</button>
+        }
     </Footer>
 </Modal>
 
@@ -165,13 +178,24 @@
     private FilingStatus bracketStatus;
     private StateTaxRule? state;
     private bool showState;
+    // Shared by all companies, so only the platform owner may change them.
+    private bool canEdit;
 
     private decimal SsRate { get => ty!.SocialSecurityRate * 100; set => ty!.SocialSecurityRate = value / 100; }
     private decimal MedRate { get => ty!.MedicareRate * 100; set => ty!.MedicareRate = value / 100; }
     private decimal FutaRate { get => ty!.FutaRate * 100; set => ty!.FutaRate = value / 100; }
     private decimal SuppRate { get => ty!.SupplementalRate * 100; set => ty!.SupplementalRate = value / 100; }
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        canEdit = await Me.IsPlatformOwnerAsync();
+        await LoadAsync();
+    }
+
+    private void RequireOwner()
+    {
+        if (!canEdit) throw new InvalidOperationException("Only the platform owner can change tax tables.");
+    }
 
     private async Task LoadAsync()
     {
@@ -195,6 +219,7 @@
     {
         await RunAsync(async () =>
         {
+            RequireOwner();
             await using var db = await Dbs.OpenAsync();
             await db.FederalTaxBrackets.Where(b => b.Year == ty!.Year).ExecuteDeleteAsync();
             foreach (var b in ty!.Brackets) { b.Id = 0; b.Year = ty.Year; }
@@ -210,6 +235,7 @@
         var target = src + 1;
         await RunAsync(async () =>
         {
+            RequireOwner();
             await using var db = await Dbs.OpenAsync();
             var t = await db.TaxYears.AsNoTracking().Include(x => x.Brackets).FirstAsync(x => x.Year == src);
             var rules = await db.StateTaxRules.AsNoTracking().Include(s => s.Brackets).Where(s => s.Year == src).ToListAsync();
@@ -241,6 +267,7 @@
     {
         var ok = await RunAsync(async () =>
         {
+            RequireOwner();
             await using var db = await Dbs.OpenAsync();
             if (state!.Id != 0) await db.StateTaxBrackets.Where(b => b.StateTaxRuleId == state.Id).ExecuteDeleteAsync();
             else if (await db.StateTaxRules.AnyAsync(s => s.StateCode == state.StateCode && s.Year == state.Year))

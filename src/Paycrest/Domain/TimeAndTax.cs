@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Paycrest.Domain;
 
-public class TimeEntry
+public class TimeEntry : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
@@ -27,8 +28,9 @@ public class TimeEntry
     [NotMapped] public bool IsLocked => PayrollRunId.HasValue;
 }
 
-public class TimeOffPolicy
+public class TimeOffPolicy : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(60)] public string Name { get; set; } = "";
     /// <summary>Earning type used when time off is paid (e.g. PTO, SICK).</summary>
@@ -42,8 +44,9 @@ public class TimeOffPolicy
     public bool IsActive { get; set; } = true;
 }
 
-public class TimeOffBalance
+public class TimeOffBalance : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
@@ -54,8 +57,9 @@ public class TimeOffBalance
     public decimal UsedYtd { get; set; }
 }
 
-public class TimeOffRequest
+public class TimeOffRequest : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
@@ -73,8 +77,9 @@ public class TimeOffRequest
 }
 
 /// <summary>Time-off ledger: accruals (+), usage (-) and manual adjustments.</summary>
-public class TimeOffTransaction
+public class TimeOffTransaction : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public int TimeOffPolicyId { get; set; }

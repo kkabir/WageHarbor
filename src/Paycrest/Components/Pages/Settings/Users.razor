@@ -93,7 +93,8 @@
 
     private async Task LoadAsync()
     {
-        users = await UserManager.Users.AsNoTracking().OrderBy(u => u.Email).ToListAsync();
+        var companyId = await Me.GetCompanyIdAsync();
+        users = companyId == null ? [] : await UserManager.Users.AsNoTracking().Where(u => u.CompanyId == companyId).OrderBy(u => u.Email).ToListAsync();
         roles.Clear();
         foreach (var u in users) roles[u.Id] = await UserManager.GetRolesAsync(u);
         await using var db = await Dbs.OpenAsync();
@@ -110,7 +111,12 @@
 
     private void ToggleRole(string role, bool on) { if (on) editRoles.Add(role); else editRoles.Remove(role); }
 
-    private async Task<ApplicationUser> Tracked() => await UserManager.FindByIdAsync(editing!.Id) ?? throw new InvalidOperationException("User not found.");
+    private async Task<ApplicationUser> Tracked()
+    {
+        var u = await UserManager.FindByIdAsync(editing!.Id);
+        if (u == null || u.CompanyId == null || u.CompanyId != await Me.GetCompanyIdAsync()) throw new InvalidOperationException("User not found.");
+        return u;
+    }
 
     private async Task SaveRoles()
     {
@@ -119,7 +125,8 @@
             var u = await Tracked();
             if (u.Id == await Me.GetUserIdAsync() && !editRoles.Contains(AppRoles.Admin))
                 throw new InvalidOperationException("You can't remove your own Admin role.");
-            var current = await UserManager.GetRolesAsync(u);
+            // Company roles only; a platform owner keeps that role.
+            var current = (await UserManager.GetRolesAsync(u)).Where(AppRoles.All.Contains).ToList();
             await UserManager.RemoveFromRolesAsync(u, current.Except(editRoles));
             await UserManager.AddToRolesAsync(u, editRoles.Except(current));
             await LogAsync("RolesChanged", u.Id, string.Join(",", editRoles));
@@ -159,7 +166,7 @@
     private async Task LogAsync(string action, string userId, string? details)
     {
         await using var db = await Dbs.OpenAsync();
-        db.AuditLogs.Add(new AuditLog { UserName = await Me.GetNameAsync(), Action = action, EntityType = "User", EntityId = userId, Details = details });
+        db.AuditLogs.Add(new AuditLog { CompanyId = db.CurrentCompanyId, UserName = await Me.GetNameAsync(), Action = action, EntityType = "User", EntityId = userId, Details = details });
         await db.SaveChangesAsync();
     }
 }

@@ -1,0 +1,83 @@
+@inherits AppComponentBase
+
+<div class="pc-card mb-4">
+    <h2 class="mb-1">Company logo <span class="text-muted fw-normal small">· optional</span></h2>
+    <p class="small text-muted mb-3">Shown beside your company name at the top of every page. PNG, JPG or WebP up to 512 KB. A transparent PNG around 400 × 160 px (or square, 256 × 256 px) looks best.</p>
+
+    <div class="logo-preview mb-3">
+        @if (version != null)
+        {
+            <img src="company-logo?v=@version" alt="Company logo" />
+        }
+        else
+        {
+            <span class="text-muted small"><i class="bi bi-image me-1"></i>No logo yet</span>
+        }
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <label class="btn btn-sm btn-soft mb-0 @(Busy ? "disabled" : "")">
+            <i class="bi bi-upload me-1"></i>@(version == null ? "Upload logo" : "Replace")
+            <InputFile class="d-none" accept=".png,.jpg,.jpeg,.webp" OnChange="Upload" />
+        </label>
+        @if (version != null)
+        {
+            <button type="button" class="btn btn-sm btn-light text-danger" disabled="@Busy" @onclick="Remove"><i class="bi bi-trash me-1"></i>Remove</button>
+        }
+    </div>
+</div>
+
+@code {
+    private long? version;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        version = await db.CompanyLogos.Select(l => (long?)l.UpdatedUtc.Ticks).FirstOrDefaultAsync();
+    }
+
+    private async Task Upload(InputFileChangeEventArgs e)
+    {
+        await RunAsync(async () =>
+        {
+            if (e.File.Size > CompanyLogo.MaxBytes) throw new InvalidOperationException("That image is larger than 512 KB. Please use a smaller one.");
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(CompanyLogo.MaxBytes).CopyToAsync(ms);
+            var data = ms.ToArray();
+            // Trust the file's contents, not its name or the browser's claimed type.
+            var type = DetectType(data) ?? throw new InvalidOperationException("Please upload a PNG, JPG or WebP image.");
+
+            await using var db = await Dbs.OpenAsync();
+            var logo = await db.CompanyLogos.FirstOrDefaultAsync();
+            if (logo == null) db.CompanyLogos.Add(logo = new CompanyLogo { CompanyId = db.CurrentCompanyId!.Value });
+            logo.Data = data;
+            logo.ContentType = type;
+            logo.UpdatedUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+            version = logo.UpdatedUtc.Ticks;
+        }, "Logo saved.");
+        RefreshTopBar();
+    }
+
+    private async Task Remove()
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            await db.CompanyLogos.ExecuteDeleteAsync();
+            version = null;
+        }, "Logo removed.");
+        RefreshTopBar();
+    }
+
+    // The top bar reads the logo once per page load.
+    private void RefreshTopBar() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+
+    private static string? DetectType(byte[] d)
+    {
+        if (d.Length > 8 && d[0] == 0x89 && d[1] == 0x50 && d[2] == 0x4E && d[3] == 0x47) return "image/png";
+        if (d.Length > 3 && d[0] == 0xFF && d[1] == 0xD8 && d[2] == 0xFF) return "image/jpeg";
+        if (d.Length > 12 && d[0] == 'R' && d[1] == 'I' && d[2] == 'F' && d[3] == 'F' && d[8] == 'W' && d[9] == 'E' && d[10] == 'B' && d[11] == 'P') return "image/webp";
+        return null;
+    }
+}

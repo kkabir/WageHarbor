@@ -203,6 +203,9 @@ namespace Paycrest.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
@@ -250,6 +253,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -274,6 +279,9 @@ namespace Paycrest.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<DateOnly?>("ExpiresOn")
                         .HasColumnType("date");
 
@@ -294,6 +302,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.ToTable("Announcements");
                 });
 
@@ -309,6 +319,9 @@ namespace Paycrest.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Details")
                         .HasColumnType("nvarchar(max)");
@@ -330,6 +343,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("TimestampUtc");
 
@@ -392,6 +407,9 @@ namespace Paycrest.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<string>("LegalName")
                         .HasMaxLength(160)
@@ -456,6 +474,28 @@ namespace Paycrest.Migrations
                     b.ToTable("Companies");
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.CompanyLogo", b =>
+                {
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CompanyId");
+
+                    b.ToTable("CompanyLogos");
+                });
+
             modelBuilder.Entity("Paycrest.Domain.DeductionType", b =>
                 {
                     b.Property<int>("Id")
@@ -475,6 +515,9 @@ namespace Paycrest.Migrations
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("nvarchar(12)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("EmployerMatchCapPercent")
                         .HasPrecision(18, 4)
@@ -507,7 +550,7 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
+                    b.HasIndex("CompanyId", "Code")
                         .IsUnique();
 
                     b.ToTable("DeductionTypes");
@@ -525,6 +568,9 @@ namespace Paycrest.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
@@ -535,6 +581,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(80)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Departments");
                 });
@@ -551,6 +599,9 @@ namespace Paycrest.Migrations
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("nvarchar(12)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -578,7 +629,7 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
+                    b.HasIndex("CompanyId", "Code")
                         .IsUnique();
 
                     b.ToTable("EarningTypes");
@@ -603,6 +654,9 @@ namespace Paycrest.Migrations
                     b.Property<string>("City")
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
@@ -765,12 +819,12 @@ namespace Paycrest.Migrations
 
                     b.HasIndex("DepartmentId");
 
-                    b.HasIndex("EmployeeNumber")
-                        .IsUnique();
-
                     b.HasIndex("ManagerId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("CompanyId", "EmployeeNumber")
+                        .IsUnique();
 
                     b.ToTable("Employees");
                 });
@@ -799,6 +853,9 @@ namespace Paycrest.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
@@ -821,6 +878,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("EmployeeBankAccounts");
@@ -841,6 +900,9 @@ namespace Paycrest.Migrations
                     b.Property<decimal?>("AnnualLimit")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<int>("DeductionTypeId")
                         .HasColumnType("int");
@@ -870,6 +932,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("DeductionTypeId");
 
                     b.HasIndex("EmployeeId");
@@ -889,6 +953,9 @@ namespace Paycrest.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<byte[]>("Content")
                         .IsRequired()
@@ -921,6 +988,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("EmployeeId");
 
@@ -964,6 +1033,9 @@ namespace Paycrest.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
@@ -976,6 +1048,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(80)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Holidays");
                 });
@@ -993,6 +1067,9 @@ namespace Paycrest.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<int?>("CheckNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CompanyId")
                         .HasColumnType("int");
 
                     b.Property<int>("EmployeeId")
@@ -1111,6 +1188,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("PayrollRunId");
 
                     b.HasIndex("EmployeeId", "PayDate");
@@ -1146,6 +1225,9 @@ namespace Paycrest.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<int>("PaycheckId")
                         .HasColumnType("int");
 
@@ -1155,6 +1237,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(9)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("PaycheckId");
 
@@ -1177,6 +1261,9 @@ namespace Paycrest.Migrations
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("nvarchar(12)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("DeductionTypeId")
                         .HasColumnType("int");
@@ -1205,6 +1292,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("PaycheckId");
 
                     b.ToTable("PaycheckLines");
@@ -1221,6 +1310,9 @@ namespace Paycrest.Migrations
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<int>("EarningTypeId")
                         .HasColumnType("int");
@@ -1240,6 +1332,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("EarningTypeId");
 
@@ -1270,6 +1364,9 @@ namespace Paycrest.Migrations
 
                     b.Property<DateTime?>("CalculatedUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
                         .HasMaxLength(256)
@@ -1334,6 +1431,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("PayDate");
 
@@ -1491,6 +1590,9 @@ namespace Paycrest.Migrations
                     b.Property<DateTime?>("ClockOutUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EarningTypeId")
                         .HasColumnType("int");
 
@@ -1524,6 +1626,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("EarningTypeId");
 
                     b.HasIndex("EmployeeId", "WorkDate");
@@ -1547,6 +1651,9 @@ namespace Paycrest.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
@@ -1558,6 +1665,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("TimeOffPolicyId");
 
@@ -1585,6 +1694,9 @@ namespace Paycrest.Migrations
                     b.Property<bool>("AllowNegativeBalance")
                         .HasColumnType("bit");
 
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EarningTypeId")
                         .HasColumnType("int");
 
@@ -1602,6 +1714,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("EarningTypeId");
 
                     b.ToTable("TimeOffPolicies");
@@ -1614,6 +1728,9 @@ namespace Paycrest.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
@@ -1654,6 +1771,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("EmployeeId");
 
                     b.HasIndex("TimeOffPolicyId");
@@ -1668,6 +1787,9 @@ namespace Paycrest.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
                         .HasMaxLength(256)
@@ -1706,6 +1828,8 @@ namespace Paycrest.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("TimeOffPolicyId");
 
                     b.HasIndex("EmployeeId", "TimeOffPolicyId");
@@ -1720,6 +1844,9 @@ namespace Paycrest.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -1739,6 +1866,8 @@ namespace Paycrest.Migrations
                         .HasColumnType("nvarchar(600)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("WiseSayings");
                 });
@@ -1845,8 +1974,75 @@ namespace Paycrest.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Paycrest.Data.ApplicationUser", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.Announcement", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.AuditLog", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.CompanyLogo", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.DeductionType", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.Department", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.EarningType", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Paycrest.Domain.Employee", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Department", "Department")
                         .WithMany("Employees")
                         .HasForeignKey("DepartmentId")
@@ -1864,6 +2060,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.EmployeeBankAccount", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Employee", "Employee")
                         .WithMany("BankAccounts")
                         .HasForeignKey("EmployeeId")
@@ -1875,6 +2077,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.EmployeeDeduction", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.DeductionType", "DeductionType")
                         .WithMany()
                         .HasForeignKey("DeductionTypeId")
@@ -1894,6 +2102,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.EmployeeDocument", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Employee", "Employee")
                         .WithMany("Documents")
                         .HasForeignKey("EmployeeId")
@@ -1912,8 +2126,23 @@ namespace Paycrest.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.Holiday", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Paycrest.Domain.Paycheck", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Employee", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
@@ -1933,6 +2162,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.PaycheckDeposit", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Paycheck", null)
                         .WithMany("Deposits")
                         .HasForeignKey("PaycheckId")
@@ -1942,6 +2177,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.PaycheckLine", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Paycheck", null)
                         .WithMany("Lines")
                         .HasForeignKey("PaycheckId")
@@ -1951,6 +2192,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.PayrollAdjustment", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.EarningType", "EarningType")
                         .WithMany()
                         .HasForeignKey("EarningTypeId")
@@ -1976,6 +2223,15 @@ namespace Paycrest.Migrations
                     b.Navigation("PayrollRun");
                 });
 
+            modelBuilder.Entity("Paycrest.Domain.PayrollRun", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Paycrest.Domain.StateTaxBracket", b =>
                 {
                     b.HasOne("Paycrest.Domain.StateTaxRule", null)
@@ -1987,6 +2243,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.TimeEntry", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.EarningType", "EarningType")
                         .WithMany()
                         .HasForeignKey("EarningTypeId")
@@ -2006,6 +2268,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.TimeOffBalance", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Employee", "Employee")
                         .WithMany("TimeOffBalances")
                         .HasForeignKey("EmployeeId")
@@ -2025,6 +2293,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.TimeOffPolicy", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.EarningType", "EarningType")
                         .WithMany()
                         .HasForeignKey("EarningTypeId")
@@ -2036,6 +2310,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.TimeOffRequest", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.Employee", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
@@ -2055,6 +2335,12 @@ namespace Paycrest.Migrations
 
             modelBuilder.Entity("Paycrest.Domain.TimeOffTransaction", b =>
                 {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Paycrest.Domain.TimeOffPolicy", "TimeOffPolicy")
                         .WithMany()
                         .HasForeignKey("TimeOffPolicyId")
@@ -2062,6 +2348,15 @@ namespace Paycrest.Migrations
                         .IsRequired();
 
                     b.Navigation("TimeOffPolicy");
+                });
+
+            modelBuilder.Entity("Paycrest.Domain.WiseSaying", b =>
+                {
+                    b.HasOne("Paycrest.Domain.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Paycrest.Domain.Department", b =>

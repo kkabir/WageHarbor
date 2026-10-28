@@ -3,8 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Paycrest.Domain;
 
-public class Employee
+public class Employee : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(20)] public string EmployeeNumber { get; set; } = "";
 
@@ -90,8 +91,9 @@ public class Employee
     [NotMapped] public decimal AnnualizedPay => PayType == PayType.Salary ? PayRate : PayRate * DefaultHours * (int)PayFrequency;
 }
 
-public class EmployeeBankAccount
+public class EmployeeBankAccount : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
@@ -108,8 +110,9 @@ public class EmployeeBankAccount
     public bool IsActive { get; set; } = true;
 }
 
-public class DeductionType
+public class DeductionType : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     [Required, StringLength(12)] public string Code { get; set; } = "";
     [Required, StringLength(60)] public string Name { get; set; } = "";
@@ -130,8 +133,9 @@ public class DeductionType
     [NotMapped] public bool IsPreTax => ReducesFederalTaxable || ReducesFicaTaxable || ReducesStateTaxable;
 }
 
-public class EmployeeDeduction
+public class EmployeeDeduction : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
@@ -150,8 +154,9 @@ public class EmployeeDeduction
     public bool IsActive { get; set; } = true;
 }
 
-public class EmployeeDocument
+public class EmployeeDocument : ICompanyOwned
 {
+    public int CompanyId { get; set; }
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public Employee? Employee { get; set; }
