@@ -1,8 +1,16 @@
 ﻿@page "/"
-@attribute [Authorize]
+@layout Paycrest.Components.Layout.PublicLayout
+@attribute [AllowAnonymous]
 @inherits AppComponentBase
 @inject ReportService Reports
 @inject Clock Clock
+
+@if (isVisitor)
+{
+    <PageTitle>WageHarbor · Free payroll & HR for small business</PageTitle>
+    <Paycrest.Components.Pages.Public.Landing />
+    return;
+}
 
 <PageTitle>Dashboard · WageHarbor</PageTitle>
 
@@ -207,13 +215,23 @@
 
     private string Greeting => DateTime.Now.Hour switch { var h when h < 12 => "Good morning", var h when h < 17 => "Good afternoon", _ => "Good evening" };
 
+    // Visitors who aren't signed in see the public home page instead of a dashboard.
+    private bool isVisitor;
+
     protected override async Task OnInitializedAsync()
     {
+        if ((await Me.GetPrincipalAsync()).Identity?.IsAuthenticated != true)
+        {
+            isVisitor = true;
+            return;
+        }
         today = await Clock.TodayAsync();
         isAdmin = await Me.IsInAnyRoleAsync(AppRoles.Admin);
         isPeopleAdmin = await Me.CanManagePeopleAsync();
         myEmployeeId = await Me.GetEmployeeIdAsync();
-        firstName = (await Me.GetNameAsync())?.Split('@')[0] ?? "";
+        // Until we know their employee record, greet people by the start of their email, capitalized.
+        var emailName = (await Me.GetNameAsync())?.Split('@')[0] ?? "";
+        firstName = emailName.Length > 0 ? char.ToUpperInvariant(emailName[0]) + emailName[1..] : "";
 
         await using var db = await Dbs.OpenAsync();
         var company = await db.Companies.AsNoTracking().FirstAsync();

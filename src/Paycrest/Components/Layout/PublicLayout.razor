@@ -1,0 +1,77 @@
+@inherits LayoutComponentBase
+@inject IConfiguration Config
+
+@* Public pages (home, help, about, legal): signed-in users get the normal app shell, visitors the public site. *@
+<AuthorizeView>
+    <Authorized>
+        <MainLayout Body="@Body" />
+    </Authorized>
+    <NotAuthorized>
+        <div class="public-shell">
+            <input type="checkbox" id="public-menu" class="public-menu-toggle" aria-label="Toggle menu" />
+            <header class="public-topbar">
+                <a href="" class="public-brand" title="WageHarbor home">
+                    <img src="brand/wageharbor-logo.svg" class="light-only" alt="WageHarbor" height="34" />
+                    <img src="brand/wageharbor-logo-dark.svg" class="dark-only" alt="WageHarbor" height="34" />
+                </a>
+                <nav class="public-nav" aria-label="Main">
+                    <a href="#features">Features</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="help">Help</a>
+                    <a href="about">About</a>
+                </nav>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <ThemeToggle />
+                    <a href="Account/Login" class="btn btn-sm btn-outline-secondary">Sign in</a>
+                    <a href="Account/Register" class="btn btn-sm btn-primary d-none d-sm-inline-block">Start free</a>
+                    <label for="public-menu" class="public-menu-btn" aria-label="Menu"><i class="bi bi-list"></i></label>
+                </div>
+            </header>
+            <nav class="public-mobile-nav" aria-label="Main" onclick="document.getElementById('public-menu').checked=false">
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="help">Help &amp; guides</a>
+                <a href="about">About</a>
+                <a href="Account/Register" class="fw-semibold">Register your company</a>
+            </nav>
+            <main class="public-content">
+                @Body
+            </main>
+            <footer class="public-footer">
+                <div class="public-footer-inner">
+                    <div class="public-footer-brand">
+                        <img src="brand/wageharbor-logo.svg" class="light-only" alt="WageHarbor" height="28" />
+                        <img src="brand/wageharbor-logo-dark.svg" class="dark-only" alt="WageHarbor" height="28" />
+                        <p>Payroll and HR for small businesses. Pay your people right, and on time.</p>
+                    </div>
+                    <div>
+                        <h3>Product</h3>
+                        <a href="#features">Features</a>
+                        <a href="#pricing">Pricing</a>
+                        <a href="security">Security</a>
+                        <a href="Account/Register">Register your company</a>
+                    </div>
+                    <div>
+                        <h3>Help</h3>
+                        <a href="help/company">Company guide</a>
+                        <a href="help/employee">Employee guide</a>
+                        <a href="help/articles">Articles</a>
+                        <a href="Account/Login">Sign in</a>
+                    </div>
+                    <div>
+                        <h3>Company</h3>
+                        <a href="about">About &amp; mission</a>
+                        <a href="privacy">Privacy policy</a>
+                        <a href="terms">Terms of service</a>
+                        <a href="mailto:@ContactEmail">@ContactEmail</a>
+                    </div>
+                </div>
+                <div class="public-footer-legal">© @DateTime.UtcNow.Year WageHarbor · wageharbor.com</div>
+            </footer>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string ContactEmail => Config["Site:ContactEmail"] is { Length: > 0 } e ? e : "support@wageharbor.com";
+}

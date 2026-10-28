@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /Account/Manage
+Disallow: /company-logo
+
+Sitemap: https://www.wageharbor.com/sitemap.xml

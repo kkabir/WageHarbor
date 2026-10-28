@@ -1,0 +1,63 @@
+@page "/terms"
+@layout Paycrest.Components.Layout.PublicLayout
+@attribute [AllowAnonymous]
+@inject IConfiguration Config
+
+<PageTitle>Terms of service · WageHarbor</PageTitle>
+<HeadContent>
+    <meta name="description" content="The terms for using WageHarbor payroll and HR software." />
+    <link rel="canonical" href="https://www.wageharbor.com/terms" />
+</HeadContent>
+
+<article class="prose">
+    <h1>Terms of service</h1>
+    <p class="prose-meta">Last updated: October 28, 2026</p>
+
+    <p>These terms apply to your use of WageHarbor at wageharbor.com (the "service"). By registering a company or signing in, you agree to them. If you register on behalf of a business, you confirm you are allowed to accept these terms for that business.</p>
+
+    <h2>1. The service</h2>
+    <p>WageHarbor is software that helps businesses calculate payroll, keep employee records, track time and time off, and give employees access to their own pay information. We may improve, change or add features over time.</p>
+
+    <h2>2. What WageHarbor does not do</h2>
+    <ul>
+        <li><strong>We don't file or pay taxes for you.</strong> WageHarbor calculates withholding and employer taxes and produces reports. Your company is responsible for making tax deposits, filing returns and issuing year-end forms on time.</li>
+        <li><strong>We don't move money.</strong> WageHarbor can create a direct-deposit (ACH) file, but your bank sends the payments.</li>
+        <li><strong>We don't give tax, legal or accounting advice.</strong> Tax tables and calculations are provided in good faith and may not cover every situation (for example local taxes or special state programs). Check results against official guidance or with a qualified professional.</li>
+    </ul>
+
+    <h2>3. Your responsibilities</h2>
+    <ul>
+        <li>Enter accurate information and review every payroll before approving and paying it.</li>
+        <li>Have the right to give us the employee information you enter, and meet your own legal obligations to your employees, including privacy, wage and tax laws.</li>
+        <li>Keep sign-in details secret, give people only the roles they need, and remove access for people who leave.</li>
+        <li>Keep your own records as required by law; you can print and export reports at any time.</li>
+    </ul>
+
+    <h2>4. Acceptable use</h2>
+    <p>Don't use WageHarbor for anything illegal, to process data you have no right to use, to try to access another company's data, to disrupt or overload the service, or to reverse engineer or resell it without our permission.</p>
+
+    <h2>5. Price</h2>
+    <p>WageHarbor is currently free for small businesses. If we ever introduce paid plans, we will tell you in advance and you can choose whether to continue.</p>
+
+    <h2>6. Your data</h2>
+    <p>Your company owns the data it puts into WageHarbor. We use it only to provide and protect the service, as described in our <a href="privacy">Privacy policy</a>.</p>
+
+    <h2>7. Suspension and closing an account</h2>
+    <p>You can stop using WageHarbor at any time and ask us to close your company's account. We may suspend or turn off an account that breaks these terms, puts others at risk or is required to be suspended by law. Where reasonable, we will give notice first so you can export your records.</p>
+
+    <h2>8. Availability</h2>
+    <p>We work to keep WageHarbor available and accurate, but we can't promise it will always be uninterrupted or error-free. Plan payroll with enough time before payday.</p>
+
+    <h2>9. Disclaimer and limitation of liability</h2>
+    <p>The service is provided "as is" and "as available". To the fullest extent the law allows, we disclaim all implied warranties, and we are not liable for indirect, incidental or consequential damages, or for tax penalties, interest or losses arising from payroll that was not reviewed, filed or paid correctly by the company. Where liability can't be excluded, our total liability is limited to the amount you paid us for the service in the twelve months before the claim (which, for a free account, is zero).</p>
+
+    <h2>10. Changes to these terms</h2>
+    <p>We may update these terms. If changes are important, we'll update the date above and tell companies in the app or by email. Continuing to use the service after that means you accept the updated terms.</p>
+
+    <h2>11. Contact</h2>
+    <p>Questions about these terms? Email <a href="mailto:@ContactEmail">@ContactEmail</a>.</p>
+</article>
+
+@code {
+    private string ContactEmail => Config["Site:ContactEmail"] is { Length: > 0 } e ? e : "support@wageharbor.com";
+}

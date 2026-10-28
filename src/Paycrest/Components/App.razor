@@ -25,6 +25,11 @@
     <link rel="apple-touch-icon" href="brand/wageharbor-mark.svg" />
     <meta name="theme-color" content="#0B2545" />
     <title>WageHarbor</title>
+    @if (Config["Analytics:PlausibleDomain"] is { Length: > 0 } analyticsDomain)
+    {
+        @* Cookie-free analytics, only when configured. *@
+        <script defer data-domain="@analyticsDomain" src="https://plausible.io/js/script.js"></script>
+    }
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
@@ -39,6 +44,8 @@
 </html>
 
 @code {
+    [Inject] private IConfiguration Config { get; set; } = default!;
+
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 

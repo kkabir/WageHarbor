@@ -157,6 +157,8 @@
             if (locked && u.Id == await Me.GetUserIdAsync()) throw new InvalidOperationException("You can't disable your own account.");
             await UserManager.SetLockoutEnabledAsync(u, true);
             await UserManager.SetLockoutEndDateAsync(u, locked ? DateTimeOffset.MaxValue : null);
+            // A new security stamp signs the person out of open sessions at the next revalidation.
+            if (locked) await UserManager.UpdateSecurityStampAsync(u);
             await LogAsync(locked ? "UserDisabled" : "UserEnabled", u.Id, null);
             editing = u;
         }, locked ? "Sign-in disabled." : "User unlocked.");

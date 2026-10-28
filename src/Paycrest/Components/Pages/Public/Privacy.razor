@@ -1,0 +1,83 @@
+@page "/privacy"
+@layout Paycrest.Components.Layout.PublicLayout
+@attribute [AllowAnonymous]
+@inject IConfiguration Config
+
+<PageTitle>Privacy policy · WageHarbor</PageTitle>
+<HeadContent>
+    <meta name="description" content="How WageHarbor collects, uses and protects company and employee information." />
+    <link rel="canonical" href="https://www.wageharbor.com/privacy" />
+</HeadContent>
+
+<article class="prose">
+    <h1>Privacy policy</h1>
+    <p class="prose-meta">Last updated: October 28, 2026</p>
+
+    <p>This policy explains what information WageHarbor ("we", "us") collects when businesses and their employees use wageharbor.com, how we use it and the choices you have. We wrote it to be read, not skimmed past.</p>
+
+    <h2>Who is responsible for employee data</h2>
+    <p>A business that registers on WageHarbor (the "company") decides which employee information to enter and how it is used for payroll. For that information, the company is responsible for its own obligations to its employees, and we process it on the company's behalf to provide the service. If you are an employee with a question about your records, please contact your employer first.</p>
+
+    <h2>Information we collect</h2>
+    <h3>Account information</h3>
+    <ul>
+        <li>Name and email address of each person with a login, their roles and password hash (never the password itself).</li>
+        <li>Two-step sign-in and passkey settings, if turned on.</li>
+    </ul>
+    <h3>Company and payroll information entered by a company</h3>
+    <ul>
+        <li>Company name, address, EIN, tax IDs, bank account used for payroll and logo.</li>
+        <li>Employee details: name, contact details, address, date of birth, Social Security number, job and pay details, tax withholding (W-4) choices, bank accounts for direct deposit, benefits and deductions, time records, time off and documents.</li>
+        <li>Payroll results: paychecks, taxes, deductions and reports.</li>
+    </ul>
+    <h3>Technical information</h3>
+    <ul>
+        <li>Server logs (such as IP address, browser type, pages requested and errors) used to keep the service running and secure.</li>
+        <li>A sign-in cookie that keeps you signed in, and a security cookie that protects forms. Your light or dark theme choice is saved in your own browser.</li>
+        <li>If we use website analytics, we use privacy-friendly analytics that do not use advertising cookies or track you across other sites.</li>
+    </ul>
+
+    <h2>How we use information</h2>
+    <ul>
+        <li>To provide the service: calculating payroll, producing pay stubs and reports, and showing employees their own information.</li>
+        <li>To keep accounts and data secure, prevent misuse and investigate problems.</li>
+        <li>To contact companies about their account, service changes or security.</li>
+        <li>To improve WageHarbor, using aggregated information that does not identify individuals.</li>
+    </ul>
+    <p><strong>We do not sell personal information, and we do not use payroll or employee data for advertising.</strong></p>
+
+    <h2>How information is shared</h2>
+    <ul>
+        <li><strong>Within a company:</strong> people at the same company see information according to their role. Employees see only their own records.</li>
+        <li><strong>Service providers:</strong> we use providers such as website hosting and email delivery to run WageHarbor. They may only use the information to provide services to us.</li>
+        <li><strong>Legal reasons:</strong> we may disclose information if required by law, or to protect the rights, safety or property of our users or others.</li>
+        <li><strong>Business transfer:</strong> if WageHarbor is merged or sold, information may transfer to the new owner under this policy.</li>
+    </ul>
+    <p>Other companies on WageHarbor can never see your company's data.</p>
+
+    <h2>Security</h2>
+    <p>Social Security and bank account numbers are encrypted at rest and shown masked, each company's data is kept separate, and access is based on roles. See <a href="security">Security</a> for details. No system is perfectly secure, so please also protect your own sign-in.</p>
+
+    <h2>How long we keep information</h2>
+    <p>We keep company and payroll records while the company's account is active, because businesses must keep payroll records for several years. When a company asks us to close its account, we delete or anonymize its information within a reasonable time, unless we must keep some of it to meet legal obligations or resolve disputes.</p>
+
+    <h2>Your choices and rights</h2>
+    <ul>
+        <li>Employees can view and update their contact details and W-4 under <em>My profile</em>, and ask their employer to correct other information.</li>
+        <li>Anyone with a login can download or delete their personal account data under Account settings, where available, or ask us for help.</li>
+        <li>Depending on where you live, you may have additional rights to access, correct or delete personal information. Contact us and we will help, working with your employer where the information belongs to them.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>WageHarbor is a service for businesses. It is not directed to children, and we do not knowingly collect information from children under 13.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If we make important changes, we will update the date above and, where appropriate, tell companies by email or in the app.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about privacy? Email <a href="mailto:@ContactEmail">@ContactEmail</a>.</p>
+</article>
+
+@code {
+    private string ContactEmail => Config["Site:ContactEmail"] is { Length: > 0 } e ? e : "support@wageharbor.com";
+}
