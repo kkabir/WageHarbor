@@ -1,0 +1,86 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- Facebook / Instagram feed ad, 1080x1350 (4:5). Rendered to WageHarbor-poster.png. -->
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&display=block" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1080px;height:1350px;overflow:hidden}
+body{font-family:Outfit,'Segoe UI',sans-serif;color:#fff;position:relative;
+ background:radial-gradient(circle at 88% 6%,#2dd4bf4d 0,transparent 36%),radial-gradient(circle at 0% 62%,#0e7c8655 0,transparent 38%),radial-gradient(circle at 75% 96%,#fbbf2426 0,transparent 34%),linear-gradient(155deg,#071a33,#0b2545 52%,#0a2f4a)}
+.wrap{position:absolute;inset:0;padding:54px 64px 56px;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;align-items:center;gap:16px;font-size:46px;font-weight:900;letter-spacing:-1.5px}
+.brand img{width:66px;height:66px;border-radius:18px;box-shadow:0 10px 24px #0006}
+.brand span{color:#5eead4}
+.free{background:#fbbf24;color:#3b2a00;font-weight:900;font-size:27px;padding:14px 26px;border-radius:999px;transform:rotate(4deg);box-shadow:0 10px 26px #0006;line-height:1.05;text-align:center}
+.free small{display:block;font-size:19px;font-weight:800;opacity:.8}
+h1{margin-top:38px;font-size:84px;line-height:1.0;font-weight:900;letter-spacing:-3px}
+h1 em{font-style:normal;background:linear-gradient(90deg,#5eead4,#a7f3d0 55%,#fde68a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin-top:16px;font-size:33px;font-weight:600;line-height:1.3;color:#cfe9f2;max-width:900px}
+.sub b{color:#fde68a;font-weight:800}
+.mid{display:grid;grid-template-columns:1fr 410px;gap:34px;margin-top:30px;align-items:center}
+.types{display:grid;gap:12px}
+.type{display:flex;align-items:center;gap:18px;background:#ffffff10;border:1px solid #ffffff22;border-radius:22px;padding:13px 20px}
+.type .ic{font-size:40px;width:62px;height:62px;display:grid;place-items:center;border-radius:16px;background:#ffffff16;flex-shrink:0}
+.type b{display:block;font-size:30px;font-weight:800;line-height:1.1}
+.type small{display:block;font-size:23px;color:#a9d6e3;font-weight:600;line-height:1.3}
+.card{background:#fff;color:#0f1d33;border-radius:28px;padding:24px 26px;box-shadow:0 34px 70px #000a;transform:rotate(-4deg);position:relative}
+.card .row1{display:flex;justify-content:space-between;align-items:center}
+.co{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:#0b2545}
+.co i{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-style:normal;font-size:19px;background:linear-gradient(135deg,#c8742e,#6b3410)}
+.paid{display:inline-flex;align-items:center;gap:7px;font-size:16px;font-weight:800;color:#047857;background:#d1fae5;padding:5px 12px;border-radius:999px}
+.paid::before{content:"";width:10px;height:10px;border-radius:50%;background:#10b981}
+.lbl{margin-top:16px;font-size:17px;font-weight:700;color:#64748b;letter-spacing:.06em;text-transform:uppercase}
+.net{font-size:60px;font-weight:900;letter-spacing:-2px;color:#0b2545;line-height:1.05}
+.date{font-size:17px;font-weight:600;color:#64748b}
+.lines{margin:14px 0 4px;border-top:2px dashed #e2e8f0;padding-top:10px}
+.lines div{display:flex;justify-content:space-between;font-size:20px;font-weight:700;color:#334155;padding:6px 0}
+.lines div span:last-child{font-variant-numeric:tabular-nums}
+.lines .t{color:#b45309}.lines .d{color:#0e7c86}
+.btnv{margin-top:14px;text-align:center;padding:15px;border-radius:16px;font-weight:900;font-size:22px;color:#fff;background:#0e7c86}
+.fl{position:absolute;font-size:56px;filter:drop-shadow(0 8px 12px #0007)}
+.feats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.quote{margin-top:auto;margin-bottom:26px;display:flex;align-items:center;gap:18px;padding:18px 24px;border-left:5px solid #5eead4;background:#ffffff0d;border-radius:0 18px 18px 0}
+.quote b{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-style:italic;font-size:30px;line-height:1.3;color:#fff}
+.quote small{display:block;font-family:Outfit,sans-serif;font-style:normal;font-size:20px;font-weight:700;color:#5eead4;margin-top:6px}
+.feats span{background:#ffffff14;border:1px solid #ffffff26;border-radius:999px;padding:9px 18px;font-size:21px;font-weight:700}
+.bottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fff;border-radius:28px;padding:22px 22px 22px 34px;box-shadow:0 24px 50px #0008}
+.bottom .t{color:#0b2545}
+.bottom .t small{display:block;font-size:24px;font-weight:700;color:#4b6478}
+.bottom .t b{display:block;font-size:54px;font-weight:900;letter-spacing:-1.5px;line-height:1.1}
+.go{background:linear-gradient(90deg,#0e7c86,#14b8a6);color:#fff;font-weight:900;font-size:30px;padding:22px 30px;border-radius:20px;text-align:center;line-height:1.2;white-space:nowrap}
+.go small{display:block;font-size:21px;font-weight:700;opacity:.92}
+</style></head><body><div class="wrap">
+<div class="top">
+ <div class="brand"><img src="../src/Paycrest/wwwroot/brand/wageharbor-mark.svg" alt=""><div>Wage<span>Harbor</span></div></div>
+ <div class="free">FREE<small>for small business</small></div>
+</div>
+<h1>Payroll &amp; HR,<br><em>done right.</em></h1>
+<div class="sub">Pay your people correctly and <b>on time</b>, without expensive software.</div>
+<div class="mid">
+ <div class="types">
+  <div class="type"><div class="ic">🧮</div><div><b>Payroll taxes, automatic</b><small>Federal, FICA, state, FUTA &amp; SUTA</small></div></div>
+  <div class="type"><div class="ic">🏦</div><div><b>Direct deposit</b><small>NACHA file for your bank, or checks</small></div></div>
+  <div class="type"><div class="ic">🧾</div><div><b>Pay stubs for everyone</b><small>View, print or save as PDF</small></div></div>
+  <div class="type"><div class="ic">⏱️</div><div><b>Time clock &amp; time off</b><small>Clock in, approve hours, PTO</small></div></div>
+ </div>
+ <div style="position:relative">
+  <div class="card">
+   <div class="row1"><div class="co"><i>☕</i>Harborlight Coffee</div><span class="paid">Paid</span></div>
+   <div class="lbl">Net pay</div>
+   <div class="net">$3,538.38</div>
+   <div class="date">Priya S. · Pay date Oct 29</div>
+   <div class="lines">
+    <div><span>Gross pay</span><span>$4,538.46</span></div>
+    <div class="t"><span>Taxes</span><span>−$597.58</span></div>
+    <div class="d"><span>401(k) &amp; health</span><span>−$402.50</span></div>
+   </div>
+   <div class="btnv">🖨️ Print / save PDF</div>
+  </div>
+  <span class="fl" style="top:-46px;left:-34px">💵</span><span class="fl" style="top:-40px;right:-22px">✅</span><span class="fl" style="bottom:-34px;left:6px">🕒</span>
+ </div>
+</div>
+<div class="feats"><span>💳 No credit card</span><span>🚫 No ads</span><span>🔒 We never sell your data</span><span>🏢 Your logo on every stub</span><span>📊 941 · W-2 · 1099 reports</span><span>📱 Works on any phone</span></div>
+<div class="quote"><div><b>“Give the worker his wages before his sweat dries.”</b><small>Prophet Muhammad ﷺ · Sunan Ibn Majah 2443 · our mission</small></div></div>
+<div class="bottom" style="margin-top:0"><div class="t"><small>Register in 2 minutes · Start today</small><b>wageharbor.com</b></div><div class="go">Start free ✨<small>Run payroll in minutes</small></div></div>
+</div></body></html>
