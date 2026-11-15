@@ -100,17 +100,25 @@ public sealed class OnboardingService(
         string? emailError = "Email isn't set up, so send the link yourself.";
         if (emailSender is SmtpEmailSender smtp)
         {
-            var h = (string s) => WebUtility.HtmlEncode(s);
-            emailError = await smtp.TrySendAsync(email.Trim(), $"Welcome to {company.Name}: set up your pay",
-                $"""
-                <div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px;color:#111827;max-width:560px">
-                  <h2 style="color:#0b2545;margin:0 0 12px">Welcome to {h(company.Name)}, {h(emp.PreferredName ?? emp.FirstName)}!</h2>
-                  <p>{h(company.Name)} uses WageHarbor for payroll. Please take about 10 minutes to enter your details so you can be paid:</p>
-                  <ul><li>Your address and emergency contact</li><li>Your tax withholding (Form W-4)</li><li>The bank account for direct deposit</li><li>A password, so you can see your pay stubs any time</li></ul>
-                  <p style="margin:24px 0"><a href="{link}" style="background:#0e7c86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Set up my pay</a></p>
-                  <p style="color:#6b7280;font-size:13px">This private link works once and expires on {now.Add(LinkLifetime):MMMM d, yyyy}. Don't forward it. If you weren't expecting this, you can ignore it.</p>
-                </div>
-                """);
+            emailError = await smtp.TrySendAsync(email.Trim(), $"Welcome to {company.Name}: set up your pay", new EmailMessage
+            {
+                Eyebrow = company.Name,
+                Heading = $"Welcome to the team, {emp.PreferredName ?? emp.FirstName}!",
+                Lead = $"{company.Name} uses WageHarbor for payroll.",
+                Preheader = "About 10 minutes to set up your pay: W-4, direct deposit and a password.",
+                Paragraphs = ["Please take about 10 minutes to enter your details so you can be paid on time:"],
+                Bullets =
+                [
+                    "Your address and emergency contact",
+                    "Your tax withholding (Form W-4)",
+                    "The bank account for direct deposit",
+                    "A password, so you can see your pay stubs any time",
+                ],
+                ButtonText = "Set up my pay",
+                ButtonUrl = link,
+                Note = $"This private link works once and expires on {now.Add(LinkLifetime):MMMM d, yyyy}. Don't forward it. If you weren't expecting this, you can ignore it.",
+                Reason = $"Sent to {email.Trim()} because {company.Name} added you as a new employee.",
+            });
         }
         return new(link, emailError);
     }

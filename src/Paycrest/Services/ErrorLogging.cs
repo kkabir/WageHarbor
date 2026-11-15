@@ -148,23 +148,28 @@ public sealed partial class ErrorLogWriter(
         var baseUrl = (config["Site:BaseUrl"] is { Length: > 0 } b ? b : "https://www.wageharbor.com").TrimEnd('/');
         var kind = row.ExceptionType?.Split('.').Last() ?? row.Level;
         var subject = $"[WageHarbor ERROR] {kind}: {Trim(row.Message.ReplaceLineEndings(" "), 90)}";
-        var h = (string? s) => WebUtility.HtmlEncode(s ?? "—");
-        var html = $"""
-            <h2 style="font-family:Segoe UI,Arial;color:#b91c1c;margin:0 0 8px">WageHarbor error #{row.Id}</h2>
-            <p style="font-family:Segoe UI,Arial">{(row.Count > 1 ? "This error happened again after being marked resolved." : "A new error was recorded.")}</p>
-            <table style="font-family:Segoe UI,Arial;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">When (UTC)</td><td>{row.LastSeenUtc:yyyy-MM-dd HH:mm:ss}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Type</td><td>{h(row.ExceptionType)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Message</td><td>{h(row.Message)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Page</td><td>{h(row.Method)} {h(row.Path)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">User</td><td>{h(row.UserName)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Source</td><td>{h(row.Source)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Times seen</td><td>{row.Count}</td></tr>
-            </table>
-            <p style="font-family:Segoe UI,Arial"><a href="{baseUrl}/platform/errors?id={row.Id}">Open in the WageHarbor error log</a></p>
-            <pre style="font-size:12px;background:#f3f4f6;padding:10px;white-space:pre-wrap">{h(Trim(row.Details, 4000))}</pre>
-            """;
-        await smtp.SendAsync(to, subject, html);
+        var message = new EmailMessage
+        {
+            Tone = EmailTone.Alert,
+            Eyebrow = row.Count > 1 ? $"Error #{row.Id} is back" : $"New error #{row.Id}",
+            Heading = kind,
+            Lead = Trim(row.Message.ReplaceLineEndings(" "), 200),
+            Paragraphs = [row.Count > 1 ? "This error happened again after being marked resolved, so it has been reopened." : "A new error was recorded on WageHarbor."],
+            Details =
+            [
+                ("When (UTC)", $"{row.LastSeenUtc:yyyy-MM-dd HH:mm:ss}"),
+                ("Page", $"{row.Method} {row.Path ?? "—"}".Trim()),
+                ("User", row.UserName ?? "—"),
+                ("Type", row.ExceptionType ?? row.Level),
+                ("Source", row.Source ?? "—"),
+                ("Times seen", row.Count.ToString()),
+            ],
+            ButtonText = "Open in the error log",
+            ButtonUrl = $"{baseUrl}/platform/errors?id={row.Id}",
+            Code = Trim(row.Details, 4000),
+            Reason = "Sent to the WageHarbor platform owner. At most 20 error emails are sent per hour.",
+        };
+        await smtp.SendAsync(to, subject, message);
     }
 
     /// <summary>Same exception type, same message shape (numbers and ids ignored) and same app code location → same error.</summary>

@@ -168,21 +168,28 @@
         (sent, sentTo, reference) = (true, msg.Email, msg.Id);
     }
 
-    private string EmailBody(ContactMessage m)
+    private EmailMessage EmailBody(ContactMessage m)
     {
-        var h = (string? s) => WebUtility.HtmlEncode(s ?? "—");
         var baseUrl = (Config["Site:BaseUrl"] is { Length: > 0 } b ? b : "https://www.wageharbor.com").TrimEnd('/');
-        return $"""
-            <h2 style="font-family:Segoe UI,Arial;color:#0b2545;margin:0 0 8px">New message #{m.Id}: {h(m.Topic)}</h2>
-            <table style="font-family:Segoe UI,Arial;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">From</td><td>{h(m.Name)} &lt;{h(m.Email)}&gt;</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Company</td><td>{h(m.CompanyName)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Phone</td><td>{h(m.Phone)}</td></tr>
-              <tr><td style="padding:3px 12px 3px 0;color:#6b7280">Signed in</td><td>{(m.UserId != null ? "Yes" : "No")}</td></tr>
-            </table>
-            <div style="font-family:Segoe UI,Arial;font-size:15px;white-space:pre-line;background:#f3f4f6;padding:12px;margin:12px 0;border-radius:6px">{h(m.Message)}</div>
-            <p style="font-family:Segoe UI,Arial">Reply to this email to answer {h(m.Name)} directly, then <a href="{baseUrl}/platform/messages?id={m.Id}">mark it replied in WageHarbor</a>.</p>
-            """;
+        return new EmailMessage
+        {
+            Eyebrow = $"Contact form · #{m.Id}",
+            Heading = m.Topic,
+            Lead = $"New message from {OneLine(m.Name)}.",
+            Details =
+            [
+                ("From", $"{OneLine(m.Name)} <{m.Email}>"),
+                ("Company", m.CompanyName ?? "—"),
+                ("Phone", m.Phone ?? "—"),
+                ("Signed in", m.UserId != null ? "Yes" : "No"),
+            ],
+            Quote = m.Message,
+            Paragraphs = [],
+            ButtonText = "Open in WageHarbor",
+            ButtonUrl = $"{baseUrl}/platform/messages?id={m.Id}",
+            Note = $"Reply to this email to answer {OneLine(m.Name)} directly, then mark the message replied in WageHarbor.",
+            Reason = "Sent to the WageHarbor contact inbox from the form at wageharbor.com/contact.",
+        };
     }
 
     private static string OneLine(string s) => s.ReplaceLineEndings(" ").Trim();

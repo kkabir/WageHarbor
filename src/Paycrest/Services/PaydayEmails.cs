@@ -53,19 +53,29 @@ public sealed class PaydayEmailSender(
                             select new { p.Id, p.PeriodStart, p.PeriodEnd, p.PayDate, Name = e.PreferredName ?? e.FirstName, u.Email }).ToListAsync(ct);
 
         var baseUrl = (config["Site:BaseUrl"] is { Length: > 0 } b ? b : "https://www.wageharbor.com").TrimEnd('/');
-        var h = (string s) => WebUtility.HtmlEncode(s);
         var sent = 0;
         foreach (var p in people)
         {
-            var html = $"""
-                <div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px;color:#111827;max-width:560px">
-                  <h2 style="color:#0b2545;margin:0 0 12px">Your pay stub is ready</h2>
-                  <p>Hi {h(p.Name)}, your pay from {h(company.Name)} for <strong>{p.PeriodStart:MMM d} – {p.PeriodEnd:MMM d, yyyy}</strong> (pay date <strong>{p.PayDate:MMM d}</strong>) is ready to view.</p>
-                  <p style="margin:24px 0"><a href="{baseUrl}/paystub/{p.Id}" style="background:#0e7c86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">View my pay stub</a></p>
-                  <p style="color:#6b7280;font-size:13px">For your security, amounts aren't included in this email. You'll be asked to sign in. Questions about your pay? Contact {h(company.Name)}.</p>
-                </div>
-                """;
-            if (await smtp.TrySendAsync(p.Email!, $"Your {company.Name} pay stub is ready", html) == null) sent++;
+            var message = new EmailMessage
+            {
+                Eyebrow = $"Payday · {company.Name}",
+                Tone = EmailTone.Success,
+                Heading = "Your pay stub is ready",
+                Lead = $"Pay date {p.PayDate:dddd, MMMM d}.",
+                Greeting = $"Hi {p.Name},",
+                Paragraphs = [$"Your pay from {company.Name} is ready to view, print or save as PDF."],
+                Details =
+                [
+                    ("Pay period", $"{p.PeriodStart:MMM d} – {p.PeriodEnd:MMM d, yyyy}"),
+                    ("Pay date", $"{p.PayDate:MMM d, yyyy}"),
+                    ("From", company.Name),
+                ],
+                ButtonText = "View my pay stub",
+                ButtonUrl = $"{baseUrl}/paystub/{p.Id}",
+                Note = $"For your security, amounts aren't included in this email, and you'll be asked to sign in. Questions about your pay? Contact {company.Name}.",
+                Reason = $"Sent because you have a WageHarbor login at {company.Name}, which emails you on payday.",
+            };
+            if (await smtp.TrySendAsync(p.Email!, $"Your {company.Name} pay stub is ready", message) == null) sent++;
             await Task.Delay(250, ct); // be gentle with the mail server
         }
         logger.LogInformation("Payday emails for payroll {RunId}: {Sent} of {Total} sent.", runId, sent, people.Count);

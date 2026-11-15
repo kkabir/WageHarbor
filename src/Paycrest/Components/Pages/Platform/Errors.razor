@@ -192,8 +192,16 @@
         sendingTest = true;
         testResult = null;
         StateHasChanged();
-        var error = await smtp.TrySendAsync(testTo.Trim(), "WageHarbor test email",
-            $"<p style=\"font-family:Segoe UI,Arial\">This is a test email from WageHarbor, sent {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. If you can read it, email sending works.</p>");
+        var error = await smtp.TrySendAsync(testTo.Trim(), "WageHarbor test email", new EmailMessage
+        {
+            Eyebrow = "Test email",
+            Tone = EmailTone.Success,
+            Heading = "Email sending works",
+            Lead = "If you can read this, WageHarbor can send email.",
+            Paragraphs = ["This is a test email from the WageHarbor error log page. Nothing else needs doing."],
+            Details = [("Sent (UTC)", $"{DateTime.UtcNow:yyyy-MM-dd HH:mm}"), ("Sent to", testTo.Trim())],
+            Reason = "Sent because a platform owner pressed \"Send test email\".",
+        });
         testOk = error == null;
         testResult = error == null
             ? $"The mail server accepted the email for {testTo.Trim()}.\nIf it doesn't arrive within a few minutes, check Spam, and check the contact@ inbox for a bounce message."
