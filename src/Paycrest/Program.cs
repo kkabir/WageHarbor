@@ -53,6 +53,8 @@ builder.Services.AddDataProtection()
     .SetApplicationName("Paycrest")
     .PersistKeysToDbContext<ApplicationDbContext>();
 
+// Emails link to the public site (logo, buttons, footer), not to whatever address the request came in on.
+EmailLayout.BaseUrl = builder.Configuration["Site:BaseUrl"] is { Length: > 0 } siteUrl ? siteUrl.TrimEnd('/') : "https://www.wageharbor.com";
 var smtp = builder.Configuration.GetSection("Smtp").Get<SmtpOptions>() ?? new SmtpOptions();
 builder.Services.AddSingleton(smtp);
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, SmtpEmailSender>();
@@ -85,6 +87,9 @@ builder.Services.AddHostedService<PaydayEmailSender>();
 // Page views for the platform visitor log (see VisitorLog.cs): no IP addresses or emails are stored.
 builder.Services.AddSingleton<VisitorLogQueue>();
 builder.Services.AddHostedService<VisitorLogWriter>();
+// Search engines: sitemap dated to each build, and an IndexNow ping once per new build (see SearchEngines.cs).
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<IndexNowPinger>();
 
 var app = builder.Build();
 
@@ -121,6 +126,7 @@ app.UseVisitorLog();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapSitemap();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
