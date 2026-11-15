@@ -82,6 +82,7 @@ else
                         </div>
                         <div class="col-md-4"><label class="form-label">SUTA wage base ($)</label><InputNumber class="form-control" @bind-Value="company.SutaWageBase" /></div>
                         <div class="col-md-4"><label class="form-label">Next check number</label><InputNumber class="form-control" @bind-Value="company.NextCheckNumber" /></div>
+                        <div class="col-12"><div class="form-check"><InputCheckbox id="emailstubs" class="form-check-input" @bind-Value="company.EmailPayStubs" /><label class="form-check-label" for="emailstubs">Email employees when their pay stub is ready <span class="text-muted small">(no amounts in the email; they sign in to view it)</span></label></div></div>
                     </div>
                 </div>
 

@@ -56,6 +56,11 @@ public class Company
     /// <summary>Set to false by the platform owner to block sign-in for everyone in this company.</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Email employees with a login when their pay stub is ready (no amounts in the email).</summary>
+    public bool EmailPayStubs { get; set; } = true;
+    /// <summary>Accounting accounts for the payroll journal export, as JSON (see GlAccounts).</summary>
+    public string? GlAccountsJson { get; set; }
+
     public string AddressSingleLine =>
         string.Join(", ", new[] { AddressLine1, AddressLine2, City, $"{State} {PostalCode}".Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }

@@ -15,6 +15,10 @@
         {
             <button class="btn btn-outline-secondary" disabled="@Busy" @onclick="DownloadAch"><i class="bi bi-bank me-1"></i>ACH file</button>
         }
+        @if (run.Status == PayrollRunStatus.Paid)
+        {
+            <button class="btn btn-outline-secondary" @onclick="OpenGl"><i class="bi bi-journal-arrow-up me-1"></i>Accounting export</button>
+        }
         @if (canRun)
         {
             @switch (run.Status)
@@ -205,8 +209,103 @@
     </Footer>
 </Modal>
 
+<Modal Show="showGl" ShowChanged="v => showGl = v" Title="Accounting export" Large="true">
+    <ChildContent>
+        <p class="small text-muted">A balanced journal entry for this payroll: wages, employer taxes and benefits on the debit side; cash, tax liabilities and deductions on the credit side. Import it into your accounting software, or give it to your accountant.</p>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Format</label>
+                <select class="form-select" @bind="glFormat">
+                    <option value="qbo">QuickBooks Online (journal entry CSV)</option>
+                    <option value="xero">Xero (manual journal CSV, uses account codes)</option>
+                    <option value="csv">Plain CSV (any accounting software)</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrap mb-3">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th><th>What it is</th></tr></thead>
+                <tbody>
+                    @foreach (var l in glLines)
+                    {
+                        <tr><td class="small fw-semibold">@l.Account</td><td class="num">@(l.Debit == 0 ? "" : Fmt.Money(l.Debit))</td><td class="num">@(l.Credit == 0 ? "" : Fmt.Money(l.Credit))</td><td class="small text-muted">@l.Memo</td></tr>
+                    }
+                    <tr class="fw-bold"><td>Total</td><td class="num">@Fmt.Money(glLines.Sum(l => l.Debit))</td><td class="num">@Fmt.Money(glLines.Sum(l => l.Credit))</td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <details>
+            <summary class="small fw-semibold mb-2">Account names@(glFormat == "xero" ? " (use your Xero account codes)" : "")</summary>
+            <div class="row g-2 small">
+                @foreach (var (label, get, set) in GlFields())
+                {
+                    <div class="col-md-6"><label class="form-label small mb-0">@label</label><input class="form-control form-control-sm" value="@get()" @onchange="e => { set(e.Value?.ToString() ?? string.Empty); RebuildGl(); }" /></div>
+                }
+            </div>
+            <button class="btn btn-sm btn-light mt-2" disabled="@Busy" @onclick="SaveGlAccounts"><i class="bi bi-save me-1"></i>Save account names for next time</button>
+        </details>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => showGl = false">Close</button>
+        <button class="btn btn-primary" @onclick="DownloadGl"><i class="bi bi-download me-1"></i>Download</button>
+    </Footer>
+</Modal>
+
 @code {
     [Parameter] public int Id { get; set; }
+
+    private bool showGl;
+    private string glFormat = "qbo";
+    private GlAccounts glAccounts = new();
+    private List<JournalLine> glLines = [];
+
+    private async Task OpenGl()
+    {
+        await using var db = await Dbs.OpenAsync();
+        glAccounts = GlAccounts.From(await db.Companies.Select(c => c.GlAccountsJson).FirstOrDefaultAsync());
+        RebuildGl();
+        showGl = true;
+    }
+
+    private void RebuildGl() => glLines = GeneralLedger.Entry(checks, glAccounts);
+
+    private IEnumerable<(string Label, Func<string> Get, Action<string> Set)> GlFields() =>
+    [
+        ("Wages (expense)", () => glAccounts.Wages, v => glAccounts.Wages = v),
+        ("Employer taxes (expense)", () => glAccounts.EmployerTaxes, v => glAccounts.EmployerTaxes = v),
+        ("Employer benefits (expense)", () => glAccounts.EmployerBenefits, v => glAccounts.EmployerBenefits = v),
+        ("Cash / bank", () => glAccounts.Cash, v => glAccounts.Cash = v),
+        ("Federal taxes payable (941)", () => glAccounts.FederalTaxesPayable, v => glAccounts.FederalTaxesPayable = v),
+        ("State withholding payable", () => glAccounts.StateTaxPayable, v => glAccounts.StateTaxPayable = v),
+        ("FUTA payable", () => glAccounts.FutaPayable, v => glAccounts.FutaPayable = v),
+        ("State unemployment payable", () => glAccounts.SutaPayable, v => glAccounts.SutaPayable = v),
+        ("Deductions & benefits payable", () => glAccounts.DeductionsPayable, v => glAccounts.DeductionsPayable = v),
+    ];
+
+    private async Task SaveGlAccounts()
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenAsync();
+            var company = await db.Companies.FirstAsync();
+            company.GlAccountsJson = glAccounts.ToJson();
+            await db.SaveChangesAsync();
+        }, "Account names saved.");
+    }
+
+    private async Task DownloadGl()
+    {
+        var memo = $"Payroll {run!.PeriodLabel}, paid {Fmt.Date(run.PayDate)}";
+        var stamp = run.PayDate.ToString("yyyy-MM-dd");
+        var (name, csv) = glFormat switch
+        {
+            "xero" => ($"payroll-{stamp}-xero.csv", GeneralLedger.XeroCsv(glLines, run.PayDate, memo)),
+            "csv" => ($"payroll-{stamp}-journal.csv", GeneralLedger.PlainCsv(glLines, run.PayDate, memo)),
+            _ => ($"payroll-{stamp}-quickbooks.csv", GeneralLedger.QuickBooksCsv(glLines, $"PR-{run.Id}", run.PayDate, memo)),
+        };
+        await DownloadTextAsync(name, "text/csv", csv);
+        Toast.Success("Journal entry downloaded.");
+    }
 
     private enum Confirm { None, Approve, Pay, Void, Delete }
     private Confirm confirm;
@@ -275,7 +374,7 @@
             _ => () => Task.CompletedTask
         }, action switch
         {
-            Confirm.Approve => "Payroll approved.", Confirm.Pay => "Payroll marked as paid. Pay stubs are now available to employees.",
+            Confirm.Approve => "Payroll approved.", Confirm.Pay => "Payroll marked as paid. Pay stubs are now available, and employees with a login are being emailed.",
             Confirm.Void => "Payroll voided.", Confirm.Delete => "Draft deleted.", _ => null
         });
         confirm = Confirm.None;

@@ -22,13 +22,14 @@
         <a href="help/company#setup">2. Finish company setup</a>
         <a href="help/company#logo">3. Add your logo</a>
         <a href="help/company#employees">4. Add employees</a>
-        <a href="help/company#logins">5. Give employees a login</a>
-        <a href="help/company#roles">6. Roles and users</a>
-        <a href="help/company#time">7. Approve time and time off</a>
-        <a href="help/company#payroll">8. Run payroll</a>
-        <a href="help/company#reports">9. Pay stubs and reports</a>
-        <a href="help/company#settings">10. Other settings</a>
-        <a href="help/company#tips">11. Good habits</a>
+        <a href="help/company#onboarding">5. New-hire onboarding</a>
+        <a href="help/company#logins">6. Give employees a login</a>
+        <a href="help/company#roles">7. Roles and users</a>
+        <a href="help/company#time">8. Approve time and time off</a>
+        <a href="help/company#payroll">9. Run payroll</a>
+        <a href="help/company#reports">10. Pay stubs and reports</a>
+        <a href="help/company#settings">11. Other settings</a>
+        <a href="help/company#tips">12. Good habits</a>
     </nav>
 
     <div class="guide-body">
@@ -73,6 +74,7 @@
 
         <section id="employees" class="guide-step">
             <h2><span class="num">4</span>Add employees</h2>
+            <div class="guide-callout"><i class="bi bi-upload"></i><div><strong>Switching from ADP, Gusto or QuickBooks?</strong> Export your employee list as CSV and use <a href="employees/import">Employees › Import</a>. WageHarbor reads their column names, shows you every row before saving, and skips anyone already on file.</div></div>
             <p>Open <a href="employees">Employees</a> and click <strong>Add employee</strong>. Work through the tabs; only the starred fields are required to save:</p>
             <ul>
                 <li><strong>Personal</strong>: name, address, date of birth, SSN (stored encrypted) and emergency contact.</li>
@@ -85,8 +87,13 @@
             <GuideShot Image="admin-employees.jpg" Caption="The employee list. Filter by department or status, or export to CSV." />
         </section>
 
+        <section id="onboarding" class="guide-step">
+            <h2><span class="num">5</span>Let new hires onboard themselves</h2>
+            <p>Add the basics (name, email, job and pay), then on the employee's <strong>Self-service</strong> tab click <strong>Send onboarding link</strong>. The new hire gets a private link, valid once for 14 days, where they enter their address, SSN, emergency contact, <strong>W-4</strong> and state withholding and <strong>direct-deposit account</strong>, choose a password, and sign electronically. The tab then shows when they finished and the name they signed with.</p>
+        </section>
+
         <section id="logins" class="guide-step">
-            <h2><span class="num">5</span>Give employees their own login</h2>
+            <h2><span class="num">6</span>Give employees their own login</h2>
             <p>Employees can see their pay stubs, clock in and out and request time off on their own. To invite someone:</p>
             <ol>
                 <li>Open the employee and choose the <strong>Self-service</strong> tab.</li>
@@ -99,7 +106,7 @@
         </section>
 
         <section id="roles" class="guide-step">
-            <h2><span class="num">6</span>Roles and users</h2>
+            <h2><span class="num">7</span>Roles and users</h2>
             <p>Roles decide what each person can see. They only apply inside your company.</p>
             <div class="table-wrap mb-3">
                 <table class="table table-sm align-middle mb-0">
@@ -118,7 +125,7 @@
         </section>
 
         <section id="time" class="guide-step">
-            <h2><span class="num">7</span>Approve time and time off</h2>
+            <h2><span class="num">8</span>Approve time and time off</h2>
             <p>Hourly employees clock in and out (or enter hours) under <em>My time</em>. Only <strong>approved</strong> hours are paid, so approve them before each payroll:</p>
             <ul>
                 <li><a href="time/approvals">Team › Timesheets</a>: tick entries and click <strong>Approve selected</strong>, or add hours for someone with <strong>Add time</strong>.</li>
@@ -129,7 +136,7 @@
         </section>
 
         <section id="payroll" class="guide-step">
-            <h2><span class="num">8</span>Run payroll</h2>
+            <h2><span class="num">9</span>Run payroll</h2>
             <p>Go to <a href="payroll">Payroll</a> and click <strong>Run regular payroll</strong> (or <strong>Off-cycle / bonus</strong> for a one-off payment). Then follow the three steps across the top of the payroll:</p>
             <ol>
                 <li><strong>Calculate &amp; review.</strong> Check the pay period and pay date, then <strong>Calculate payroll</strong>. Review every paycheck: hours, gross, taxes, deductions and net. Need a bonus or a correction? Add it and the draft recalculates automatically.</li>
@@ -144,7 +151,10 @@
         </section>
 
         <section id="reports" class="guide-step">
-            <h2><span class="num">9</span>Pay stubs and reports</h2>
+            <h2><span class="num">10</span>Pay stubs and reports</h2>
+            <p>When a payroll is marked paid, employees with a login get an email that their pay stub is ready (no amounts are in the email). You can turn this off under Company settings.</p>
+            <p><strong>Accounting:</strong> on a paid payroll, click <strong>Accounting export</strong> for a balanced journal entry ready to import into QuickBooks Online or Xero, or as plain CSV for your accountant.</p>
+            <p><strong>Year-end:</strong> <a href="reports/year-end">Reports › W-2 &amp; 1099 forms</a> prints employee W-2s (Copies B, C and 2) and contractor 1099-NECs. Employees also find their own under My pay.</p>
             <p>Every paycheck has a printable pay stub with your logo. Open it from the payroll, from the employee's <strong>Pay history</strong> tab, or, for employees, from <em>My pay</em>.</p>
             <p><a href="reports">Reports</a> are built from paid payrolls. Pick a date range and click <strong>Run report</strong>, then <strong>Print</strong> or <strong>Export CSV</strong> for your accountant:</p>
             <ul>
@@ -158,7 +168,7 @@
         </section>
 
         <section id="settings" class="guide-step">
-            <h2><span class="num">10</span>Other settings</h2>
+            <h2><span class="num">11</span>Other settings</h2>
             <ul>
                 <li><a href="settings/pay-setup">Earnings &amp; deductions</a>: bonus, commission, reimbursement and other pay types; benefits and deductions; departments.</li>
                 <li><a href="settings/time-off">Time off &amp; holidays</a>: vacation and sick leave accrual rules, and your holiday calendar (the <strong>US set</strong> button adds the common federal holidays).</li>
@@ -169,7 +179,7 @@
         </section>
 
         <section id="tips" class="guide-step">
-            <h2><span class="num">11</span>Good habits</h2>
+            <h2><span class="num">12</span>Good habits</h2>
             <ul>
                 <li>Turn on <strong>two-step sign-in</strong> for everyone with Admin or Payroll: click your email at the top right › <strong>Two-factor authentication</strong>.</li>
                 <li>Keep the number of Admins small; give people the least role they need.</li>

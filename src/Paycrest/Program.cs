@@ -77,6 +77,8 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ErrorLogQueue>();
 builder.Services.AddSingleton<ILoggerProvider, DatabaseErrorLoggerProvider>();
 builder.Services.AddHostedService<ErrorLogWriter>();
+builder.Services.AddSingleton<PaydayEmailQueue>();
+builder.Services.AddHostedService<PaydayEmailSender>();
 
 var app = builder.Build();
 

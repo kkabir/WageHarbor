@@ -443,6 +443,12 @@ namespace Paycrest.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<bool>("EmailPayStubs")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("GlAccountsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 

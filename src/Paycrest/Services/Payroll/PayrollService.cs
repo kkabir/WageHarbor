@@ -4,7 +4,7 @@ using Paycrest.Domain;
 
 namespace Paycrest.Services.Payroll;
 
-public sealed class PayrollService(Db dbs, CurrentUser user, SensitiveData sensitive)
+public sealed class PayrollService(Db dbs, CurrentUser user, SensitiveData sensitive, PaydayEmailQueue paydayEmails)
 {
     public async Task<(DateOnly Start, DateOnly End, DateOnly PayDate)> SuggestNextPeriodAsync(PayFrequency freq, DateOnly today)
     {
@@ -254,6 +254,8 @@ public sealed class PayrollService(Db dbs, CurrentUser user, SensitiveData sensi
         run.PaidUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
         });
+        // After the transaction commits: tell employees their pay stubs are ready.
+        if (db.CurrentCompanyId is int companyId) paydayEmails.Add(companyId, runId);
     }
 
     private async Task AccrueTimeOffAsync(ApplicationDbContext db, PayrollRun run)
