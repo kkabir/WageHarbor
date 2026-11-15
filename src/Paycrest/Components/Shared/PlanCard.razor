@@ -1,0 +1,35 @@
+@inherits AppComponentBase
+
+<div class="pc-card mb-4 plan-card">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h2 class="m-0">Your plan</h2>
+        <span class="chip @(price == 0 ? "tone-success" : "tone-primary") plain">@Pricing.PlanName(people)</span>
+    </div>
+    <div class="plan-price">@(price == 0 ? "Free" : price.ToString("C2", Us))<span>@(price == 0 ? "" : "/month")</span></div>
+    <div class="small text-muted mb-3">
+        @people @(people == 1 ? "person" : "people") on payroll@(price == 0 ? "" : $" · ${Pricing.BaseFee} + ${Pricing.PerPerson:0.00} × {people}")
+    </div>
+    @if (price > 0)
+    {
+        <div class="plan-save small mb-3"><i class="bi bi-piggy-bank me-1"></i>About @((Pricing.CompetitorPrice(people) - price).ToString("C0", Us)) a month less than typical payroll apps.</div>
+        <p class="small text-muted mb-2">Online billing isn't switched on yet, so there's nothing to pay today. We'll email you at least 30 days before your first bill.</p>
+    }
+    else
+    {
+        <p class="small text-muted mb-2">Free while you have one person on payroll. Adding more people moves you to the Team plan: $@Pricing.BaseFee a month + $@Pricing.PerPerson.ToString("0.00") per person.</p>
+    }
+    <a href="pricing" class="small fw-semibold">How pricing works →</a>
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Us = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    private int people;
+    private decimal price;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Dbs.OpenAsync();
+        people = await db.Employees.CountAsync(e => e.Status != EmployeeStatus.Terminated);
+        price = Pricing.MonthlyPrice(people);
+    }
+}

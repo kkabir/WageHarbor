@@ -7,9 +7,10 @@
 <PageHeader Title="Companies" Subtitle="Every company registered on WageHarbor. Turning a company off blocks sign-in for all its users; its data is kept." />
 
 <div class="row g-3 mb-4">
-    <div class="col-sm-4"><StatCard Label="Companies" Value="@rows.Count.ToString()" Icon="buildings" Tone="primary" Hint="@($"{rows.Count(r => r.IsActive)} active")" /></div>
-    <div class="col-sm-4"><StatCard Label="Employees" Value="@rows.Sum(r => r.Employees).ToString()" Icon="people" Tone="info" Hint="Not terminated" /></div>
-    <div class="col-sm-4"><StatCard Label="Logins" Value="@rows.Sum(r => r.Users).ToString()" Icon="person-badge" Tone="success" /></div>
+    <div class="col-sm-6 col-xl-3"><StatCard Label="Companies" Value="@rows.Count.ToString()" Icon="buildings" Tone="primary" Hint="@($"{rows.Count(r => r.IsActive)} active")" /></div>
+    <div class="col-sm-6 col-xl-3"><StatCard Label="Employees" Value="@rows.Sum(r => r.Employees).ToString()" Icon="people" Tone="info" Hint="Not terminated" /></div>
+    <div class="col-sm-6 col-xl-3"><StatCard Label="Logins" Value="@rows.Sum(r => r.Users).ToString()" Icon="person-badge" Tone="success" /></div>
+    <div class="col-sm-6 col-xl-3"><StatCard Label="Plan value / month" Value="@rows.Where(r => r.IsActive).Sum(r => Pricing.MonthlyPrice(r.Employees)).ToString("C2")" Icon="cash-stack" Tone="warning" Hint="@($"{rows.Count(r => r.IsActive && Pricing.MonthlyPrice(r.Employees) > 0)} on the Team plan")" /></div>
 </div>
 
 <div class="pc-card p-0">
@@ -25,7 +26,7 @@
     {
         <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
-                <thead><tr><th>Company</th><th>Admins</th><th class="num">Employees</th><th class="num">Logins</th><th>Registered</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Company</th><th>Admins</th><th class="num">Employees</th><th class="num">Logins</th><th class="num">Plan</th><th>Registered</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var r in Filtered)
                     {
@@ -34,6 +35,7 @@
                             <td class="small">@(r.Admins.Count == 0 ? "—" : string.Join(", ", r.Admins))</td>
                             <td class="num">@r.Employees</td>
                             <td class="num">@r.Users</td>
+                            <td class="num small">@(Pricing.MonthlyPrice(r.Employees) is var p && p > 0 ? p.ToString("C2") + "/mo" : "Free")</td>
                             <td class="small">@r.CreatedUtc.ToString("MMM d, yyyy")</td>
                             <td>@if (r.IsActive) { <span class="chip tone-success">Active</span> } else { <span class="chip tone-danger">Turned off</span> }</td>
                             <td class="text-end text-nowrap">
