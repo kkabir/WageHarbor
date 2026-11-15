@@ -5,6 +5,7 @@
 <PageTitle>Employees · WageHarbor</PageTitle>
 
 <PageHeader Title="Employees" Subtitle="@($"{employees.Count(e => e.Status != EmployeeStatus.Terminated)} active · {employees.Count} total")">
+    <a href="employees/import" class="btn btn-outline-secondary"><i class="bi bi-upload me-1"></i>Import</a>
     <button class="btn btn-outline-secondary" @onclick="Export"><i class="bi bi-download me-1"></i>Export</button>
     <a href="employees/new" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Add employee</a>
 </PageHeader>

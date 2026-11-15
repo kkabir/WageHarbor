@@ -65,6 +65,66 @@ public sealed class EmployeeService(Db dbs, SensitiveData sensitive, UserManager
         return copy;
     }
 
+    public sealed record ImportResult(int LineNumber, string Name, bool Imported, string Message);
+
+    /// <summary>
+    /// Saves checked import rows one by one. Skips rows with errors and people who already exist (same email,
+    /// or same last name and SSN last four). Creates departments by name and numbers employees when the file doesn't.
+    /// </summary>
+    public async Task<List<ImportResult>> ImportAsync(IEnumerable<EmployeeImportRow> rows)
+    {
+        var results = new List<ImportResult>();
+        await using var db = await dbs.OpenAsync();
+        var existing = await db.Employees.Select(e => new { e.Email, e.LastName, e.SsnLast4, e.EmployeeNumber }).ToListAsync();
+        var emails = existing.Where(e => e.Email != null).Select(e => e.Email!.ToLowerInvariant()).ToHashSet();
+        var nameSsn = existing.Where(e => e.SsnLast4 != null).Select(e => $"{e.LastName.ToLowerInvariant()}|{e.SsnLast4}").ToHashSet();
+        var numbers = existing.Select(e => e.EmployeeNumber).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var departments = await db.Departments.ToDictionaryAsync(d => d.Name.ToLowerInvariant(), d => d.Id);
+        var nextNumber = numbers.Select(n => int.TryParse(n, out var i) ? i : 0).DefaultIfEmpty(1000).Max();
+
+        foreach (var row in rows)
+        {
+            var e = row.Employee;
+            var name = $"{e.FirstName} {e.LastName}".Trim();
+            if (!row.IsValid) { results.Add(new(row.LineNumber, name, false, string.Join(" ", row.Errors))); continue; }
+            if (e.Email != null && emails.Contains(e.Email.ToLowerInvariant()))
+            { results.Add(new(row.LineNumber, name, false, $"Skipped: an employee with {e.Email} already exists.")); continue; }
+            if (row.Ssn != null && nameSsn.Contains($"{e.LastName.ToLowerInvariant()}|{row.Ssn[^4..]}"))
+            { results.Add(new(row.LineNumber, name, false, "Skipped: this person already exists (same last name and SSN).")); continue; }
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(e.EmployeeNumber) || numbers.Contains(e.EmployeeNumber))
+                    e.EmployeeNumber = (nextNumber = Math.Max(nextNumber, 1000) + 1).ToString();
+                if (row.DepartmentName is { } dept)
+                {
+                    if (!departments.TryGetValue(dept.ToLowerInvariant(), out var deptId))
+                    {
+                        var d = new Department { Name = dept.Length > 80 ? dept[..80] : dept };
+                        db.Departments.Add(d);
+                        await db.SaveChangesAsync();
+                        departments[dept.ToLowerInvariant()] = deptId = d.Id;
+                    }
+                    e.DepartmentId = deptId;
+                }
+
+                await SaveAsync(e, row.Ssn);
+                if (row.HasBank)
+                    await SaveBankAccountAsync(new EmployeeBankAccount { EmployeeId = e.Id, RoutingNumber = row.RoutingNumber!, AccountType = row.AccountType }, row.AccountNumber);
+
+                numbers.Add(e.EmployeeNumber);
+                if (e.Email != null) emails.Add(e.Email.ToLowerInvariant());
+                if (row.Ssn != null) nameSsn.Add($"{e.LastName.ToLowerInvariant()}|{row.Ssn[^4..]}");
+                results.Add(new(row.LineNumber, name, true, $"Added as #{e.EmployeeNumber}" + (row.Warnings.Count > 0 ? ". " + string.Join(" ", row.Warnings) : ".")));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or DbUpdateException)
+            {
+                results.Add(new(row.LineNumber, name, false, ex.InnerException?.Message ?? ex.Message));
+            }
+        }
+        return results;
+    }
+
     public async Task<string?> RevealSsnAsync(int employeeId)
     {
         await using var db = await dbs.OpenAsync();

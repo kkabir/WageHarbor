@@ -1,0 +1,171 @@
+@page "/employees/import"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject EmployeeService Employees
+
+<PageTitle>Import employees · WageHarbor</PageTitle>
+
+<PageHeader Title="Import employees" Subtitle="Bring your team over from ADP, Gusto, QuickBooks, Paychex or a spreadsheet in one go.">
+    <Crumbs><a href="employees">Employees</a> / Import</Crumbs>
+    <ChildContent>
+        <button class="btn btn-outline-secondary" @onclick="DownloadTemplate"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Download template</button>
+    </ChildContent>
+</PageHeader>
+
+<div class="steps">
+    <span class="step @(preview == null ? "current" : "done")"><i class="bi bi-1-circle"></i>Choose file</span>
+    <span class="step @(preview != null && results == null ? "current" : results != null ? "done" : "")"><i class="bi bi-2-circle"></i>Check</span>
+    <span class="step @(results != null ? "current" : "")"><i class="bi bi-3-circle"></i>Import</span>
+</div>
+
+@if (results != null)
+{
+    <div class="pc-card mb-4 d-flex align-items-center gap-3 @(failed == 0 ? "tone-success" : "tone-warning") border-0">
+        <i class="bi @(failed == 0 ? "bi-check-circle" : "bi-exclamation-triangle") fs-3"></i>
+        <div class="flex-grow-1">
+            <div class="fw-semibold">@imported @(imported == 1 ? "person" : "people") imported@(failed > 0 ? $", {failed} not imported" : "").</div>
+            <div class="small">Review each new employee's tax withholding and pay before the first payroll. Invite them from their Self-service tab, or send them the new-hire link.</div>
+        </div>
+        <a href="employees" class="btn btn-primary">Go to employees</a>
+    </div>
+    <div class="pc-card p-0">
+        <div class="table-wrap">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Line</th><th>Name</th><th>Result</th></tr></thead>
+                <tbody>
+                    @foreach (var r in results)
+                    {
+                        <tr><td class="text-muted">@r.LineNumber</td><td class="fw-semibold">@r.Name</td><td class="small"><span class="chip @(r.Imported ? "tone-success" : "tone-danger") me-2">@(r.Imported ? "Added" : "Not added")</span>@r.Message</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <button class="btn btn-light mt-3" @onclick="Reset"><i class="bi bi-arrow-counterclockwise me-1"></i>Import another file</button>
+}
+else if (preview == null)
+{
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <label class="import-drop pc-card">
+                <i class="bi bi-cloud-arrow-up"></i>
+                <div class="fw-semibold fs-5">Choose a CSV file</div>
+                <div class="text-muted small">Up to 1,000 people · 2 MB · columns in any order</div>
+                <InputFile accept=".csv,text/csv" OnChange="Load" class="d-none" />
+                <span class="btn btn-primary mt-2">Browse…</span>
+            </label>
+        </div>
+        <div class="col-lg-5">
+            <div class="pc-card">
+                <h2 class="mb-2">How to get your file</h2>
+                <ul class="small mb-3 ps-3">
+                    <li class="mb-1"><strong>ADP:</strong> Reports › Employee list (or "Employee directory") › export to Excel/CSV.</li>
+                    <li class="mb-1"><strong>Gusto:</strong> People › Team members › Export, or Reports › Employee details.</li>
+                    <li class="mb-1"><strong>QuickBooks:</strong> Payroll › Employees › Export to Excel.</li>
+                    <li class="mb-1"><strong>Spreadsheet:</strong> start from our template and save as CSV.</li>
+                </ul>
+                <p class="small text-muted mb-0">Only <strong>First Name</strong> and <strong>Last Name</strong> are required. We also read email, phone, SSN, date of birth, address, hire date, job title, department, employment type, pay type and rate, pay frequency, work state, filing status and bank account. Nothing is saved until you confirm.</p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-3">
+        <div class="col-sm-4"><StatCard Label="Ready to import" Value="@ready.ToString()" Icon="check-circle" Tone="success" /></div>
+        <div class="col-sm-4"><StatCard Label="With warnings" Value="@warned.ToString()" Icon="exclamation-circle" Tone="warning" Hint="Imported; review afterwards" /></div>
+        <div class="col-sm-4"><StatCard Label="With errors" Value="@errored.ToString()" Icon="x-circle" Tone="danger" Hint="Skipped; fix in the file" /></div>
+    </div>
+    <div class="pc-card small mb-3">
+        <div><strong>@fileName</strong> · @preview.Rows.Count rows</div>
+        <div class="mt-1"><span class="text-muted">Columns used:</span> @(preview.RecognizedColumns.Count > 0 ? string.Join(", ", preview.RecognizedColumns) : "none")</div>
+        @if (preview.IgnoredColumns.Count > 0)
+        {
+            <div class="mt-1"><span class="text-muted">Ignored:</span> @string.Join(", ", preview.IgnoredColumns)</div>
+        }
+    </div>
+    <div class="pc-card p-0">
+        <div class="table-wrap" style="max-height:560px">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Line</th><th>Name</th><th>Job &amp; pay</th><th>Hired</th><th>Check</th></tr></thead>
+                <tbody>
+                    @foreach (var r in preview.Rows)
+                    {
+                        var e = r.Employee;
+                        <tr class="@(r.IsValid ? "" : "table-danger-soft")">
+                            <td class="text-muted">@r.LineNumber</td>
+                            <td><div class="fw-semibold">@e.FirstName @e.LastName</div><div class="small text-muted">@(e.Email ?? "no email")@(r.Ssn != null ? $" · SSN •••{r.Ssn[^4..]}" : "")</div></td>
+                            <td class="small"><div>@(e.JobTitle ?? "—")@(r.DepartmentName != null ? $" · {r.DepartmentName}" : "")</div><div class="text-muted">@(e.PayType == PayType.Salary ? $"{e.PayRate:C0}/yr" : $"{e.PayRate:C2}/hr") · @e.PayFrequency · @e.WorkState@(e.IsContractor ? " · 1099" : "")</div></td>
+                            <td class="small text-nowrap">@e.HireDate.ToString("MMM d, yyyy")</td>
+                            <td class="small" style="min-width:240px">
+                                @if (!r.IsValid)
+                                {
+                                    @foreach (var err in r.Errors) { <div class="text-danger"><i class="bi bi-x-circle me-1"></i>@err</div> }
+                                }
+                                else if (r.Warnings.Count == 0)
+                                {
+                                    <span class="chip tone-success">Ready</span>
+                                }
+                                @foreach (var w in r.Warnings) { <div class="text-warning-emphasis"><i class="bi bi-exclamation-circle me-1"></i>@w</div> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-light" @onclick="Reset">Choose a different file</button>
+        <button class="btn btn-primary ms-auto" disabled="@(Busy || ready + warned == 0)" @onclick="Import">
+            <i class="bi bi-person-plus me-1"></i>Import @(ready + warned) @(ready + warned == 1 ? "person" : "people")
+        </button>
+    </div>
+}
+
+@code {
+    private const long MaxBytes = 2 * 1024 * 1024;
+    private EmployeeImportPreview? preview;
+    private List<EmployeeService.ImportResult>? results;
+    private string? fileName;
+    private int ready, warned, errored, imported, failed;
+
+    private async Task Load(InputFileChangeEventArgs e)
+    {
+        await RunAsync(async () =>
+        {
+            if (e.File.Size > MaxBytes) throw new InvalidOperationException("That file is over 2 MB. Split it into smaller files.");
+            using var reader = new StreamReader(e.File.OpenReadStream(MaxBytes));
+            var text = await reader.ReadToEndAsync();
+            await using var db = await Dbs.OpenAsync();
+            var company = await db.Companies.AsNoTracking().FirstAsync();
+            var parsed = EmployeeCsv.Parse(text, company.State ?? "TX", company.DefaultPayFrequency);
+            if (parsed.Rows.Count == 0) throw new InvalidOperationException("No rows found. Is the first line the column headings?");
+            if (parsed.Rows.Count > 1000) throw new InvalidOperationException("Please import at most 1,000 people at a time.");
+            // Show people who are already on file now, rather than surprising the user at the end.
+            var existing = (await db.Employees.Where(x => x.Email != null).Select(x => x.Email!).ToListAsync())
+                .Select(x => x.ToLowerInvariant()).ToHashSet();
+            foreach (var r in parsed.Rows.Where(r => r.Employee.Email != null && existing.Contains(r.Employee.Email.ToLowerInvariant())))
+                r.Errors.Add($"Already on file ({r.Employee.Email}); will be skipped.");
+            preview = parsed;
+            fileName = e.File.Name;
+            ready = parsed.Rows.Count(r => r.IsValid && r.Warnings.Count == 0);
+            warned = parsed.Rows.Count(r => r.IsValid && r.Warnings.Count > 0);
+            errored = parsed.Rows.Count(r => !r.IsValid);
+        });
+    }
+
+    private async Task Import()
+    {
+        await RunAsync(async () =>
+        {
+            results = await Employees.ImportAsync(preview!.Rows);
+            imported = results.Count(r => r.Imported);
+            failed = results.Count - imported;
+        }, null);
+    }
+
+    private void Reset() { preview = null; results = null; fileName = null; }
+
+    private async Task DownloadTemplate() =>
+        await DownloadTextAsync("wageharbor-employee-import-template.csv", "text/csv", EmployeeCsv.Template);
+}
