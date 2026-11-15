@@ -25,4 +25,22 @@
     <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
+  <!-- Stamps build number (commit count), short commit id and build time into the DLL; BuildInfo.cs shows them in the footers.
+       If git isn't available the build still succeeds and the footer shows just the date. -->
+  <Target Name="StampBuildInfo" BeforeTargets="GetAssemblyAttributes">
+    <Exec Command="git rev-list --count HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitCountExit" />
+    </Exec>
+    <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitCommitExit" />
+    </Exec>
+    <ItemGroup>
+      <AssemblyMetadata Include="BuildNumber" Value="$(_GitCount)" Condition="'$(_GitCountExit)' == '0'" />
+      <AssemblyMetadata Include="BuildCommit" Value="$(_GitCommit)" Condition="'$(_GitCommitExit)' == '0'" />
+      <AssemblyMetadata Include="BuildDateUtc" Value="$([System.DateTime]::UtcNow.ToString('o'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>

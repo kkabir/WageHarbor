@@ -13,20 +13,34 @@ public sealed class SmtpOptions
     public string? UserName { get; set; }
     public string? Password { get; set; }
     public string? From { get; set; }
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(From);
+    /// <summary>For local testing: save emails as .eml files in this folder instead of sending them.</summary>
+    public string? PickupDirectory { get; set; }
+    public bool IsConfigured => (!string.IsNullOrWhiteSpace(Host) || !string.IsNullOrWhiteSpace(PickupDirectory)) && !string.IsNullOrWhiteSpace(From);
 }
 
 /// <summary>Sends Identity emails (password reset, confirmation) through SMTP, e.g. your SmarterASP mail account.</summary>
 public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender> logger, IHostEnvironment environment) : IEmailSender<ApplicationUser>
 {
+    // Identity hands these links over HTML-encoded; EmailLayout encodes them itself, so decode first.
     public Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink) =>
-        SendAsync(email, "Confirm your WageHarbor account", $"Please confirm your account by <a href='{confirmationLink}'>clicking here</a>.");
+        SendAsync(email, "Confirm your email for WageHarbor", EmailLayout.Render(
+            "Confirm your email address",
+            ["Please confirm that this is your email address. It makes sure password resets and pay stub notices reach you, and nobody else."],
+            "Confirm my email", WebUtility.HtmlDecode(confirmationLink),
+            "The link works for 3 days. If you didn't sign up for WageHarbor or change your email, you can ignore this email."));
 
     public Task SendPasswordResetLinkAsync(ApplicationUser user, string email, string resetLink) =>
-        SendAsync(email, "Reset your WageHarbor password", $"Reset your password by <a href='{resetLink}'>clicking here</a>.");
+        SendAsync(email, "Reset your WageHarbor password", EmailLayout.Render(
+            "Reset your password",
+            ["Someone (hopefully you) asked to reset the password for your WageHarbor account. Choose a new password with the button below."],
+            "Choose a new password", WebUtility.HtmlDecode(resetLink),
+            "The link works for 3 days and only once. If you didn't ask for this, ignore this email: your password stays the same."));
 
     public Task SendPasswordResetCodeAsync(ApplicationUser user, string email, string resetCode) =>
-        SendAsync(email, "Your WageHarbor password reset code", $"Your password reset code is: <b>{WebUtility.HtmlEncode(resetCode)}</b>");
+        SendAsync(email, "Your WageHarbor password reset code", EmailLayout.Render(
+            "Your password reset code",
+            [$"Your code is: {resetCode}", "Enter it on the reset page to choose a new password."],
+            note: "If you didn't ask for this, ignore this email: your password stays the same."));
 
     /// <summary>Sends an HTML email. <paramref name="replyTo"/> makes "Reply" in the mail app answer that address.</summary>
     public async Task SendAsync(string to, string subject, string html, string? replyTo = null) =>
@@ -45,10 +59,15 @@ public sealed class SmtpEmailSender(SmtpOptions options, ILogger<SmtpEmailSender
         }
         try
         {
-            using var client = new SmtpClient(options.Host, options.Port) { EnableSsl = options.EnableSsl };
+            using var client = !string.IsNullOrWhiteSpace(options.PickupDirectory)
+                ? new SmtpClient { DeliveryMethod = SmtpDeliveryMethod.SpecifiedPickupDirectory, PickupDirectoryLocation = Directory.CreateDirectory(options.PickupDirectory).FullName }
+                : new SmtpClient(options.Host, options.Port) { EnableSsl = options.EnableSsl };
             if (!string.IsNullOrEmpty(options.UserName))
                 client.Credentials = new NetworkCredential(options.UserName, options.Password);
-            using var msg = new MailMessage(options.From!, to, subject, html) { IsBodyHtml = true };
+            using var msg = new MailMessage(options.From!, to) { Subject = subject };
+            // Send both a text and an HTML copy: mail apps pick the one they can show, and HTML-only mail looks spammier.
+            msg.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(EmailLayout.ToPlainText(html), System.Text.Encoding.UTF8, "text/plain"));
+            msg.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(html, System.Text.Encoding.UTF8, "text/html"));
             // SmtpClient doesn't add a Message-ID; Gmail and others expect one and score mail without it as spammier.
             msg.Headers.Add("Message-ID", $"<{Guid.NewGuid():N}@{msg.From!.Host}>");
             if (!string.IsNullOrWhiteSpace(replyTo)) msg.ReplyToList.Add(replyTo);

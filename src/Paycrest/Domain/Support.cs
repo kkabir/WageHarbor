@@ -83,3 +83,26 @@ public class OnboardingInvite : ICompanyOwned
 
     public bool IsOpen(DateTime nowUtc) => CompletedUtc == null && RevokedUtc == null && ExpiresUtc > nowUtc;
 }
+
+/// <summary>
+/// One page view, for the platform owner's visitor log. Holds no IP address or email: <see cref="VisitorHash"/>
+/// is a hash of IP and browser with a salt that changes daily, so it counts unique visitors per day without identifying anyone.
+/// </summary>
+public class PageVisit
+{
+    public long Id { get; set; }
+    public DateTime TimeUtc { get; set; }
+    [Required, StringLength(400)] public string Path { get; set; } = "";
+    /// <summary>The page or site the visitor came from, without its query string.</summary>
+    [StringLength(400)] public string? Referrer { get; set; }
+    [StringLength(16)] public string? VisitorHash { get; set; }
+    /// <summary>Desktop, Mobile, Tablet or Bot.</summary>
+    [StringLength(10)] public string Device { get; set; } = "Desktop";
+    [StringLength(20)] public string? Browser { get; set; }
+    /// <summary>Two-letter country code when the host or CDN supplies one (CF-IPCountry header).</summary>
+    [StringLength(2)] public string? Country { get; set; }
+    [StringLength(10)] public string? Language { get; set; }
+    public int StatusCode { get; set; }
+    public bool SignedIn { get; set; }
+    public int? CompanyId { get; set; }
+}

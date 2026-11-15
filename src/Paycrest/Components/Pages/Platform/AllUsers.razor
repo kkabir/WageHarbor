@@ -1,0 +1,148 @@
+@page "/platform/users"
+@attribute [Authorize(Roles = AppRoles.PlatformOwner)]
+@inherits AppComponentBase
+@using Microsoft.AspNetCore.Identity
+@using Paycrest.Data
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>All users · WageHarbor platform</PageTitle>
+
+<PageHeader Title="All users" Subtitle="Every login at every company. A deactivated user can't sign in and is signed out within 30 minutes; nothing they entered is deleted." />
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><StatCard Label="Users" Value="@rows.Count.ToString()" Icon="people" Tone="primary" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Active" Value="@rows.Count(r => r.State == UserState.Active).ToString()" Icon="person-check" Tone="success" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Deactivated" Value="@rows.Count(r => r.State == UserState.Deactivated).ToString()" Icon="person-slash" Tone="danger" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="Email not confirmed" Value="@rows.Count(r => !r.EmailConfirmed).ToString()" Icon="envelope-exclamation" Tone="warning" /></div>
+</div>
+
+<div class="pc-card p-0">
+    <div class="d-flex flex-wrap p-3 border-bottom align-items-center gap-2">
+        <select class="form-select form-select-sm" style="width:auto" @bind="filter">
+            <option value="all">All users</option>
+            <option value="active">Active</option>
+            <option value="deactivated">Deactivated</option>
+            <option value="locked">Locked after failed sign-ins</option>
+            <option value="owners">Platform owners</option>
+            <option value="admins">Company admins</option>
+        </select>
+        <input class="form-control form-control-sm" style="max-width:280px" placeholder="Search email or company…" @bind="search" @bind:event="oninput" />
+        <span class="small text-muted ms-auto">@Filtered.Count shown</span>
+    </div>
+    @if (Filtered.Count == 0)
+    {
+        <EmptyState Icon="people" Title="No users here">Nothing matches this filter.</EmptyState>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>User</th><th>Company</th><th>Roles</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var r in Filtered)
+                    {
+                        <tr class="@(r.State == UserState.Deactivated ? "opacity-50" : "")">
+                            <td style="min-width:220px">
+                                <div class="fw-semibold text-break">@r.Email</div>
+                                <div class="small text-muted">@(r.EmailConfirmed ? "Email confirmed" : "Email not confirmed") · 2FA @(r.TwoFactor ? "on" : "off")</div>
+                            </td>
+                            <td class="small">@(r.Company ?? "—")@if (r.CompanyActive == false) { <span class="chip tone-danger ms-1">Company off</span> }</td>
+                            <td>@foreach (var role in r.Roles) { <span class="chip @(role == AppRoles.PlatformOwner ? "tone-warning" : "tone-primary") plain me-1">@(role == AppRoles.PlatformOwner ? "Platform owner" : role)</span> }</td>
+                            <td class="text-nowrap">
+                                @switch (r.State)
+                                {
+                                    case UserState.Deactivated: <span class="chip tone-danger">Deactivated</span> break;
+                                    case UserState.Locked: <span class="chip tone-warning" title="Too many wrong passwords. Unlocks by itself at @r.LockoutEnd?.ToLocalTime().ToString("h:mm tt")">Locked</span> break;
+                                    default: <span class="chip tone-success">Active</span> break;
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (r.Id == myId)
+                                {
+                                    <span class="small text-muted">You</span>
+                                }
+                                else if (r.State == UserState.Active)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" disabled="@Busy" @onclick="() => confirming = r">Deactivate</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-success" disabled="@Busy" @onclick="() => SetActive(r, true)">@(r.State == UserState.Locked ? "Unlock" : "Activate")</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modal Show="confirming != null" ShowChanged="v => { if (!v) confirming = null; }" Title="Deactivate user">
+    <ChildContent>
+        <p class="mb-0">Deactivate <strong>@confirming?.Email</strong>@(confirming?.Company is { } c ? $" at {c}" : "")? They won't be able to sign in until someone activates them again, and they're signed out within 30 minutes. Nothing they entered is deleted.</p>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => confirming = null">Cancel</button>
+        <button class="btn btn-danger" disabled="@Busy" @onclick="() => SetActive(confirming!, false)">Deactivate</button>
+    </Footer>
+</Modal>
+
+@code {
+    private sealed record Row(string Id, string Email, string? Company, bool? CompanyActive, int? CompanyId, List<string> Roles,
+        UserState State, DateTimeOffset? LockoutEnd, bool EmailConfirmed, bool TwoFactor);
+
+    private List<Row> rows = [];
+    private Row? confirming;
+    private string? myId;
+    private string filter = "all", search = "";
+
+    private List<Row> Filtered => rows
+        .Where(r => filter switch
+        {
+            "active" => r.State == UserState.Active,
+            "deactivated" => r.State == UserState.Deactivated,
+            "locked" => r.State == UserState.Locked,
+            "owners" => r.Roles.Contains(AppRoles.PlatformOwner),
+            "admins" => r.Roles.Contains(AppRoles.Admin),
+            _ => true
+        })
+        .Where(r => string.IsNullOrWhiteSpace(search) || $"{r.Email} {r.Company}".Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        myId = await Me.GetUserIdAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await Dbs.OpenPlatformAsync();
+        var companies = await db.Companies.IgnoreQueryFilters().AsNoTracking().ToDictionaryAsync(c => c.Id, c => new { c.Name, c.IsActive });
+        var roleRows = await (from ur in db.UserRoles join r in db.Roles on ur.RoleId equals r.Id select new { ur.UserId, r.Name }).ToListAsync();
+        var rolesByUser = roleRows.GroupBy(x => x.UserId).ToDictionary(g => g.Key, g => g.Select(x => x.Name!).OrderBy(n => n == AppRoles.PlatformOwner ? 0 : 1).ThenBy(n => n).ToList());
+        var users = await db.Users.AsNoTracking().OrderBy(u => u.Email).ToListAsync();
+        rows = users.Select(u =>
+        {
+            var company = u.CompanyId is int id && companies.TryGetValue(id, out var c) ? c : null;
+            return new Row(u.Id, u.Email ?? u.UserName ?? u.Id, company?.Name, company?.IsActive, u.CompanyId,
+                rolesByUser.GetValueOrDefault(u.Id) ?? [], UserStates.Of(u), u.LockoutEnd, u.EmailConfirmed, u.TwoFactorEnabled);
+        }).ToList();
+    }
+
+    private async Task SetActive(Row row, bool active)
+    {
+        var ok = await RunAsync(async () =>
+        {
+            if (row.Id == myId) throw new InvalidOperationException("You can't deactivate your own account.");
+            var u = await UserManager.FindByIdAsync(row.Id) ?? throw new InvalidOperationException("User not found.");
+            await UserStates.SetActiveAsync(UserManager, u, active);
+            await using var db = await Dbs.OpenPlatformAsync();
+            db.AuditLogs.Add(new AuditLog { CompanyId = u.CompanyId, UserName = await Me.GetNameAsync(), Action = active ? "UserEnabled" : "UserDisabled", EntityType = "User", EntityId = u.Id, Details = "By platform owner" });
+            await db.SaveChangesAsync();
+        }, active ? $"{row.Email} can sign in again." : $"{row.Email} is deactivated.");
+        if (ok) confirming = null;
+        await LoadAsync();
+    }
+}

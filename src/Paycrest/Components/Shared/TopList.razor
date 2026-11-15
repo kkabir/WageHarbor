@@ -1,0 +1,24 @@
+@* A short ranked list with a bar showing each row's share, e.g. top pages in the visitor log. *@
+@if (Rows.Count == 0)
+{
+    <p class="text-muted small mb-0">@Empty</p>
+}
+else
+{
+    var max = Math.Max(1, Rows.Max(r => r.Count));
+    <ul class="top-list">
+        @foreach (var r in Rows)
+        {
+            <li>
+                <div class="top-list-bar" style="width:@((r.Count * 100.0 / max).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                <span class="top-list-name text-break">@r.Name</span>
+                <span class="top-list-count">@r.Count.ToString("N0")</span>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<Paycrest.Components.Pages.Platform.Visitors.TopRow> Rows { get; set; } = [];
+    [Parameter] public string Empty { get; set; } = "Nothing yet.";
+}

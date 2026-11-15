@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Identity
 @using Paycrest.Data
 @inject UserManager<ApplicationUser> UserManager
+@inject AccountEmails AccountMail
 
 <PageTitle>Users & roles · WageHarbor</PageTitle>
 
@@ -21,8 +22,28 @@
                             <td><PersonCell Name="@(u.Email ?? u.UserName ?? "")" Sub="@(u.TwoFactorEnabled ? "2FA on" : "2FA off")" /></td>
                             <td>@(links.TryGetValue(u.Id, out var emp) ? emp : "—")</td>
                             <td>@foreach (var r in roles.GetValueOrDefault(u.Id) ?? []) { <span class="chip tone-primary plain me-1">@r</span> }</td>
-                            <td>@if (u.LockoutEnd > DateTimeOffset.UtcNow) { <span class="chip tone-danger">Locked</span> } else { <span class="chip tone-success">Active</span> }</td>
-                            <td class="text-end"><button class="btn btn-sm btn-light" @onclick="() => Edit(u)"><i class="bi bi-pencil"></i></button></td>
+                            <td>
+                                @switch (UserStates.Of(u))
+                                {
+                                    case UserState.Deactivated: <span class="chip tone-danger">Deactivated</span> break;
+                                    case UserState.Locked: <span class="chip tone-warning" title="Too many wrong passwords; unlocks by itself">Locked</span> break;
+                                    default: <span class="chip tone-success">Active</span> break;
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (u.Id != myId)
+                                {
+                                    if (UserStates.Of(u) == UserState.Active)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger me-1" disabled="@Busy" @onclick="() => confirming = u">Deactivate</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success me-1" disabled="@Busy" @onclick="() => SetActive(u, true)">@(UserStates.Of(u) == UserState.Locked ? "Unlock" : "Activate")</button>
+                                    }
+                                }
+                                <button class="btn btn-sm btn-light" title="Roles and password" @onclick="() => Edit(u)"><i class="bi bi-pencil"></i></button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -58,15 +79,8 @@
                 }
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button class="btn btn-outline-secondary btn-sm" disabled="@Busy" @onclick="ResetPassword"><i class="bi bi-key me-1"></i>Reset password</button>
-                @if (editing.LockoutEnd > DateTimeOffset.UtcNow)
-                {
-                    <button class="btn btn-outline-success btn-sm" disabled="@Busy" @onclick="() => SetLock(false)">Unlock</button>
-                }
-                else
-                {
-                    <button class="btn btn-outline-danger btn-sm" disabled="@Busy" @onclick="() => SetLock(true)">Disable sign-in</button>
-                }
+                <button class="btn btn-outline-secondary btn-sm" disabled="@Busy" @onclick="EmailResetLink" title="They choose a new password themselves; nobody else sees it"><i class="bi bi-envelope me-1"></i>Email a password reset link</button>
+                <button class="btn btn-link btn-sm text-muted" disabled="@Busy" @onclick="ResetPassword" title="For someone who can't get email">Set a temporary password instead</button>
             </div>
             @if (newPassword != null)
             {
@@ -80,7 +94,19 @@
     </Footer>
 </Modal>
 
+<Modal Show="confirming != null" ShowChanged="v => { if (!v) confirming = null; }" Title="Deactivate user">
+    <ChildContent>
+        <p class="mb-0">Deactivate <strong>@confirming?.Email</strong>? They won't be able to sign in until you activate them again, and they're signed out within 30 minutes. Nothing they entered is deleted.</p>
+    </ChildContent>
+    <Footer>
+        <button class="btn btn-light" @onclick="() => confirming = null">Cancel</button>
+        <button class="btn btn-danger" disabled="@Busy" @onclick="() => SetActive(confirming!, false)">Deactivate</button>
+    </Footer>
+</Modal>
+
 @code {
+    private ApplicationUser? confirming;
+    private string? myId;
     private List<ApplicationUser> users = [];
     private Dictionary<string, IList<string>> roles = [];
     private Dictionary<string, string> links = [];
@@ -89,7 +115,11 @@
     private bool showEdit;
     private string? newPassword;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        myId = await Me.GetUserIdAsync();
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -135,6 +165,20 @@
         await LoadAsync();
     }
 
+    private async Task EmailResetLink()
+    {
+        await RunAsync(async () =>
+        {
+            var u = await Tracked();
+            await using var db = await Dbs.OpenAsync();
+            var companyName = await db.Companies.Select(c => c.Name).FirstAsync();
+            if (await AccountMail.SendSetPasswordAsync(u, companyName, isNew: false) is { } error)
+                throw new InvalidOperationException($"The email couldn't be sent ({error}). Use \"Set a temporary password instead\".");
+            newPassword = null;
+            await LogAsync("PasswordResetEmailed", u.Id, null);
+        }, $"Emailed {editing?.Email} a link to choose a new password.");
+    }
+
     private async Task ResetPassword()
     {
         await RunAsync(async () =>
@@ -149,19 +193,17 @@
         });
     }
 
-    private async Task SetLock(bool locked)
+    private async Task SetActive(ApplicationUser target, bool active)
     {
-        await RunAsync(async () =>
+        var ok = await RunAsync(async () =>
         {
+            editing = target;
             var u = await Tracked();
-            if (locked && u.Id == await Me.GetUserIdAsync()) throw new InvalidOperationException("You can't disable your own account.");
-            await UserManager.SetLockoutEnabledAsync(u, true);
-            await UserManager.SetLockoutEndDateAsync(u, locked ? DateTimeOffset.MaxValue : null);
-            // A new security stamp signs the person out of open sessions at the next revalidation.
-            if (locked) await UserManager.UpdateSecurityStampAsync(u);
-            await LogAsync(locked ? "UserDisabled" : "UserEnabled", u.Id, null);
-            editing = u;
-        }, locked ? "Sign-in disabled." : "User unlocked.");
+            if (!active && u.Id == myId) throw new InvalidOperationException("You can't deactivate your own account.");
+            await UserStates.SetActiveAsync(UserManager, u, active);
+            await LogAsync(active ? "UserEnabled" : "UserDisabled", u.Id, null);
+        }, active ? $"{target.Email} can sign in again." : $"{target.Email} is deactivated.");
+        if (ok) confirming = null;
         await LoadAsync();
     }
 

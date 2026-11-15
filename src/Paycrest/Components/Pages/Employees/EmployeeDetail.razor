@@ -5,6 +5,8 @@
 @inject EmployeeService Employees
 @inject TimeOffService TimeOff
 @inject OnboardingService Onboarding
+@inject AccountEmails AccountMail
+@inject Microsoft.AspNetCore.Identity.UserManager<Paycrest.Data.ApplicationUser> UserManager
 
 <PageTitle>@(IsNew ? "New employee" : emp?.FullName) · WageHarbor</PageTitle>
 
@@ -463,10 +465,16 @@ else if (tab == "access")
     }
     <div class="pc-card" style="max-width:640px">
         <h2 class="mb-2">Self-service access</h2>
-        @if (tempPassword != null)
+        @if (loginEmailedTo != null)
         {
             <div class="alert alert-success small">
-                Login created. Temporary password: <code class="fs-6">@tempPassword</code><br />
+                Login created. We emailed <strong>@loginEmailedTo</strong> a link to choose their own password. It works for 3 days; after that they can use "Forgot your password?" on the sign-in page.
+            </div>
+        }
+        @if (tempPassword != null)
+        {
+            <div class="alert alert-warning small">
+                Login created, but the email couldn't be sent@(loginEmailError != null ? $" ({loginEmailError})" : ""). Temporary password: <code class="fs-6">@tempPassword</code><br />
                 Share it securely; the employee should change it after first sign-in. It will not be shown again.
             </div>
         }
@@ -477,7 +485,7 @@ else if (tab == "access")
         }
         else
         {
-            <p class="text-muted small">Or create a login yourself and share a temporary password, so @emp.FirstName can view pay stubs, update their W-4 and address, clock in and request time off.</p>
+            <p class="text-muted small">Or create a login yourself: we email @emp.FirstName a link to choose a password, so they can view pay stubs, update their W-4 and address, clock in and request time off.</p>
             <div class="mb-3"><label class="form-label">Login email</label><input class="form-control" @bind="loginEmail" /></div>
             <label class="form-label">Additional roles</label>
             <div class="d-flex flex-wrap gap-3 mb-3">
@@ -582,7 +590,7 @@ else if (tab == "access")
 
     private string tab = "profile";
     private Employee? emp;
-    private string? newSsn, revealedSsn, bankAccountNumber, loginEmail, linkedEmail, tempPassword, adjNote;
+    private string? newSsn, revealedSsn, bankAccountNumber, loginEmail, linkedEmail, tempPassword, adjNote, loginEmailedTo, loginEmailError;
     private List<Department> departments = [];
     private List<Employee> managers = [];
     private List<EmployeeBankAccount> banks = [];
@@ -765,8 +773,18 @@ else if (tab == "access")
         if (string.IsNullOrWhiteSpace(loginEmail)) { Toast.Error("Enter an email address."); return; }
         await RunAsync(async () =>
         {
-            tempPassword = await Employees.CreateLoginAsync(emp!.Id, loginEmail.Trim(), loginRoles);
+            tempPassword = loginEmailedTo = loginEmailError = null;
+            var email = loginEmail.Trim();
+            var password = await Employees.CreateLoginAsync(emp!.Id, email, loginRoles);
             await using var db = await Dbs.OpenAsync();
+            if (password.StartsWith('('))
+                Toast.Info("That email already had a login; it's now linked to this employee and its password is unchanged.");
+            else if (await UserManager.FindByEmailAsync(email) is { } user)
+            {
+                var companyName = await db.Companies.Select(c => c.Name).FirstAsync();
+                loginEmailError = await AccountMail.SendSetPasswordAsync(user, companyName, isNew: true);
+                if (loginEmailError == null) loginEmailedTo = email; else tempPassword = password;
+            }
             emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == Id);
         }, "Login created.");
         await LoadChildrenAsync();

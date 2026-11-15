@@ -41,6 +41,8 @@
     <AuthorizeView Roles="@AppRoles.PlatformOwner" Context="ownerCtx">
         <div class="nav-section">WageHarbor platform</div>
         <NavLink href="platform/companies"><i class="bi bi-globe2"></i>Companies</NavLink>
+        <NavLink href="platform/users"><i class="bi bi-people"></i>All users</NavLink>
+        <NavLink href="platform/visitors"><i class="bi bi-graph-up"></i>Visitor log</NavLink>
         <NavLink href="platform/errors"><i class="bi bi-bug"></i>Error log</NavLink>
         <NavLink href="platform/messages"><i class="bi bi-envelope"></i>Messages</NavLink>
         <NavLink href="settings/tax"><i class="bi bi-bank"></i>Tax tables</NavLink>
@@ -51,4 +53,4 @@
     <NavLink href="contact"><i class="bi bi-chat-dots"></i>Contact us</NavLink>
 </nav>
 
-<div class="sidebar-footer">wageharbor.com · Here to serve, at ¼ the usual price</div>
+<div class="sidebar-footer">wageharbor.com · Here to serve, at ¼ the usual price<div class="build-info" title="@BuildInfo.Tooltip">@BuildInfo.Label</div></div>

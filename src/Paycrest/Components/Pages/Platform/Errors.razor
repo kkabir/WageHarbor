@@ -49,7 +49,7 @@
     {
         <div class="table-wrap">
             <table class="table table-hover align-middle mb-0">
-                <thead><tr><th style="width:32px"><input type="checkbox" class="form-check-input" checked="@(selected.Count == Filtered.Count)" @onchange="ToggleAll" /></th><th>Error</th><th>Page</th><th class="num">Times</th><th>Last seen</th><th>Status</th></tr></thead>
+                <thead><tr><th style="width:32px"><input type="checkbox" class="form-check-input" checked="@(selected.Count == Filtered.Count)" @onchange="ToggleAll" /></th><th>Error</th><th>Page</th><th class="num">Times</th><th>Last seen</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var e in Filtered)
                     {
@@ -63,6 +63,12 @@
                             <td @onclick="() => Open(e.Id)" class="num">@e.Count</td>
                             <td @onclick="() => Open(e.Id)" class="small text-nowrap">@Local(e.LastSeenUtc)</td>
                             <td @onclick="() => Open(e.Id)"><StatusChip Status="e.Status" /></td>
+                            <td class="text-end">
+                                @if (e.Status is ErrorStatus.New or ErrorStatus.Investigating)
+                                {
+                                    <button class="btn btn-sm btn-outline-success text-nowrap" disabled="@Busy" title="Mark this error resolved" @onclick="() => ResolveOne(e.Id)"><i class="bi bi-check2"></i> Resolve</button>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -249,6 +255,19 @@
         }, "Saved.");
         await LoadAsync();
         if (ok) await Open(id);
+    }
+
+    private async Task ResolveOne(int id)
+    {
+        await RunAsync(async () =>
+        {
+            await using var db = await Dbs.OpenPlatformAsync();
+            var row = await db.ErrorLogs.Include(e => e.Notes).FirstAsync(e => e.Id == id);
+            ApplyChange(row, ErrorStatus.Resolved, "", db.AuditUser);
+            await db.SaveChangesAsync();
+            selected.Remove(id);
+        }, $"Error #{id} marked resolved.");
+        await LoadAsync();
     }
 
     private async Task BulkSetStatus(ErrorStatus status)

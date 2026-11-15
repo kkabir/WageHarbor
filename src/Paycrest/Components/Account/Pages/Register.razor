@@ -14,6 +14,8 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IConfiguration Config
+@inject AccountEmails AccountMail
 @inject Db Dbs
 
 <PageTitle>Register your company</PageTitle>
@@ -99,7 +101,6 @@
         await db.SaveChangesAsync();
 
         user.CompanyId = company.Id;
-        user.EmailConfirmed = true;
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         await GetEmailStore().SetEmailAsync(user, Input.Email, CancellationToken.None);
         var result = await UserManager.CreateAsync(user, Input.Password);
@@ -116,6 +117,14 @@
 
         Logger.LogInformation("Company {CompanyId} registered by {Email}.", company.Id, Input.Email);
         await UserManager.AddToRolesAsync(user, [AppRoles.Admin, AppRoles.Employee]);
+        // Platform owners (Platform:OwnerEmails) get their role at once, not only at the next app start.
+        if ((Config["Platform:OwnerEmails"] ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(Input.Email.Trim(), StringComparer.OrdinalIgnoreCase))
+            await UserManager.AddToRoleAsync(user, AppRoles.PlatformOwner);
+
+        // They go straight in; the welcome email asks them to confirm their address, and the app reminds them until they do.
+        if (await AccountMail.SendWelcomeAsync(user, company.Name) is { } mailError)
+            Logger.LogWarning("Welcome email to {Email} not sent: {Error}", Input.Email, mailError);
 
         await SignInManager.SignInAsync(user, isPersistent: false);
         RedirectManager.RedirectTo("setup");

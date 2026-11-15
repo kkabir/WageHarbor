@@ -45,6 +45,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager<CompanySignInManager>()
     .AddDefaultTokenProviders();
+// Email links (confirm email, reset or set a password) work for 3 days, so a new employee has time to open theirs.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromDays(3));
 
 // Keys must persist across app-pool recycles, otherwise encrypted SSNs/bank numbers and login cookies break.
 builder.Services.AddDataProtection()
@@ -67,6 +69,7 @@ builder.Services.AddScoped<TimeOffService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<SampleDataService>();
 builder.Services.AddScoped<OnboardingService>();
+builder.Services.AddScoped<AccountEmails>();
 
 // Permanent redirects, so search engines move their index to the https:// address.
 builder.Services.AddHttpsRedirection(o => o.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);
@@ -79,6 +82,9 @@ builder.Services.AddSingleton<ILoggerProvider, DatabaseErrorLoggerProvider>();
 builder.Services.AddHostedService<ErrorLogWriter>();
 builder.Services.AddSingleton<PaydayEmailQueue>();
 builder.Services.AddHostedService<PaydayEmailSender>();
+// Page views for the platform visitor log (see VisitorLog.cs): no IP addresses or emails are stored.
+builder.Services.AddSingleton<VisitorLogQueue>();
+builder.Services.AddHostedService<VisitorLogWriter>();
 
 var app = builder.Build();
 
@@ -111,6 +117,7 @@ if (app.Configuration["Site:CanonicalHost"] is { Length: > 0 } canonicalHost && 
 }
 if (httpsEnabled) app.UseHttpsRedirection();
 
+app.UseVisitorLog();
 app.UseAntiforgery();
 
 app.MapStaticAssets();

@@ -1,5 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @inject Db Dbs
+@inject CurrentUser Me
+@inject NavigationManager Nav
 
 <AuthorizeView>
     <Authorized>
@@ -38,6 +40,14 @@
                     </div>
                 </header>
                 <main class="app-content">
+                    @if (unconfirmedEmail != null && !Nav.Uri.Contains("/Account/ConfirmEmail", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 small py-2" role="status">
+                            <i class="bi bi-envelope-exclamation"></i>
+                            <span>Please confirm your email address. We sent a link to <strong>@unconfirmedEmail</strong>.</span>
+                            <a class="ms-auto fw-semibold" href="Account/ResendEmailConfirmation">Send it again</a>
+                        </div>
+                    }
                     @Body
                 </main>
             </div>
@@ -80,12 +90,16 @@
 @code {
     private string companyName = "";
     private long? logoVersion;
+    private string? unconfirmedEmail;
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await Dbs.OpenAsync();
         companyName = await db.Companies.Select(c => c.Name).FirstOrDefaultAsync() ?? "WageHarbor";
         logoVersion = await db.CompanyLogos.Select(l => (long?)l.UpdatedUtc.Ticks).FirstOrDefaultAsync();
+        var userId = await Me.GetUserIdAsync();
+        unconfirmedEmail = userId == null ? null
+            : await db.Users.Where(u => u.Id == userId && !u.EmailConfirmed).Select(u => u.Email).FirstOrDefaultAsync();
     }
 
     private static string Initials(string? name) =>
