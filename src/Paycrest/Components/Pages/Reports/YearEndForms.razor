@@ -1,0 +1,95 @@
+@page "/reports/year-end"
+@attribute [Authorize(Roles = AppRoles.PeopleAdmins)]
+@inherits AppComponentBase
+@inject ReportService Reports
+
+<PageTitle>Year-end forms · WageHarbor</PageTitle>
+
+<PageHeader Title="Year-end forms" Subtitle="W-2s for employees and 1099-NECs for contractors, ready to print or save as PDF.">
+    <Crumbs><a href="reports">Reports</a> / Year-end forms</Crumbs>
+    <ChildContent>
+        <select class="form-select" style="width:110px" value="@Year" @onchange="YearChanged">
+            @for (var y = DateTime.Today.Year; y >= DateTime.Today.Year - 4; y--) { <option value="@y">@y</option> }
+        </select>
+    </ChildContent>
+</PageHeader>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="pc-card h-100 d-flex flex-column">
+            <div class="d-flex align-items-center mb-2"><h2 class="m-0">W-2 · employees</h2><span class="chip tone-primary plain ms-auto">@employees.Count</span></div>
+            <p class="small text-muted">Give employees Copies B, C and 2 by <strong>January 31, @(Year + 1)</strong>. File Copy A and Form W-3 with the SSA by the same date (free online with Business Services Online).</p>
+            <a href="forms/w2/@Year" class="btn btn-primary mt-auto @(employees.Count == 0 ? "disabled" : "")"><i class="bi bi-printer me-1"></i>Print all W-2s</a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="pc-card h-100 d-flex flex-column">
+            <div class="d-flex align-items-center mb-2"><h2 class="m-0">1099-NEC · contractors</h2><span class="chip tone-primary plain ms-auto">@contractors.Count</span></div>
+            <p class="small text-muted">Send Copy B to each contractor paid at or above the IRS threshold by <strong>January 31, @(Year + 1)</strong>, and file Copy A with the IRS (free online with IRIS).</p>
+            <a href="forms/1099-nec/@Year" class="btn btn-primary mt-auto @(contractors.Count == 0 ? "disabled" : "")"><i class="bi bi-printer me-1"></i>Print all 1099-NECs</a>
+        </div>
+    </div>
+</div>
+
+@if (Year >= DateTime.Today.Year)
+{
+    <div class="alert alert-warning small"><i class="bi bi-hourglass-split me-1"></i>@Year isn't over yet. Forms show totals so far and are marked DRAFT until the year ends.</div>
+}
+
+<div class="pc-card p-0">
+    @if (everyone.Count == 0)
+    {
+        <EmptyState Icon="file-earmark-text" Title="@($"No paid payrolls in {Year}")">Year-end forms appear once payrolls are marked paid.</EmptyState>
+    }
+    else
+    {
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Name</th><th>#</th><th>Form</th><th class="num">@Year pay</th><th>Address on file</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var p in everyone)
+                {
+                    var missing = MissingInfo(p.EmployeeId);
+                    <tr>
+                        <td class="fw-semibold">@p.Name</td>
+                        <td class="text-muted">@p.EmployeeNumber</td>
+                        <td><span class="chip @(p.IsContractor ? "tone-info" : "tone-primary") plain">@(p.IsContractor ? "1099-NEC" : "W-2")</span></td>
+                        <td class="num">@Fmt.Money(p.Gross)</td>
+                        <td class="small">@if (missing == null) { <span class="text-success"><i class="bi bi-check2"></i> Complete</span> } else { <span class="text-warning-emphasis"><i class="bi bi-exclamation-circle"></i> Missing @missing</span> }</td>
+                        <td class="text-end"><a class="btn btn-sm btn-light" href="@(p.IsContractor ? "forms/1099-nec" : "forms/w2")/@Year?employee=@p.EmployeeId"><i class="bi bi-file-earmark-text me-1"></i>View</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "year")] public int? YearParam { get; set; }
+    private int Year => YearParam ?? DateTime.Today.Year - (DateTime.Today.Month <= 3 ? 1 : 0);
+
+    private List<(int EmployeeId, string Name, string EmployeeNumber, bool IsContractor, decimal Gross)> everyone = [];
+    private List<(int EmployeeId, string Name, string EmployeeNumber, bool IsContractor, decimal Gross)> employees = [], contractors = [];
+    private Dictionary<int, Employee> people = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        everyone = await Reports.YearEndFormsAsync(Year);
+        employees = everyone.Where(p => !p.IsContractor).ToList();
+        contractors = everyone.Where(p => p.IsContractor).ToList();
+        var ids = everyone.Select(p => p.EmployeeId).ToList();
+        await using var db = await Dbs.OpenAsync();
+        people = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id);
+    }
+
+    /// <summary>What a form needs that isn't on file yet, so it can be fixed before printing.</summary>
+    private string? MissingInfo(int id)
+    {
+        if (!people.TryGetValue(id, out var e)) return null;
+        var missing = new List<string>();
+        if (e.SsnLast4 == null) missing.Add("SSN");
+        if (string.IsNullOrWhiteSpace(e.AddressLine1) || string.IsNullOrWhiteSpace(e.PostalCode)) missing.Add("address");
+        return missing.Count == 0 ? null : string.Join(" and ", missing);
+    }
+
+    private void YearChanged(ChangeEventArgs e) => Nav.NavigateTo($"reports/year-end?year={e.Value}");
+}

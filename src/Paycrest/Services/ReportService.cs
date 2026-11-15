@@ -106,6 +106,29 @@ public sealed class ReportService(Db dbs)
         }).OrderBy(r => r.Name).ToList();
     }
 
+    /// <summary>One employee's W-2 figures for the year, or null when they had no paid paychecks.</summary>
+    public async Task<W2Row?> W2ForAsync(int employeeId, int year) =>
+        (await W2Async(year)).FirstOrDefault(r => r.EmployeeId == employeeId);
+
+    /// <summary>A contractor's 1099-NEC figures: box 1 is all pay, box 4 any federal tax withheld, boxes 5–7 state.</summary>
+    public async Task<(decimal Box1, decimal Box4, string? State, decimal Box5StateTax, decimal Box7StateIncome)?> Nec1099ForAsync(int employeeId, int year)
+    {
+        var c = (await PaidChecksAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31))).Where(x => x.EmployeeId == employeeId).ToList();
+        if (c.Count == 0) return null;
+        return (c.Sum(x => x.GrossPay), c.Sum(x => x.FederalIncomeTax), c[0].StateCode, c.Sum(x => x.StateIncomeTax), c.Sum(x => x.StateTaxableWages));
+    }
+
+    /// <summary>Everyone who needs a year-end form: employees (W-2) and contractors (1099-NEC) paid that year.</summary>
+    public async Task<List<(int EmployeeId, string Name, string EmployeeNumber, bool IsContractor, decimal Gross)>> YearEndFormsAsync(int year)
+    {
+        var c = await PaidChecksAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31));
+        return c.GroupBy(x => x.EmployeeId).Select(g =>
+        {
+            var e = g.First().Employee!;
+            return (e.Id, e.LegalName, e.EmployeeNumber, e.IsContractor, g.Sum(x => x.GrossPay));
+        }).OrderBy(x => x.Item4).ThenBy(x => x.Item2).ToList();
+    }
+
     public async Task<List<(string Name, decimal Gross, int Count)>> Contractors1099Async(int year)
     {
         var c = await PaidChecksAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31));

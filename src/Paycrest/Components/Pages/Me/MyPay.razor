@@ -57,6 +57,22 @@
     </div>
     <div class="col-lg-4">
         <div class="pc-card mb-3">
+            <h2 class="mb-3">Tax forms</h2>
+            @if (formYears.Count == 0)
+            {
+                <p class="small text-muted mb-0">Your W-2 (or 1099-NEC) appears here after your first paid payroll.</p>
+            }
+            else
+            {
+                <ul class="list-clean small mb-0">
+                    @foreach (var y in formYears)
+                    {
+                        <li class="d-flex align-items-center"><i class="bi bi-file-earmark-text text-primary me-2"></i>@(isContractor ? "1099-NEC" : "W-2") for @y@(y >= DateTime.Today.Year ? " (so far)" : "")<a class="ms-auto" href="@(isContractor ? "forms/1099-nec" : "forms/w2")/@y">View</a></li>
+                    }
+                </ul>
+            }
+        </div>
+        <div class="pc-card mb-3">
             <h2 class="mb-3">Direct deposit</h2>
             @if (banks.Count == 0) { <div class="text-muted small">Paid by paper check.</div> }
             @foreach (var b in banks)
@@ -86,6 +102,8 @@
     private int? myId;
     private int year = DateTime.Today.Year;
     private List<int> years = [];
+    private List<int> formYears = [];
+    private bool isContractor;
     private List<Paycheck> ytd = [];
     private List<EmployeeBankAccount> banks = [];
     private List<EmployeeDeduction> deductions = [];
@@ -97,6 +115,8 @@
         await using var db = await Dbs.OpenAsync();
         years = await db.Paychecks.Where(p => p.EmployeeId == myId && p.PayrollRun!.Status == PayrollRunStatus.Paid)
             .Select(p => p.PayDate.Year).Distinct().OrderByDescending(y => y).ToListAsync();
+        formYears = years.ToList();
+        isContractor = await db.Employees.Where(e => e.Id == myId).Select(e => e.EmploymentType == EmploymentType.Contractor1099).FirstOrDefaultAsync();
         if (!years.Contains(year)) years.Insert(0, year);
         banks = await db.EmployeeBankAccounts.AsNoTracking().Where(b => b.EmployeeId == myId && b.IsActive).ToListAsync();
         deductions = await db.EmployeeDeductions.AsNoTracking().Include(d => d.DeductionType).Where(d => d.EmployeeId == myId && d.IsActive).ToListAsync();

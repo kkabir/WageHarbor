@@ -536,3 +536,37 @@ tr.clickable { cursor: pointer; }
 .onb-step h2 .num { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--pc-primary-soft); color: var(--pc-primary); font-size: .9rem; }
 .onb-sign { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 1.35rem; }
 @media (max-width: 575.98px) { .onb-step { padding: 1.1rem; } }
+
+/* ---------- W-2 and 1099-NEC forms ---------- */
+.taxform-sheet { max-width: 900px; margin: 0 auto 2rem; }
+.taxform { position: relative; display: grid; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; border: 1.5px solid #111; margin-bottom: 1.25rem; font-size: 11px; }
+.taxform > div { border-right: 1px solid #111; border-bottom: 1px solid #111; padding: 3px 6px; min-height: 34px; display: flex; flex-direction: column; overflow: hidden; }
+.taxform .lbl { font-size: 8.5px; line-height: 1.15; color: #333; }
+.taxform .val { font-size: 12px; font-family: "Courier New", monospace; margin-top: 2px; line-height: 1.25; }
+.taxform .val.num, .taxform .num { text-align: right; }
+.taxform .small { font-size: 9.5px; font-family: Arial, sans-serif; }
+.taxform.draft::after { content: "DRAFT"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 90px; font-weight: 900; color: rgba(220, 38, 38, .12); transform: rotate(-18deg); pointer-events: none; }
+.w2 { grid-template-columns: 1.15fr .85fr 1fr 1fr; grid-template-areas:
+    "a a omb omb" "b b one two" "c c three four" "c c five six" "d d seven eight" "e e skip ten" "e e eleven twelve" "e e thirteen twelve" "e e fourteen twelve"
+    "fifteen fifteen sixteen seventeen" "eighteen eighteen eighteen eighteen" "foot foot foot foot"; }
+.w2 .tf-a { grid-area: a; } .w2 .tf-omb { grid-area: omb; } .w2 .tf-b { grid-area: b; } .w2 .tf-1 { grid-area: one; } .w2 .tf-2 { grid-area: two; }
+.w2 .tf-c { grid-area: c; } .w2 .tf-3 { grid-area: three; } .w2 .tf-4 { grid-area: four; } .w2 .tf-5 { grid-area: five; } .w2 .tf-6 { grid-area: six; }
+.w2 .tf-d { grid-area: d; } .w2 .tf-7 { grid-area: seven; } .w2 .tf-8 { grid-area: eight; } .w2 .tf-e { grid-area: e; } .w2 .tf-10 { grid-area: ten; }
+.w2 .tf-11 { grid-area: eleven; } .w2 .tf-12 { grid-area: twelve; } .w2 .tf-13 { grid-area: thirteen; } .w2 .tf-14 { grid-area: fourteen; }
+.w2 .tf-15 { grid-area: fifteen; } .w2 .tf-16 { grid-area: sixteen; } .w2 .tf-17 { grid-area: seventeen; } .w2 .tf-18 { grid-area: eighteen; }
+.taxform .tf-foot { grid-area: foot; flex-direction: row !important; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; font-size: 11px; border-bottom: 0 !important; min-height: 0 !important; }
+.taxform .tf-year { font-size: 20px; font-family: "Courier New", monospace; }
+.taxform .tf-copy { margin-left: auto; }
+.taxform .tf-dept { width: 100%; font-size: 8.5px; color: #444; }
+.w2 .tf-12row { display: flex; gap: .5rem; } .w2 .tf-12row b { min-width: 24px; }
+.nec { grid-template-columns: 1.4fr 1fr 1fr; grid-template-areas:
+    "payer payer title" "ptin rtin one" "rname rname two" "rname rname four" "acct five six" "acct seven seven" "foot foot foot"; }
+.nec .nec-payer { grid-area: payer; min-height: 80px; } .nec .nec-title { grid-area: title; align-items: flex-end; gap: 2px; } .nec .nec-ptin { grid-area: ptin; }
+.nec .nec-rtin { grid-area: rtin; } .nec .nec-1 { grid-area: one; } .nec .nec-rname { grid-area: rname; } .nec .nec-2 { grid-area: two; } .nec .nec-4 { grid-area: four; }
+.nec .nec-acct { grid-area: acct; } .nec .nec-5 { grid-area: five; } .nec .nec-6 { grid-area: six; } .nec .nec-7 { grid-area: seven; }
+@media print {
+    .taxform-sheet { max-width: none; margin: 0; page-break-after: always; break-after: page; }
+    .taxform-sheet:last-child { page-break-after: auto; break-after: auto; }
+    .taxform { margin-bottom: .18in; break-inside: avoid; font-size: 9.5px; }
+    .taxform > div { min-height: 28px; padding: 2px 5px; }
+}

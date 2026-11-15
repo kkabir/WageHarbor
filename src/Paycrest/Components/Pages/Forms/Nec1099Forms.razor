@@ -1,0 +1,82 @@
+@page "/forms/1099-nec/{Year:int}"
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject ReportService Reports
+
+<PageTitle>1099-NEC @Year · WageHarbor</PageTitle>
+
+@if (loaded && forms.Count == 0)
+{
+    <EmptyState Icon="file-earmark-x" Title="No 1099-NEC for this year">There are no paid contractor payments for @Year@(EmployeeId != null ? " for this person" : "").</EmptyState>
+    return;
+}
+@if (!loaded) { return; }
+
+<div class="no-print mb-3">
+    <PageHeader Title="@($"Form 1099-NEC · {Year}")" Subtitle="@(forms.Count == 1 ? forms[0].Person.LegalName : $"{forms.Count} contractors")">
+        <Crumbs>@if (isAdmin) { <a href="reports/year-end?year=@Year">Year-end forms</a> } else { <a href="me/pay">My pay</a> } / 1099-NEC</Crumbs>
+        <ChildContent><button class="btn btn-primary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print / save PDF</button></ChildContent>
+    </PageHeader>
+    @if (Year >= DateTime.Today.Year)
+    {
+        <div class="alert alert-warning small mb-2"><i class="bi bi-hourglass-split me-1"></i>@Year isn't over yet, so these are <strong>totals so far</strong>, marked DRAFT.</div>
+    }
+    @if (isAdmin)
+    {
+        <div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-1"></i>This is Copy B for the recipient, which you may print on plain paper and send by January 31. A 1099-NEC is needed for each contractor you paid $600 or more (rising to $2,000 for payments from 2026). File Copy A with the IRS online through <a href="https://www.irs.gov/filing/e-file-information-returns-with-iris" target="_blank" rel="noopener">IRIS</a> (free), and with your state if required.</div>
+    }
+</div>
+
+<div class="taxform-sheet">
+    @foreach (var f in forms)
+    {
+        <div class="taxform nec @(Year >= DateTime.Today.Year ? "draft" : "")">
+            <div class="nec-payer"><span class="lbl">PAYER'S name, street address, city or town, state or province, country, ZIP or foreign postal code, and telephone no.</span><span class="val">@(company.LegalName ?? company.Name)<br />@company.AddressLine1@(company.AddressLine2 != null ? ", " + company.AddressLine2 : "")<br />@company.City@(company.City != null ? ", " : "")@company.State @company.PostalCode<br />@company.Phone</span></div>
+            <div class="nec-title"><span class="lbl">OMB No. 1545-0116</span><b class="tf-year">@Year</b><b>Form 1099-NEC</b><span>Nonemployee Compensation</span></div>
+            <div class="nec-ptin"><span class="lbl">PAYER'S TIN</span><span class="val">@(company.Ein ?? "—")</span></div>
+            <div class="nec-rtin"><span class="lbl">RECIPIENT'S TIN</span><span class="val">@(f.Person.SsnLast4 is { Length: 4 } l ? $"XXX-XX-{l}" : "Not on file")</span></div>
+            <div class="nec-1"><span class="lbl">1 Nonemployee compensation</span><span class="val num">$ @f.Box1.ToString("N2")</span></div>
+            <div class="nec-rname"><span class="lbl">RECIPIENT'S name · Street address · City, state, ZIP</span><span class="val">@f.Person.LegalName<br />@f.Person.AddressLine1@(f.Person.AddressLine2 != null ? ", " + f.Person.AddressLine2 : "")<br />@f.Person.City@(f.Person.City != null ? ", " : "")@f.Person.State @f.Person.PostalCode</span></div>
+            <div class="nec-2"><span class="lbl">2 Payer made direct sales totaling $5,000 or more of consumer products to recipient for resale</span><span class="val">☐</span></div>
+            <div class="nec-acct"><span class="lbl">Account number (see instructions)</span><span class="val">@f.Person.EmployeeNumber</span></div>
+            <div class="nec-4"><span class="lbl">4 Federal income tax withheld</span><span class="val num">@(f.Box4 == 0 ? "" : "$ " + f.Box4.ToString("N2"))</span></div>
+            <div class="nec-5"><span class="lbl">5 State tax withheld</span><span class="val num">@(f.StateTax == 0 ? "" : "$ " + f.StateTax.ToString("N2"))</span></div>
+            <div class="nec-6"><span class="lbl">6 State/Payer's state no.</span><span class="val">@f.State @(company.StateTaxId ?? "")</span></div>
+            <div class="nec-7"><span class="lbl">7 State income</span><span class="val num">@(f.StateIncome == 0 ? "" : "$ " + f.StateIncome.ToString("N2"))</span></div>
+            <div class="tf-foot"><b>Form 1099-NEC</b><span class="tf-copy"><b>Copy B</b> For Recipient</span><span class="tf-dept">Department of the Treasury · Internal Revenue Service · This is important tax information and is being furnished to the IRS.</span></div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Year { get; set; }
+    [SupplyParameterFromQuery(Name = "employee")] public int? EmployeeId { get; set; }
+
+    private sealed record Form(Employee Person, decimal Box1, decimal Box4, string? State, decimal StateTax, decimal StateIncome);
+    private List<Form> forms = [];
+    private Company company = new();
+    private bool loaded, isAdmin;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isAdmin = await Me.CanManagePeopleAsync();
+        var myId = await Me.GetEmployeeIdAsync();
+        await using var db = await Dbs.OpenAsync();
+        company = await db.Companies.AsNoTracking().FirstAsync();
+
+        // Contractors may only open their own form.
+        IEnumerable<int> ids = isAdmin
+            ? EmployeeId is int one ? [one] : (await Reports.YearEndFormsAsync(Year)).Where(x => x.IsContractor).Select(x => x.EmployeeId)
+            : myId is int me && (EmployeeId == null || EmployeeId == me) ? [me] : [];
+
+        forms = [];
+        foreach (var id in ids)
+        {
+            var person = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id && e.EmploymentType == EmploymentType.Contractor1099);
+            if (person == null || await Reports.Nec1099ForAsync(id, Year) is not { } n) continue;
+            forms.Add(new Form(person, n.Box1, n.Box4, n.State, n.Box5StateTax, n.Box7StateIncome));
+        }
+        forms = forms.OrderBy(f => f.Person.LastName).ToList();
+        loaded = true;
+    }
+}

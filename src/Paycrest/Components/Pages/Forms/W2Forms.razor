@@ -1,0 +1,111 @@
+@page "/forms/w2/{Year:int}"
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject ReportService Reports
+
+<PageTitle>W-2 @Year · WageHarbor</PageTitle>
+
+@if (loaded && forms.Count == 0)
+{
+    <EmptyState Icon="file-earmark-x" Title="No W-2 for this year">There are no paid paychecks for @Year@(EmployeeId != null ? " for this person" : "").</EmptyState>
+    return;
+}
+@if (!loaded) { return; }
+
+<div class="no-print mb-3">
+    <PageHeader Title="@($"Form W-2 · {Year}")" Subtitle="@(forms.Count == 1 ? forms[0].Employee.LegalName : $"{forms.Count} employees")">
+        <Crumbs>@if (isAdmin) { <a href="reports/year-end?year=@Year">Year-end forms</a> } else { <a href="me/pay">My pay</a> } / W-2</Crumbs>
+        <ChildContent><button class="btn btn-primary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print / save PDF</button></ChildContent>
+    </PageHeader>
+    @if (Year >= DateTime.Today.Year)
+    {
+        <div class="alert alert-warning small mb-2"><i class="bi bi-hourglass-split me-1"></i>@Year isn't over yet, so these are <strong>totals so far</strong>, marked DRAFT. Final W-2s are ready after the last payroll of the year.</div>
+    }
+    @if (isAdmin)
+    {
+        <div class="alert alert-info small mb-0"><i class="bi bi-info-circle me-1"></i>These are the employee copies (B, C and 2), which you may print on plain paper and give to employees by January 31. File Copy A and Form W-3 with the Social Security Administration online through <a href="https://www.ssa.gov/bso/bsowelcome.htm" target="_blank" rel="noopener">Business Services Online</a> (free), and send state copies as your state requires.</div>
+    }
+</div>
+
+@foreach (var f in forms)
+{
+    <div class="taxform-sheet">
+        @foreach (var (copy, note) in Copies)
+        {
+            <div class="taxform w2 @(Year >= DateTime.Today.Year ? "draft" : "")">
+                <div class="tf-a"><span class="lbl">a Employee's social security number</span><span class="val">@SsnMasked(f.Employee)</span></div>
+                <div class="tf-omb"><span class="lbl">OMB No. 1545-0029</span></div>
+                <div class="tf-b"><span class="lbl">b Employer identification number (EIN)</span><span class="val">@(company.Ein ?? "—")</span></div>
+                <div class="tf-1"><span class="lbl">1 Wages, tips, other compensation</span><span class="val num">@M(f.Row.Box1Wages)</span></div>
+                <div class="tf-2"><span class="lbl">2 Federal income tax withheld</span><span class="val num">@M(f.Row.Box2FederalTax)</span></div>
+                <div class="tf-c"><span class="lbl">c Employer's name, address, and ZIP code</span><span class="val">@(company.LegalName ?? company.Name)<br />@company.AddressLine1@(company.AddressLine2 != null ? ", " + company.AddressLine2 : "")<br />@company.City@(company.City != null ? ", " : "")@company.State @company.PostalCode</span></div>
+                <div class="tf-3"><span class="lbl">3 Social security wages</span><span class="val num">@M(f.Row.Box3SsWages)</span></div>
+                <div class="tf-4"><span class="lbl">4 Social security tax withheld</span><span class="val num">@M(f.Row.Box4SsTax)</span></div>
+                <div class="tf-5"><span class="lbl">5 Medicare wages and tips</span><span class="val num">@M(f.Row.Box5MedicareWages)</span></div>
+                <div class="tf-6"><span class="lbl">6 Medicare tax withheld</span><span class="val num">@M(f.Row.Box6MedicareTax)</span></div>
+                <div class="tf-d"><span class="lbl">d Control number</span><span class="val">@f.Employee.EmployeeNumber</span></div>
+                <div class="tf-7"><span class="lbl">7 Social security tips</span><span class="val num"></span></div>
+                <div class="tf-8"><span class="lbl">8 Allocated tips</span><span class="val num"></span></div>
+                <div class="tf-e"><span class="lbl">e Employee's first name and initial, last name · f Employee's address and ZIP code</span><span class="val">@f.Employee.FirstName @(f.Employee.MiddleName?[..1]) @f.Employee.LastName<br />@f.Employee.AddressLine1@(f.Employee.AddressLine2 != null ? ", " + f.Employee.AddressLine2 : "")<br />@f.Employee.City@(f.Employee.City != null ? ", " : "")@f.Employee.State @f.Employee.PostalCode</span></div>
+                <div class="tf-10"><span class="lbl">10 Dependent care benefits</span><span class="val num"></span></div>
+                <div class="tf-11"><span class="lbl">11 Nonqualified plans</span><span class="val num"></span></div>
+                <div class="tf-12">
+                    <span class="lbl">12 See instructions for box 12</span>
+                    @foreach (var (boxCode, amount) in Box12(f.Row).Take(4))
+                    {
+                        <span class="val tf-12row"><b>@boxCode</b><span class="num">@amount</span></span>
+                    }
+                </div>
+                <div class="tf-13"><span class="lbl">13</span><span class="val small">☐ Statutory employee &nbsp; @(RetirementPlan(f.Row) ? "☒" : "☐") Retirement plan &nbsp; ☐ Third-party sick pay</span></div>
+                <div class="tf-14"><span class="lbl">14 Other</span><span class="val"></span></div>
+                <div class="tf-15"><span class="lbl">15 State · Employer's state ID number</span><span class="val">@f.Row.State @(company.StateTaxId ?? "")</span></div>
+                <div class="tf-16"><span class="lbl">16 State wages, tips, etc.</span><span class="val num">@M(f.Row.Box16StateWages)</span></div>
+                <div class="tf-17"><span class="lbl">17 State income tax</span><span class="val num">@M(f.Row.Box17StateTax)</span></div>
+                <div class="tf-18"><span class="lbl">18 Local wages · 19 Local income tax · 20 Locality name</span><span class="val"></span></div>
+                <div class="tf-foot"><b>Form W-2</b> Wage and Tax Statement <b class="tf-year">@Year</b><span class="tf-copy"><b>@copy</b> @note</span><span class="tf-dept">Department of the Treasury · Internal Revenue Service</span></div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Year { get; set; }
+    [SupplyParameterFromQuery(Name = "employee")] public int? EmployeeId { get; set; }
+
+    private sealed record Form(Employee Employee, W2Row Row);
+    private List<Form> forms = [];
+    private Company company = new();
+    private bool loaded, isAdmin;
+
+    private static readonly (string Copy, string Note)[] Copies =
+    [
+        ("Copy B", "To Be Filed With Employee's FEDERAL Tax Return"),
+        ("Copy C", "For EMPLOYEE'S RECORDS"),
+        ("Copy 2", "To Be Filed With Employee's State, City, or Local Income Tax Return"),
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isAdmin = await Me.CanManagePeopleAsync();
+        var myId = await Me.GetEmployeeIdAsync();
+        // Employees may only open their own form; everyone else's needs an HR/payroll role.
+        var ids = isAdmin ? (EmployeeId is int one ? [one] : null) : myId is int me && (EmployeeId == null || EmployeeId == me) ? new[] { me } : [];
+
+        await using var db = await Dbs.OpenAsync();
+        company = await db.Companies.AsNoTracking().FirstAsync();
+        var rows = (await Reports.W2Async(Year)).Where(r => ids == null || ids.Contains(r.EmployeeId)).ToList();
+        var people = await db.Employees.AsNoTracking().Where(e => rows.Select(r => r.EmployeeId).Contains(e.Id)).ToDictionaryAsync(e => e.Id);
+        forms = rows.Select(r => new Form(people[r.EmployeeId], r)).ToList();
+        loaded = true;
+    }
+
+    private static string M(decimal v) => v == 0 ? "" : v.ToString("N2");
+    private static string SsnMasked(Employee e) => e.SsnLast4 is { Length: 4 } l ? $"XXX-XX-{l}" : "Not on file";
+
+    private static IEnumerable<(string Code, string Amount)> Box12(W2Row r) =>
+        r.Box12.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => p.Split(' ', 2)).Where(p => p.Length == 2).Select(p => (p[0], p[1]));
+
+    /// <summary>Box 13 "Retirement plan" applies when there are elective deferrals (codes D, E, F, G, H, S, AA, BB, EE).</summary>
+    private static bool RetirementPlan(W2Row r) => Box12(r).Any(b => b.Code is "D" or "E" or "F" or "G" or "H" or "S" or "AA" or "BB" or "EE");
+}
