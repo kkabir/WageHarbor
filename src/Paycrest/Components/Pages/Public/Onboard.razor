@@ -1,0 +1,167 @@
+@page "/onboard/{Token}"
+@layout Paycrest.Components.Layout.PublicLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@inject OnboardingService Onboarding
+
+<PageTitle>Set up your pay · WageHarbor</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<div class="onb">
+    @if (done)
+    {
+        <div class="pc-card text-center py-5">
+            <div class="contact-done"><i class="bi bi-check2"></i></div>
+            <h1 class="h3 fw-bold">You're all set, @(view?.Employee.PreferredName ?? view?.Employee.FirstName)!</h1>
+            <p class="text-muted">Your details are saved and @(view?.CompanyName) can now pay you. Sign in any time to see your pay stubs, time off and tax forms.</p>
+            <a href="Account/Login" class="btn btn-primary btn-lg mt-2">Sign in</a>
+            <p class="small text-muted mt-3 mb-0">New to WageHarbor? The <a href="help/employee">employee guide</a> shows you around.</p>
+        </div>
+    }
+    else if (view == null)
+    {
+        <div class="pc-card text-center py-5">
+            <i class="bi bi-link-45deg" style="font-size:3rem;color:var(--pc-muted)"></i>
+            <h1 class="h4 fw-bold mt-2">This link has expired or was already used</h1>
+            <p class="text-muted mb-0">Onboarding links work once and last @OnboardingService.LinkLifetime.Days days. Please ask your employer to send you a new one.</p>
+        </div>
+    }
+    else
+    {
+        <div class="onb-head">
+            <div class="small text-muted text-uppercase fw-semibold" style="letter-spacing:.08em">@view.CompanyName</div>
+            <h1>Welcome, @(view.Employee.PreferredName ?? view.Employee.FirstName)! Let's set up your pay.</h1>
+            <p class="text-muted">About 10 minutes. Have your bank details handy. Everything is sent securely, and your Social Security and account numbers are encrypted.</p>
+        </div>
+
+        @if (problems.Count > 0)
+        {
+            <div class="alert alert-danger"><strong>Please fix the following:</strong><ul class="mb-0 mt-1">@foreach (var p in problems) { <li>@p</li> }</ul></div>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="SubmitAsync" FormName="onboard" Enhance="false">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="alert alert-danger small" />
+
+            <section class="pc-card onb-step">
+                <h2><span class="num">1</span>About you</h2>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Legal name</label><input class="form-control" value="@view.Employee.LegalName" disabled /><div class="form-text">Wrong? Tell your employer.</div></div>
+                    <div class="col-md-6"><label class="form-label" for="pn">Preferred first name</label><InputText id="pn" class="form-control" @bind-Value="Input.PreferredName" /></div>
+                    <div class="col-md-4"><label class="form-label" for="ph">Phone *</label><InputText id="ph" type="tel" class="form-control" @bind-Value="Input.Phone" autocomplete="tel" /></div>
+                    <div class="col-md-4"><label class="form-label" for="dob">Date of birth *</label><InputDate id="dob" class="form-control" @bind-Value="Input.DateOfBirth" /></div>
+                    <div class="col-md-4"><label class="form-label" for="ssn">Social Security number *</label><InputText id="ssn" class="form-control" @bind-Value="Input.Ssn" autocomplete="off" placeholder="123-45-6789" /></div>
+                    <div class="col-md-8"><label class="form-label" for="a1">Home address *</label><InputText id="a1" class="form-control" @bind-Value="Input.AddressLine1" autocomplete="address-line1" /></div>
+                    <div class="col-md-4"><label class="form-label" for="a2">Apt / unit</label><InputText id="a2" class="form-control" @bind-Value="Input.AddressLine2" autocomplete="address-line2" /></div>
+                    <div class="col-md-5"><label class="form-label" for="city">City *</label><InputText id="city" class="form-control" @bind-Value="Input.City" autocomplete="address-level2" /></div>
+                    <div class="col-md-3"><label class="form-label" for="st">State *</label><InputSelect id="st" class="form-select" @bind-Value="Input.State"><option value="">Choose…</option>@foreach (var s in Fmt.States) { <option value="@s">@s</option> }</InputSelect></div>
+                    <div class="col-md-4"><label class="form-label" for="zip">ZIP *</label><InputText id="zip" class="form-control" @bind-Value="Input.PostalCode" autocomplete="postal-code" /></div>
+                    <div class="col-md-5"><label class="form-label" for="ecn">Emergency contact</label><InputText id="ecn" class="form-control" @bind-Value="Input.EmergencyContactName" /></div>
+                    <div class="col-md-4"><label class="form-label" for="ecp">Their phone</label><InputText id="ecp" type="tel" class="form-control" @bind-Value="Input.EmergencyContactPhone" /></div>
+                    <div class="col-md-3"><label class="form-label" for="ecr">Relationship</label><InputText id="ecr" class="form-control" @bind-Value="Input.EmergencyContactRelation" /></div>
+                </div>
+            </section>
+
+            <section class="pc-card onb-step">
+                <h2><span class="num">2</span>Tax withholding (Form W-4)</h2>
+                <p class="small text-muted">This decides how much federal income tax comes out of each paycheck. Most people only need Step 1. The <a href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank" rel="noopener">IRS withholding estimator</a> can help.</p>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label" for="fs">Step 1(c): filing status</label><InputSelect id="fs" class="form-select" @bind-Value="Input.FilingStatus"><option value="@FilingStatus.Single">Single or married filing separately</option><option value="@FilingStatus.MarriedFilingJointly">Married filing jointly</option><option value="@FilingStatus.HeadOfHousehold">Head of household</option></InputSelect></div>
+                    <div class="col-md-6 d-flex align-items-end"><div class="form-check mb-2"><InputCheckbox id="mj" class="form-check-input" @bind-Value="Input.W4MultipleJobs" /><label class="form-check-label" for="mj">Step 2: I have more than one job, or my spouse also works</label></div></div>
+                    <div class="col-md-6"><label class="form-label" for="dep">Step 3: dependents credit ($ per year)</label><InputNumber id="dep" class="form-control" @bind-Value="Input.W4DependentsAmount" /><div class="form-text">$2,200 per child under 17, $500 per other dependent.</div></div>
+                    <div class="col-md-6"><label class="form-label" for="oi">Step 4(a): other income ($ per year)</label><InputNumber id="oi" class="form-control" @bind-Value="Input.W4OtherIncome" /></div>
+                    <div class="col-md-6"><label class="form-label" for="ded">Step 4(b): deductions ($ per year)</label><InputNumber id="ded" class="form-control" @bind-Value="Input.W4Deductions" /></div>
+                    <div class="col-md-6"><label class="form-label" for="ex">Step 4(c): extra withholding per paycheck ($)</label><InputNumber id="ex" class="form-control" @bind-Value="Input.W4ExtraWithholding" /></div>
+                    <div class="col-12"><hr class="my-1" /><div class="fw-semibold small mt-2">State withholding</div></div>
+                    <div class="col-md-6"><label class="form-label" for="sfs">State filing status</label><InputSelect id="sfs" class="form-select" @bind-Value="Input.StateFilingStatus"><option value="@FilingStatus.Single">Single</option><option value="@FilingStatus.MarriedFilingJointly">Married</option><option value="@FilingStatus.HeadOfHousehold">Head of household</option></InputSelect></div>
+                    <div class="col-md-6"><label class="form-label" for="sa">State allowances</label><InputNumber id="sa" class="form-control" @bind-Value="Input.StateAllowances" /><div class="form-text">From your state's withholding form, if it uses allowances. Otherwise leave 0.</div></div>
+                </div>
+            </section>
+
+            <section class="pc-card onb-step">
+                <h2><span class="num">3</span>How you get paid</h2>
+                <div class="d-flex gap-4 mb-3">
+                    <div class="form-check"><input class="form-check-input" type="radio" name="Input.DirectDeposit" id="dd1" value="true" checked="@Input.DirectDeposit" /><label class="form-check-label" for="dd1">Direct deposit (recommended)</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="Input.DirectDeposit" id="dd0" value="false" checked="@(!Input.DirectDeposit)" /><label class="form-check-label" for="dd0">Paper check</label></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label" for="rt">Routing number</label><InputText id="rt" class="form-control" @bind-Value="Input.RoutingNumber" inputmode="numeric" placeholder="9 digits" /></div>
+                    <div class="col-md-6"><label class="form-label" for="at">Account type</label><InputSelect id="at" class="form-select" @bind-Value="Input.AccountType"><option value="@BankAccountType.Checking">Checking</option><option value="@BankAccountType.Savings">Savings</option></InputSelect></div>
+                    <div class="col-md-6"><label class="form-label" for="ac">Account number</label><InputText id="ac" class="form-control" @bind-Value="Input.AccountNumber" inputmode="numeric" autocomplete="off" /></div>
+                    <div class="col-md-6"><label class="form-label" for="ac2">Account number again</label><InputText id="ac2" class="form-control" @bind-Value="Input.AccountNumberConfirm" inputmode="numeric" autocomplete="off" /></div>
+                    <div class="col-12 form-text">Both numbers are printed at the bottom of a check: routing number first, then account number. For paper checks, leave these blank.</div>
+                </div>
+            </section>
+
+            <section class="pc-card onb-step">
+                <h2><span class="num">4</span>Your WageHarbor login</h2>
+                <p class="small text-muted">You'll sign in with <strong>@view.Invite.Email</strong> to see your pay stubs, W-2 and time off.</p>
+                @if (view.HasLogin)
+                {
+                    <p class="small mb-0"><i class="bi bi-check-circle-fill text-success me-1"></i>You already have a login; no password needed.</p>
+                    <input type="hidden" name="Input.Password" value="not-used-already-has-login" />
+                    <input type="hidden" name="Input.PasswordConfirm" value="not-used-already-has-login" />
+                }
+                else
+                {
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label" for="pw">Choose a password *</label><InputText id="pw" type="password" class="form-control" @bind-Value="Input.Password" autocomplete="new-password" /><div class="form-text">At least 8 characters.</div></div>
+                        <div class="col-md-6"><label class="form-label" for="pw2">Password again *</label><InputText id="pw2" type="password" class="form-control" @bind-Value="Input.PasswordConfirm" autocomplete="new-password" /></div>
+                    </div>
+                }
+            </section>
+
+            <section class="pc-card onb-step">
+                <h2><span class="num">5</span>Review and sign</h2>
+                <div class="form-check mb-3"><InputCheckbox id="cert" class="form-check-input" @bind-Value="Input.Certify" /><label class="form-check-label" for="cert">Under penalties of perjury, I declare that this certificate (Form W-4), to the best of my knowledge and belief, is true, correct and complete, and that the other information I've given is accurate.</label></div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-7"><label class="form-label" for="sig">Type your full legal name to sign *</label><InputText id="sig" class="form-control onb-sign" @bind-Value="Input.SignedName" placeholder="Type your full name" autocomplete="off" /></div>
+                    <div class="col-md-5"><div class="small text-muted">Date: @DateTime.Today.ToString("MMMM d, yyyy")</div></div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 mt-4"><i class="bi bi-check2-circle me-1"></i>Save and finish</button>
+                <p class="small text-muted text-center mt-2 mb-0">Typing your name is your electronic signature. Your employer keeps a record with the date.</p>
+            </section>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = "";
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm] private OnboardingInput Input { get; set; } = default!;
+
+    private OnboardingView? view;
+    private List<string> problems = [];
+    private bool done;
+
+    protected override async Task OnInitializedAsync()
+    {
+        view = await Onboarding.FindAsync(Token);
+        if (Input == null)
+        {
+            Input = new();
+            if (view != null)
+            {
+                // Start from whatever the employer already entered.
+                var e = view.Employee;
+                Input.PreferredName = e.PreferredName;
+                Input.Phone = e.Phone ?? "";
+                Input.DateOfBirth = e.DateOfBirth;
+                Input.AddressLine1 = e.AddressLine1 ?? "";
+                Input.AddressLine2 = e.AddressLine2;
+                Input.City = e.City ?? "";
+                Input.State = e.State;
+                Input.PostalCode = e.PostalCode ?? "";
+                Input.FilingStatus = e.FilingStatus;
+                Input.StateFilingStatus = e.StateFilingStatus;
+            }
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (view == null) return;
+        problems = await Onboarding.CompleteAsync(Token, Input, HttpContext.Connection.RemoteIpAddress?.ToString());
+        done = problems.Count == 0;
+    }
+}

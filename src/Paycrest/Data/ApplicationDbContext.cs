@@ -23,6 +23,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
+    public DbSet<OnboardingInvite> OnboardingInvites => Set<OnboardingInvite>();
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeBankAccount> EmployeeBankAccounts => Set<EmployeeBankAccount>();
@@ -117,6 +118,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasMany(x => x.Notes).WithOne().HasForeignKey(n => n.ContactMessageId).OnDelete(DeleteBehavior.Cascade);
         });
+        builder.Entity<OnboardingInvite>().HasIndex(x => x.TokenHash).IsUnique();
+        builder.Entity<OnboardingInvite>().HasIndex(x => x.EmployeeId);
         builder.Entity<CompanyLogo>().HasKey(x => x.CompanyId);
         builder.Entity<CompanyLogo>().Property(x => x.CompanyId).ValueGeneratedNever();
 

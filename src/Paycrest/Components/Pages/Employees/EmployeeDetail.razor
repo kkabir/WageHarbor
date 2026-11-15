@@ -4,6 +4,7 @@
 @inherits AppComponentBase
 @inject EmployeeService Employees
 @inject TimeOffService TimeOff
+@inject OnboardingService Onboarding
 
 <PageTitle>@(IsNew ? "New employee" : emp?.FullName) · WageHarbor</PageTitle>
 
@@ -418,6 +419,48 @@ else if (tab == "docs")
 }
 else if (tab == "access")
 {
+    @if (emp.UserId == null || invite?.CompletedUtc != null)
+    {
+        <div class="pc-card mb-3 onb-admin" style="max-width:640px">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <h2 class="m-0">New-hire onboarding</h2>
+                @if (invite?.CompletedUtc != null) { <span class="chip tone-success ms-auto">Completed</span> }
+                else if (invite != null && invite.IsOpen(DateTime.UtcNow)) { <span class="chip tone-warning ms-auto">Waiting for @emp.FirstName</span> }
+            </div>
+            @if (invite?.CompletedUtc != null)
+            {
+                <p class="small mb-1"><i class="bi bi-check-circle-fill text-success me-1"></i>@emp.FirstName completed onboarding on <strong>@invite.CompletedUtc.Value.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</strong>: personal details, W-4, bank account and login.</p>
+                <p class="small text-muted mb-0">Signed electronically as "<strong>@invite.SignedName</strong>"@(invite.SignedIp != null ? $" from {invite.SignedIp}" : "").</p>
+            }
+            else
+            {
+                <p class="text-muted small">Send @emp.FirstName a private link to enter their own address, SSN, W-4 and direct-deposit account and create their login, then e-sign. It works once and lasts @OnboardingService.LinkLifetime.Days days.</p>
+                @if (invite != null && invite.IsOpen(DateTime.UtcNow))
+                {
+                    <div class="small mb-3">Sent to <strong>@invite.Email</strong> on @invite.CreatedUtc.ToLocalTime().ToString("MMM d") · expires @invite.ExpiresUtc.ToLocalTime().ToString("MMM d, yyyy")</div>
+                }
+                @if (inviteLink != null)
+                {
+                    <div class="alert @(inviteEmailError == null ? "alert-success" : "alert-warning") small">
+                        @(inviteEmailError == null ? $"Emailed to {inviteEmail}." : $"The email wasn't sent ({inviteEmailError}). Copy the link below and send it to {emp.FirstName} yourself.")
+                        <div class="input-group input-group-sm mt-2">
+                            <input class="form-control" value="@inviteLink" readonly />
+                            <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('@inviteLink')"><i class="bi bi-clipboard"></i> Copy</button>
+                        </div>
+                        <div class="mt-1 text-muted">This is the only time the link is shown. Sending again creates a new one.</div>
+                    </div>
+                }
+                <div class="mb-3"><label class="form-label">Email for the link</label><input class="form-control" type="email" @bind="inviteEmail" placeholder="name@example.com" /></div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" disabled="@Busy" @onclick="SendInvite"><i class="bi bi-send me-1"></i>@(invite != null && invite.IsOpen(DateTime.UtcNow) ? "Send a new link" : "Send onboarding link")</button>
+                    @if (invite != null && invite.IsOpen(DateTime.UtcNow))
+                    {
+                        <button class="btn btn-light text-danger" disabled="@Busy" @onclick="RevokeInvite">Cancel link</button>
+                    }
+                </div>
+            }
+        </div>
+    }
     <div class="pc-card" style="max-width:640px">
         <h2 class="mb-2">Self-service access</h2>
         @if (tempPassword != null)
@@ -434,7 +477,7 @@ else if (tab == "access")
         }
         else
         {
-            <p class="text-muted small">Create a login so @emp.FirstName can view pay stubs, update their W-4 and address, clock in and request time off.</p>
+            <p class="text-muted small">Or create a login yourself and share a temporary password, so @emp.FirstName can view pay stubs, update their W-4 and address, clock in and request time off.</p>
             <div class="mb-3"><label class="form-label">Login email</label><input class="form-control" @bind="loginEmail" /></div>
             <label class="form-label">Additional roles</label>
             <div class="d-flex flex-wrap gap-3 mb-3">
@@ -600,6 +643,30 @@ else if (tab == "access")
         if (emp!.UserId != null)
             linkedEmail = await db.Users.Where(u => u.Id == emp.UserId).Select(u => u.Email).FirstOrDefaultAsync();
         loginEmail ??= emp.Email;
+        invite = emp.Id == 0 ? null : await Onboarding.LatestAsync(emp.Id);
+        inviteEmail ??= invite?.Email ?? emp.Email;
+    }
+
+    private OnboardingInvite? invite;
+    private string? inviteEmail, inviteLink, inviteEmailError;
+
+    private async Task SendInvite()
+    {
+        if (string.IsNullOrWhiteSpace(inviteEmail)) { Toast.Error("Enter the new hire's email address."); return; }
+        await RunAsync(async () =>
+        {
+            var result = await Onboarding.SendInviteAsync(emp!.Id, inviteEmail!, Nav.BaseUri);
+            inviteLink = result.Link;
+            inviteEmailError = result.EmailError;
+        }, null);
+        await LoadChildrenAsync();
+    }
+
+    private async Task RevokeInvite()
+    {
+        await RunAsync(() => Onboarding.RevokeAsync(invite!.Id), "Link cancelled.");
+        inviteLink = null;
+        await LoadChildrenAsync();
     }
 
     private async Task SaveEmployee()

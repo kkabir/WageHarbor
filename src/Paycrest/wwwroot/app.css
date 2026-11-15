@@ -526,3 +526,13 @@ tr.clickable { cursor: pointer; }
 .import-drop:hover { border-color: var(--pc-primary); background: var(--pc-primary-soft); }
 .import-drop > i { font-size: 3rem; color: var(--pc-primary); }
 .table-danger-soft td { background: var(--pc-danger-soft) !important; }
+
+/* ---------- New-hire onboarding ---------- */
+.onb { max-width: 860px; margin: 0 auto; }
+.onb-head h1 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 800; letter-spacing: -.02em; margin: .3rem 0 .5rem; }
+.onb-head { margin-bottom: 1.25rem; }
+.onb-step { padding: 1.5rem 1.75rem; margin-bottom: 1.25rem; }
+.onb-step h2 { display: flex; align-items: center; gap: .7rem; font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem; }
+.onb-step h2 .num { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--pc-primary-soft); color: var(--pc-primary); font-size: .9rem; }
+.onb-sign { font-family: "Segoe Script", "Brush Script MT", cursive; font-size: 1.35rem; }
+@media (max-width: 575.98px) { .onb-step { padding: 1.1rem; } }

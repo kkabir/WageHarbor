@@ -66,6 +66,7 @@ builder.Services.AddScoped<TimeService>();
 builder.Services.AddScoped<TimeOffService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<SampleDataService>();
+builder.Services.AddScoped<OnboardingService>();
 
 // Permanent redirects, so search engines move their index to the https:// address.
 builder.Services.AddHttpsRedirection(o => o.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);

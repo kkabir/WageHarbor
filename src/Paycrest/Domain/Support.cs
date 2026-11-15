@@ -62,3 +62,24 @@ public class CaseNote
     [StringLength(256)] public string? CreatedBy { get; set; }
     [Required, StringLength(4000)] public string Text { get; set; } = "";
 }
+
+/// <summary>A one-time link a new hire uses to enter their own details, W-4 and bank account, and create their login.</summary>
+public class OnboardingInvite : ICompanyOwned
+{
+    public int CompanyId { get; set; }
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    [Required, StringLength(256)] public string Email { get; set; } = "";
+    /// <summary>SHA-256 of the link token; the token itself is only ever in the email.</summary>
+    [Required, StringLength(64)] public string TokenHash { get; set; } = "";
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    [StringLength(256)] public string? CreatedBy { get; set; }
+    public DateTime ExpiresUtc { get; set; }
+    public DateTime? CompletedUtc { get; set; }
+    public DateTime? RevokedUtc { get; set; }
+    /// <summary>The name the new hire typed as their electronic signature, and where it came from.</summary>
+    [StringLength(160)] public string? SignedName { get; set; }
+    [StringLength(45)] public string? SignedIp { get; set; }
+
+    public bool IsOpen(DateTime nowUtc) => CompletedUtc == null && RevokedUtc == null && ExpiresUtc > nowUtc;
+}
