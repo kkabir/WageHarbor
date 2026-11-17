@@ -1,0 +1,30 @@
+@* Like <ValidationMessage>, but shows each message in the current language (validation attributes hold English). *@
+@typeparam TValue
+@implements IDisposable
+
+@foreach (var message in EditContext.GetValidationMessages(field))
+{
+    <div class="validation-message @Class">@L[message]</div>
+}
+
+@code {
+    [CascadingParameter] private EditContext EditContext { get; set; } = default!;
+    [Parameter, EditorRequired] public System.Linq.Expressions.Expression<Func<TValue>> For { get; set; } = default!;
+    [Parameter] public string? Class { get; set; }
+
+    private FieldIdentifier field;
+    private EditContext? subscribed;
+
+    protected override void OnParametersSet()
+    {
+        field = FieldIdentifier.Create(For);
+        if (subscribed == EditContext) return;
+        if (subscribed != null) subscribed.OnValidationStateChanged -= Changed;
+        subscribed = EditContext;
+        subscribed.OnValidationStateChanged += Changed;
+    }
+
+    private void Changed(object? sender, ValidationStateChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() { if (subscribed != null) subscribed.OnValidationStateChanged -= Changed; }
+}

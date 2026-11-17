@@ -1,4 +1,4 @@
-﻿@page "/Account/Register"
+@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text
@@ -18,54 +18,54 @@
 @inject AccountEmails AccountMail
 @inject Db Dbs
 
-<PageTitle>Register your company · WageHarbor</PageTitle>
+<PageTitle>@L["Register your company · WageHarbor"]</PageTitle>
 <HeadContent>
     <meta name="description" content="Register your company on WageHarbor: free payroll for one employee, then about a quarter of the usual price. No credit card needed." />
     <link rel="canonical" href="https://www.wageharbor.com/Account/Register" />
 </HeadContent>
 
-<h1 class="h3 fw-bold mb-1">Register your company</h1>
-<p class="text-muted mb-4">Create your company's WageHarbor account. You'll be its administrator and can then add your employees and give them their own logins.</p>
+<h1 class="h3 fw-bold mb-1">@L["Register your company"]</h1>
+<p class="text-muted mb-4">@L["Create your company's WageHarbor account. You'll be its administrator and can then add your employees and give them their own logins."]</p>
 
 <div>
     <div>
         <StatusMessage Message="@Message" />
         <EditForm Model="Input" method="post" OnValidSubmit="RegisterCompany" FormName="register">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
+            <ValidationSummaryText class="text-danger" role="alert" />
             <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.CompanyName" id="Input.CompanyName" class="form-control" autocomplete="organization" aria-required="true" placeholder="Company name" />
-                <label for="Input.CompanyName">Company name</label>
-                <ValidationMessage For="() => Input.CompanyName" class="text-danger" />
+                <InputText @bind-Value="Input.CompanyName" id="Input.CompanyName" class="form-control" autocomplete="organization" aria-required="true" placeholder="@L["Company name"]" />
+                <label for="Input.CompanyName">@L["Company name"]</label>
+                <ValidationText For="() => Input.CompanyName" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
                 <InputSelect @bind-Value="Input.State" id="Input.State" class="form-select" aria-required="true">
-                    <option value="">Choose…</option>
+                    <option value="">@L["Choose…"]</option>
                     @foreach (var st in Fmt.States)
                     {
                         <option value="@st">@st</option>
                     }
                 </InputSelect>
-                <label for="Input.State">Company state</label>
-                <ValidationMessage For="() => Input.State" class="text-danger" />
+                <label for="Input.State">@L["Company state"]</label>
+                <ValidationText For="() => Input.State" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Your work email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
+                <label for="Input.Email">@L["Your work email"]</label>
+                <ValidationText For="() => Input.Email" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
+                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="@L["password"]" />
+                <label for="Input.Password">@L["Password"]</label>
+                <ValidationText For="() => Input.Password" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
+                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="@L["password"]" />
+                <label for="Input.ConfirmPassword">@L["Confirm password"]</label>
+                <ValidationText For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Create company account</button>
-            <p class="small text-muted text-center mt-3 mb-0">Already registered? <a href="Account/Login">Sign in</a>. Employees get their login from their company's administrator.</p>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">@L["Create company account"]</button>
+            <p class="small text-muted text-center mt-3 mb-0">@L.Html("Already registered? <a href=\"Account/Login\">Sign in</a>. Employees get their login from their company's administrator.")</p>
         </EditForm>
     </div>
 </div>
@@ -79,7 +79,7 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+    private string? Message => identityErrors is null ? null : "Error: " + string.Join(" ", identityErrors.Select(error => L[error.Description]));
 
     protected override void OnInitialized() => Input ??= new();
 

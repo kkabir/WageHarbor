@@ -2,9 +2,9 @@
 @attribute [Authorize]
 @inherits AppComponentBase
 
-<PageTitle>My profile · WageHarbor</PageTitle>
+<PageTitle>@L["My profile · WageHarbor"]</PageTitle>
 
-<PageHeader Title="My profile" Subtitle="Keep your contact details and tax withholding up to date." />
+<PageHeader Title="@L["My profile"]" Subtitle="@L["Keep your contact details and tax withholding up to date."]" />
 
 @if (emp == null)
 {
@@ -19,18 +19,18 @@
             <div class="fw-bold fs-5">@emp.FullName</div>
             <div class="text-muted">@emp.JobTitle</div>
             <dl class="kv text-start mt-3">
-                <dt>Employee #</dt><dd>@emp.EmployeeNumber</dd>
-                <dt>Department</dt><dd>@(emp.Department?.Name ?? "—")</dd>
-                <dt>Manager</dt><dd>@(emp.Manager?.FullName ?? "—")</dd>
-                <dt>Hire date</dt><dd>@Fmt.Date(emp.HireDate)</dd>
-                <dt>Type</dt><dd>@emp.EmploymentType.Label()</dd>
-                <dt>Pay</dt><dd>@(emp.PayType == PayType.Salary ? Fmt.Money(emp.PayRate) + " / year" : Fmt.Money(emp.PayRate) + " / hour") · @emp.PayFrequency.Label()</dd>
+                <dt>@L["Employee #"]</dt><dd>@emp.EmployeeNumber</dd>
+                <dt>@L["Department"]</dt><dd>@(emp.Department?.Name ?? "—")</dd>
+                <dt>@L["Manager"]</dt><dd>@(emp.Manager?.FullName ?? "—")</dd>
+                <dt>@L["Hire date"]</dt><dd>@Fmt.Date(emp.HireDate)</dd>
+                <dt>@L["Type"]</dt><dd>@L[emp.EmploymentType.Label()]</dd>
+                <dt>@L["Pay"]</dt><dd>@(emp.PayType == PayType.Salary ? L["{0} / year", Fmt.Money(emp.PayRate)] : L["{0} / hour", Fmt.Money(emp.PayRate)]) · @L[emp.PayFrequency.Label()]</dd>
             </dl>
         </div>
         @if (docs.Count > 0)
         {
             <div class="pc-card mt-3">
-                <h2 class="mb-2">My documents</h2>
+                <h2 class="mb-2">@L["My documents"]</h2>
                 <ul class="list-clean small">
                     @foreach (var d in docs)
                     {
@@ -45,73 +45,73 @@
     </div>
     <div class="col-lg-8">
         <div class="pc-tabs">
-            <button class="@(tab == "contact" ? "active" : "")" @onclick="@(() => tab = "contact")"><i class="bi bi-house me-1"></i>Contact</button>
-            <button class="@(tab == "w4" ? "active" : "")" @onclick="@(() => tab = "w4")"><i class="bi bi-file-earmark-text me-1"></i>Tax withholding (W-4)</button>
+            <button class="@(tab == "contact" ? "active" : "")" @onclick="@(() => tab = "contact")"><i class="bi bi-house me-1"></i>@L["Contact"]</button>
+            <button class="@(tab == "w4" ? "active" : "")" @onclick="@(() => tab = "w4")"><i class="bi bi-file-earmark-text me-1"></i>@L["Tax withholding (W-4)"]</button>
         </div>
         <div class="pc-card">
             @if (tab == "contact")
             {
                 <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Preferred name</label><input class="form-control" @bind="emp.PreferredName" /></div>
-                    <div class="col-md-6"><label class="form-label">Phone</label><input class="form-control" @bind="emp.Phone" /></div>
-                    <div class="col-md-8"><label class="form-label">Street</label><input class="form-control" @bind="emp.AddressLine1" /></div>
-                    <div class="col-md-4"><label class="form-label">Apt / unit</label><input class="form-control" @bind="emp.AddressLine2" /></div>
-                    <div class="col-md-5"><label class="form-label">City</label><input class="form-control" @bind="emp.City" /></div>
+                    <div class="col-md-6"><label class="form-label">@L["Preferred name"]</label><input class="form-control" @bind="emp.PreferredName" /></div>
+                    <div class="col-md-6"><label class="form-label">@L["Phone"]</label><input class="form-control" @bind="emp.Phone" /></div>
+                    <div class="col-md-8"><label class="form-label">@L["Street"]</label><input class="form-control" @bind="emp.AddressLine1" /></div>
+                    <div class="col-md-4"><label class="form-label">@L["Apt / unit"]</label><input class="form-control" @bind="emp.AddressLine2" /></div>
+                    <div class="col-md-5"><label class="form-label">@L["City"]</label><input class="form-control" @bind="emp.City" /></div>
                     <div class="col-md-3">
-                        <label class="form-label">State</label>
+                        <label class="form-label">@L["State"]</label>
                         <select class="form-select" @bind="emp.State">
                             <option value="">—</option>
                             @foreach (var s in Fmt.States) { <option value="@s">@s</option> }
                         </select>
                     </div>
-                    <div class="col-md-4"><label class="form-label">ZIP</label><input class="form-control" @bind="emp.PostalCode" /></div>
+                    <div class="col-md-4"><label class="form-label">@L["ZIP"]</label><input class="form-control" @bind="emp.PostalCode" /></div>
                 </div>
                 <div class="form-section">
-                    <h3>Emergency contact</h3>
+                    <h3>@L["Emergency contact"]</h3>
                     <div class="row g-3">
-                        <div class="col-md-5"><label class="form-label">Name</label><input class="form-control" @bind="emp.EmergencyContactName" /></div>
-                        <div class="col-md-3"><label class="form-label">Relationship</label><input class="form-control" @bind="emp.EmergencyContactRelation" /></div>
-                        <div class="col-md-4"><label class="form-label">Phone</label><input class="form-control" @bind="emp.EmergencyContactPhone" /></div>
+                        <div class="col-md-5"><label class="form-label">@L["Name"]</label><input class="form-control" @bind="emp.EmergencyContactName" /></div>
+                        <div class="col-md-3"><label class="form-label">@L["Relationship"]</label><input class="form-control" @bind="emp.EmergencyContactRelation" /></div>
+                        <div class="col-md-4"><label class="form-label">@L["Phone"]</label><input class="form-control" @bind="emp.EmergencyContactPhone" /></div>
                     </div>
                 </div>
             }
             else
             {
-                <div class="alert alert-info small"><i class="bi bi-info-circle me-1"></i>Changes take effect on the next payroll. Use the <a href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank" rel="noopener">IRS Tax Withholding Estimator</a> if you're not sure what to enter.</div>
+                <div class="alert alert-info small"><i class="bi bi-info-circle me-1"></i>@L.Html("Changes take effect on the next payroll. Use the <a href=\"https://www.irs.gov/individuals/tax-withholding-estimator\" target=\"_blank\" rel=\"noopener\">IRS Tax Withholding Estimator</a> if you're not sure what to enter.")</div>
                 <div class="row g-3">
                     <div class="col-md-7">
-                        <label class="form-label">Step 1(c) filing status</label>
+                        <label class="form-label">@L["Step 1(c): filing status"]</label>
                         <select class="form-select" @bind="emp.FilingStatus">
-                            @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s.Label()</option> }
+                            @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@L[s.Label()]</option> }
                         </select>
                     </div>
                     <div class="col-md-5 d-flex align-items-end">
-                        <div class="form-check"><input type="checkbox" class="form-check-input" id="s2" @bind="emp.W4MultipleJobs" /><label class="form-check-label" for="s2">Step 2(c): multiple jobs</label></div>
+                        <div class="form-check"><input type="checkbox" class="form-check-input" id="s2" @bind="emp.W4MultipleJobs" /><label class="form-check-label" for="s2">@L["Step 2(c): multiple jobs"]</label></div>
                     </div>
-                    <div class="col-md-6"><label class="form-label">Step 3: dependents credit ($/year)</label><input type="number" class="form-control" @bind="emp.W4DependentsAmount" /><div class="form-text">$2,200 per qualifying child under 17, $500 per other dependent.</div></div>
-                    <div class="col-md-6"><label class="form-label">Step 4(a): other income ($/year)</label><input type="number" class="form-control" @bind="emp.W4OtherIncome" /></div>
-                    <div class="col-md-6"><label class="form-label">Step 4(b): deductions ($/year)</label><input type="number" class="form-control" @bind="emp.W4Deductions" /></div>
-                    <div class="col-md-6"><label class="form-label">Step 4(c): extra withholding per paycheck ($)</label><input type="number" class="form-control" @bind="emp.W4ExtraWithholding" /></div>
+                    <div class="col-md-6"><label class="form-label">@L["Step 3: dependents credit ($ per year)"]</label><input type="number" class="form-control" @bind="emp.W4DependentsAmount" /><div class="form-text">@L["$2,200 per qualifying child under 17, $500 per other dependent."]</div></div>
+                    <div class="col-md-6"><label class="form-label">@L["Step 4(a): other income ($ per year)"]</label><input type="number" class="form-control" @bind="emp.W4OtherIncome" /></div>
+                    <div class="col-md-6"><label class="form-label">@L["Step 4(b): deductions ($ per year)"]</label><input type="number" class="form-control" @bind="emp.W4Deductions" /></div>
+                    <div class="col-md-6"><label class="form-label">@L["Step 4(c): extra withholding per paycheck ($)"]</label><input type="number" class="form-control" @bind="emp.W4ExtraWithholding" /></div>
                 </div>
                 <div class="form-section">
-                    <h3>State (@emp.WorkState)</h3>
+                    <h3>@L["State ({0})", emp.WorkState]</h3>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Filing status</label>
+                            <label class="form-label">@L["Filing status"]</label>
                             <select class="form-select" @bind="emp.StateFilingStatus">
-                                @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@s.Label()</option> }
+                                @foreach (var s in Enum.GetValues<FilingStatus>()) { <option value="@s">@L[s.Label()]</option> }
                             </select>
                         </div>
-                        <div class="col-md-3"><label class="form-label">Allowances</label><input type="number" class="form-control" @bind="emp.StateAllowances" /></div>
-                        <div class="col-md-3"><label class="form-label">Extra ($/check)</label><input type="number" class="form-control" @bind="emp.StateExtraWithholding" /></div>
+                        <div class="col-md-3"><label class="form-label">@L["Allowances"]</label><input type="number" class="form-control" @bind="emp.StateAllowances" /></div>
+                        <div class="col-md-3"><label class="form-label">@L["Extra ($ per check)"]</label><input type="number" class="form-control" @bind="emp.StateExtraWithholding" /></div>
                     </div>
                 </div>
                 <div class="form-check mt-3">
                     <input type="checkbox" class="form-check-input" id="attest" @bind="attest" />
-                    <label class="form-check-label small" for="attest">Under penalties of perjury, I declare that this certificate, to the best of my knowledge and belief, is true, correct, and complete.</label>
+                    <label class="form-check-label small" for="attest">@L["Under penalties of perjury, I declare that this certificate, to the best of my knowledge and belief, is true, correct, and complete."]</label>
                 </div>
             }
-            <button class="btn btn-primary mt-4" disabled="@(Busy || (tab == "w4" && !attest))" @onclick="Save"><i class="bi bi-check2 me-1"></i>Save</button>
+            <button class="btn btn-primary mt-4" disabled="@(Busy || (tab == "w4" && !attest))" @onclick="Save"><i class="bi bi-check2 me-1"></i>@L["Save"]</button>
         </div>
     </div>
 </div>

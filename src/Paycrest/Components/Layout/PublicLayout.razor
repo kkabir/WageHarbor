@@ -8,33 +8,35 @@
     </Authorized>
     <NotAuthorized>
         <div class="public-shell">
-            <input type="checkbox" id="public-menu" class="public-menu-toggle" aria-label="Toggle menu" />
+            <input type="checkbox" id="public-menu" class="public-menu-toggle" aria-label="@L["Toggle menu"]" />
             <header class="public-topbar">
-                <a href="" class="public-brand" title="WageHarbor home">
+                <a href="" class="public-brand" title="@L["WageHarbor home"]">
                     <img src="brand/wageharbor-logo.svg" class="light-only" alt="WageHarbor" height="34" />
                     <img src="brand/wageharbor-logo-dark.svg" class="dark-only" alt="WageHarbor" height="34" />
                 </a>
-                <nav class="public-nav" aria-label="Main">
-                    <a href="#features">Features</a>
-                    <a href="pricing">Pricing</a>
-                    <a href="help">Help</a>
-                    <a href="about">About</a>
-                    <a href="contact">Contact</a>
+                <nav class="public-nav" aria-label="@L["Main"]">
+                    <a href="#features">@L["Features"]</a>
+                    <a href="pricing">@L["Pricing"]</a>
+                    <a href="help">@L["Help"]</a>
+                    <a href="about">@L["About"]</a>
+                    <a href="contact">@L["Contact"]</a>
                 </nav>
                 <div class="ms-auto d-flex align-items-center gap-2">
+                    <LanguagePicker Class="d-none d-lg-flex" />
                     <ThemeToggle />
-                    <a href="Account/Login" class="btn btn-sm btn-outline-secondary">Sign in</a>
-                    <a href="Account/Register" class="btn btn-sm btn-primary d-none d-sm-inline-block">Start free</a>
-                    <label for="public-menu" class="public-menu-btn" aria-label="Menu"><i class="bi bi-list"></i></label>
+                    <a href="Account/Login" class="btn btn-sm btn-outline-secondary">@L["Sign in"]</a>
+                    <a href="Account/Register" class="btn btn-sm btn-primary d-none d-sm-inline-block">@L["Start free"]</a>
+                    <label for="public-menu" class="public-menu-btn" aria-label="@L["Menu"]"><i class="bi bi-list"></i></label>
                 </div>
             </header>
-            <nav class="public-mobile-nav" aria-label="Main" onclick="document.getElementById('public-menu').checked=false">
-                <a href="#features">Features</a>
-                <a href="pricing">Pricing</a>
-                <a href="help">Help &amp; guides</a>
-                <a href="about">About</a>
-                <a href="contact">Contact us</a>
-                <a href="Account/Register" class="fw-semibold">Register your company</a>
+            <nav class="public-mobile-nav" aria-label="@L["Main"]" onclick="document.getElementById('public-menu').checked=false">
+                <a href="#features">@L["Features"]</a>
+                <a href="pricing">@L["Pricing"]</a>
+                <a href="help">@L["Help & guides"]</a>
+                <a href="about">@L["About"]</a>
+                <a href="contact">@L["Contact us"]</a>
+                <a href="Account/Register" class="fw-semibold">@L["Register your company"]</a>
+                <div class="pt-2" onclick="event.stopPropagation()"><LanguagePicker /></div>
             </nav>
             <main class="public-content">
                 @Body
@@ -44,32 +46,32 @@
                     <div class="public-footer-brand">
                         <img src="brand/wageharbor-logo.svg" class="light-only" alt="WageHarbor" height="28" />
                         <img src="brand/wageharbor-logo-dark.svg" class="dark-only" alt="WageHarbor" height="28" />
-                        <p>Payroll and HR for small businesses at about a quarter of the usual price. Pay your people right, and on time.</p>
+                        <p>@L["Payroll and HR for small businesses at about a quarter of the usual price. Pay your people right, and on time."]</p>
                     </div>
                     <div>
-                        <h3>Product</h3>
-                        <a href="#features">Features</a>
-                        <a href="pricing">Pricing</a>
-                        <a href="security">Security</a>
-                        <a href="Account/Register">Register your company</a>
+                        <h3>@L["Product"]</h3>
+                        <a href="#features">@L["Features"]</a>
+                        <a href="pricing">@L["Pricing"]</a>
+                        <a href="security">@L["Security"]</a>
+                        <a href="Account/Register">@L["Register your company"]</a>
                     </div>
                     <div>
-                        <h3>Help</h3>
-                        <a href="help/company">Company guide</a>
-                        <a href="help/employee">Employee guide</a>
-                        <a href="help/articles">Articles</a>
-                        <a href="Account/Login">Sign in</a>
+                        <h3>@L["Help"]</h3>
+                        <a href="help/company">@L["Company guide"]</a>
+                        <a href="help/employee">@L["Employee guide"]</a>
+                        <a href="help/articles">@L["Articles"]</a>
+                        <a href="Account/Login">@L["Sign in"]</a>
                     </div>
                     <div>
-                        <h3>Company</h3>
-                        <a href="about">About &amp; mission</a>
-                        <a href="contact">Contact us</a>
-                        <a href="privacy">Privacy policy</a>
-                        <a href="terms">Terms of service</a>
+                        <h3>@L["Company"]</h3>
+                        <a href="about">@L["About & mission"]</a>
+                        <a href="contact">@L["Contact us"]</a>
+                        <a href="privacy">@L["Privacy policy"]</a>
+                        <a href="terms">@L["Terms of service"]</a>
                         <a href="mailto:@ContactEmail">@ContactEmail</a>
                     </div>
                 </div>
-                <div class="public-footer-legal"><span>© @DateTime.UtcNow.Year WageHarbor · wageharbor.com</span><span class="build-info" title="@BuildInfo.Tooltip">@BuildInfo.Label</span></div>
+                <div class="public-footer-legal"><LanguagePicker Class="lang-picker-footer" /><span>© @DateTime.UtcNow.Year WageHarbor · wageharbor.com</span><span class="build-info" title="@BuildInfo.Tooltip">@BuildInfo.Label</span></div>
             </footer>
         </div>
     </NotAuthorized>

@@ -1,8 +1,8 @@
-﻿@if (!string.IsNullOrEmpty(DisplayMessage))
+@if (!string.IsNullOrEmpty(DisplayMessage))
 {
     var statusMessageClass = DisplayMessage.StartsWith("Error") ? "danger" : "success";
     <div class="alert alert-@statusMessageClass" role="alert">
-        @DisplayMessage
+        @Translated
     </div>
 }
 
@@ -16,6 +16,11 @@
     private HttpContext HttpContext { get; set; } = default!;
 
     private string? DisplayMessage => Message ?? messageFromCookie;
+
+    // Messages are English in code; "Error: …" keeps its prefix so the colour stays right.
+    private string Translated => DisplayMessage!.StartsWith("Error: ")
+        ? L["Error: {0}", L[DisplayMessage["Error: ".Length..]]]
+        : L[DisplayMessage!];
 
     protected override void OnInitialized()
     {

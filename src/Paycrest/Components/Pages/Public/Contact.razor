@@ -14,7 +14,7 @@
 @inject IConfiguration Config
 @inject ILogger<Contact> Logger
 
-<PageTitle>Contact us · WageHarbor</PageTitle>
+<PageTitle>@L["Contact us · WageHarbor"]</PageTitle>
 <HeadContent>
     <meta name="description" content="Questions about WageHarbor payroll? Send us a message and we'll get back to you." />
     <link rel="canonical" href="https://www.wageharbor.com/contact" />
@@ -22,12 +22,12 @@
 
 <div class="contact-grid">
     <div class="prose m-0">
-        <h1>Contact us</h1>
-        <p class="prose-sub">Questions, feedback or trouble with WageHarbor? Send us a message and we'll reply by email, usually within one business day.</p>
+        <h1>@L["Contact us"]</h1>
+        <p class="prose-sub">@L["Questions, feedback or trouble with WageHarbor? Send us a message and we'll reply by email, usually within one business day."]</p>
         <ul class="lp-checks">
-            <li><i class="bi bi-question-circle"></i><span>Many answers are already in <a href="help">Help &amp; guides</a>.</span></li>
-            <li><i class="bi bi-envelope"></i><span>Prefer email? Write to <a href="mailto:@ContactEmail">@ContactEmail</a>.</span></li>
-            <li><i class="bi bi-shield-lock"></i><span>Please don't send Social Security or bank numbers in a message.</span></li>
+            <li><i class="bi bi-question-circle"></i><span>@L.Html("Many answers are already in <a href=\"help\">Help &amp; guides</a>.")</span></li>
+            <li><i class="bi bi-envelope"></i><span>@L.Html("Prefer email? Write to <a href=\"mailto:{0}\">{0}</a>.", ContactEmail)</span></li>
+            <li><i class="bi bi-shield-lock"></i><span>@L["Please don't send Social Security or bank numbers in a message."]</span></li>
         </ul>
     </div>
 
@@ -36,9 +36,9 @@
         {
             <div class="text-center py-4">
                 <div class="contact-done"><i class="bi bi-check2"></i></div>
-                <h2 class="h4 fw-bold">Thanks, your message is on its way</h2>
-                <p class="text-muted mb-4">We'll reply to <strong>@sentTo</strong>. Your reference is <strong>#@reference</strong>.</p>
-                <a href="help" class="btn btn-outline-secondary">Browse Help &amp; guides</a>
+                <h2 class="h4 fw-bold">@L["Thanks, your message is on its way"]</h2>
+                <p class="text-muted mb-4">@L.Html("We'll reply to <strong>{0}</strong>. Your reference is <strong>#{1}</strong>.", System.Net.WebUtility.HtmlEncode(sentTo), reference)</p>
+                <a href="help" class="btn btn-outline-secondary">@L["Browse Help & guides"]</a>
             </div>
         }
         else
@@ -52,44 +52,44 @@
                 <input type="hidden" name="Input.RenderedAtTicks" value="@Input.RenderedAtTicks" />
                 @* Honeypot: hidden from people, often filled in by bots. *@
                 <div class="contact-hp" aria-hidden="true">
-                    <label for="Input.Website">Website</label>
+                    <label for="Input.Website">@L["Website"]</label>
                     <InputText id="Input.Website" @bind-Value="Input.Website" tabindex="-1" autocomplete="off" />
                 </div>
                 <div class="row g-3">
                     <div class="col-sm-6">
-                        <label class="form-label" for="Input.Name">Your name *</label>
+                        <label class="form-label" for="Input.Name">@L["Your name *"]</label>
                         <InputText id="Input.Name" class="form-control" @bind-Value="Input.Name" autocomplete="name" />
-                        <ValidationMessage For="() => Input.Name" class="text-danger small" />
+                        <ValidationText For="() => Input.Name" class="text-danger small" />
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="Input.Email">Email *</label>
+                        <label class="form-label" for="Input.Email">@L["Email *"]</label>
                         <InputText id="Input.Email" type="email" class="form-control" @bind-Value="Input.Email" autocomplete="email" />
-                        <ValidationMessage For="() => Input.Email" class="text-danger small" />
+                        <ValidationText For="() => Input.Email" class="text-danger small" />
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="Input.CompanyName">Company</label>
+                        <label class="form-label" for="Input.CompanyName">@L["Company"]</label>
                         <InputText id="Input.CompanyName" class="form-control" @bind-Value="Input.CompanyName" autocomplete="organization" />
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label" for="Input.Phone">Phone</label>
+                        <label class="form-label" for="Input.Phone">@L["Phone"]</label>
                         <InputText id="Input.Phone" type="tel" class="form-control" @bind-Value="Input.Phone" autocomplete="tel" />
                     </div>
                     <div class="col-12">
-                        <label class="form-label" for="Input.Topic">Topic *</label>
+                        <label class="form-label" for="Input.Topic">@L["Topic *"]</label>
                         <InputSelect id="Input.Topic" class="form-select" @bind-Value="Input.Topic">
-                            <option value="">Choose…</option>
-                            @foreach (var t in Topics) { <option value="@t">@t</option> }
+                            <option value="">@L["Choose…"]</option>
+                            @foreach (var t in Topics) { <option value="@t">@L[t]</option> }
                         </InputSelect>
-                        <ValidationMessage For="() => Input.Topic" class="text-danger small" />
+                        <ValidationText For="() => Input.Topic" class="text-danger small" />
                     </div>
                     <div class="col-12">
-                        <label class="form-label" for="Input.Message">Message *</label>
+                        <label class="form-label" for="Input.Message">@L["Message *"]</label>
                         <InputTextArea id="Input.Message" class="form-control" rows="6" @bind-Value="Input.Message" maxlength="5000" />
-                        <ValidationMessage For="() => Input.Message" class="text-danger small" />
+                        <ValidationText For="() => Input.Message" class="text-danger small" />
                     </div>
                     <div class="col-12">
-                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-send me-1"></i>Send message</button>
-                        <p class="small text-muted mt-2 mb-0">We use your details only to answer you. See our <a href="privacy">Privacy policy</a>.</p>
+                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-send me-1"></i>@L["Send message"]</button>
+                        <p class="small text-muted mt-2 mb-0">@L.Html("We use your details only to answer you. See our <a href=\"privacy\">Privacy policy</a>.")</p>
                     </div>
                 </div>
             </EditForm>
@@ -139,7 +139,7 @@
         var recent = Cache.GetOrCreate(key, e => { e.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1); return 0; });
         if (recent >= MaxPerHour)
         {
-            error = $"You've sent several messages in the last hour. Please try again later, or email {ContactEmail}.";
+            error = L["You've sent several messages in the last hour. Please try again later, or email {0}.", ContactEmail];
             return;
         }
         Cache.Set(key, recent + 1, TimeSpan.FromHours(1));

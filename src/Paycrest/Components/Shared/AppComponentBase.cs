@@ -13,6 +13,8 @@ public abstract class AppComponentBase : ComponentBase
     [Inject] protected CurrentUser Me { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
     [Inject] private ILoggerFactory LoggerFactory { get; set; } = default!;
+    /// <summary>Screen text in the current language; see Lang.</summary>
+    [Inject] protected Paycrest.Services.Localization.Lang L { get; set; } = default!;
 
     protected bool Busy { get; private set; }
 
@@ -24,15 +26,16 @@ public abstract class AppComponentBase : ComponentBase
         try
         {
             await action();
-            if (success != null) Toast.Success(success);
+            // Messages are English in code; show them in the current language when a translation exists.
+            if (success != null) Toast.Success(L[success]);
             return true;
         }
-        catch (InvalidOperationException ex) { Toast.Error(ex.Message); }
+        catch (InvalidOperationException ex) { Toast.Error(L[ex.Message]); }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
         {
             // Shown to the user, and recorded in the error log for the platform owner.
             LoggerFactory.CreateLogger(GetType()).LogError(ex, "Save failed on {Page}", GetType().Name);
-            Toast.Error("Could not save: " + (ex.InnerException?.Message ?? ex.Message));
+            Toast.Error(L["Could not save: {0}", ex.InnerException?.Message ?? ex.Message]);
         }
         finally { Busy = false; StateHasChanged(); }
         return false;

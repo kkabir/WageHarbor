@@ -3,53 +3,53 @@
 @attribute [AllowAnonymous]
 @inject IConfiguration Config
 
-<PageTitle>Security · WageHarbor</PageTitle>
+<PageTitle>@L["Security · WageHarbor"]</PageTitle>
 <HeadContent>
     <meta name="description" content="How WageHarbor protects payroll data: encrypted SSNs and bank numbers, separate data for every company, role-based access, two-step sign-in and an audit log." />
     <link rel="canonical" href="https://www.wageharbor.com/security" />
 </HeadContent>
 
 <article class="prose">
-    <h1>How we protect your payroll data</h1>
-    <p class="prose-sub">Payroll holds some of the most sensitive information a business has. Here's how WageHarbor looks after it.</p>
+    <h1>@L["How we protect your payroll data"]</h1>
+    <p class="prose-sub">@L["Payroll holds some of the most sensitive information a business has. Here's how WageHarbor looks after it."]</p>
 
-    <h2>Every company's data is kept separate</h2>
-    <p>Each company on WageHarbor has its own private space. Every request is limited to the signed-in person's company at the data layer, and changes to another company's records are refused. People at one company can never see another company's employees, pay or settings.</p>
+    <h2>@L["Every company's data is kept separate"]</h2>
+    <p>@L["Each company on WageHarbor has its own private space. Every request is limited to the signed-in person's company at the data layer, and changes to another company's records are refused. People at one company can never see another company's employees, pay or settings."]</p>
 
-    <h2>Sensitive numbers are encrypted</h2>
+    <h2>@L["Sensitive numbers are encrypted"]</h2>
     <ul>
-        <li>Social Security numbers and bank account numbers are <strong>encrypted at rest</strong> and shown masked (for example ***-**-4354 or ••••1712).</li>
-        <li>Viewing a full Social Security number is recorded in the audit log.</li>
-        <li>Passwords are never stored. Only a salted, one-way hash is kept, using ASP.NET Core Identity.</li>
+        <li>@L.Html("Social Security numbers and bank account numbers are <strong>encrypted at rest</strong> and shown masked (for example ***-**-4354 or ••••1712).")</li>
+        <li>@L["Viewing a full Social Security number is recorded in the audit log."]</li>
+        <li>@L["Passwords are never stored. Only a salted, one-way hash is kept, using ASP.NET Core Identity."]</li>
     </ul>
 
-    <h2>The right people see the right things</h2>
+    <h2>@L["The right people see the right things"]</h2>
     <ul>
-        <li><strong>Roles</strong> (Admin, HR, Payroll, Manager and Employee) decide who can see and change what.</li>
-        <li>Employees only ever see their own pay, time and details.</li>
-        <li>Admins can reset passwords and <strong>disable sign-in</strong> immediately when someone leaves.</li>
+        <li>@L.Html("<strong>Roles</strong> (Admin, HR, Payroll, Manager and Employee) decide who can see and change what.")</li>
+        <li>@L["Employees only ever see their own pay, time and details."]</li>
+        <li>@L.Html("Admins can reset passwords and <strong>disable sign-in</strong> immediately when someone leaves.")</li>
     </ul>
 
-    <h2>Strong sign-in</h2>
+    <h2>@L["Strong sign-in"]</h2>
     <ul>
-        <li><strong>Two-step sign-in</strong> with an authenticator app, plus recovery codes.</li>
-        <li><strong>Passkeys</strong> for password-free sign-in on supported devices.</li>
-        <li>Sessions are re-checked every 30 minutes, so someone whose sign-in is disabled is signed out of any open session within that time.</li>
+        <li><strong>@L["Two-step sign-in"]</strong> @L["with an authenticator app, plus recovery codes."]</li>
+        <li><strong>@L["Passkeys"]</strong> @L["for password-free sign-in on supported devices."]</li>
+        <li>@L["Sessions are re-checked every 30 minutes, so someone whose sign-in is disabled is signed out of any open session within that time."]</li>
     </ul>
 
-    <h2>A record of every change</h2>
-    <p>The audit log records who changed company settings, employee records, pay setup, payroll runs and tax tables, and when, so mistakes and misuse can be traced.</p>
+    <h2>@L["A record of every change"]</h2>
+    <p>@L["The audit log records who changed company settings, employee records, pay setup, payroll runs and tax tables, and when, so mistakes and misuse can be traced."]</p>
 
-    <h2>Your part</h2>
+    <h2>@L["Your part"]</h2>
     <ul>
-        <li>Turn on two-step sign-in for everyone with the Admin or Payroll role.</li>
-        <li>Give each person the smallest role they need.</li>
-        <li>Share temporary passwords privately, never in group chats or email threads.</li>
-        <li>Disable sign-in for people who leave, on their last day.</li>
+        <li>@L["Turn on two-step sign-in for everyone with the Admin or Payroll role."]</li>
+        <li>@L["Give each person the smallest role they need."]</li>
+        <li>@L["Share temporary passwords privately, never in group chats or email threads."]</li>
+        <li>@L["Disable sign-in for people who leave, on their last day."]</li>
     </ul>
 
-    <h2>Report a security concern</h2>
-    <p>If you think you've found a security problem, please email <a href="mailto:@ContactEmail">@ContactEmail</a> with the details. We take every report seriously.</p>
+    <h2>@L["Report a security concern"]</h2>
+    <p>@L.Html("If you think you've found a security problem, please email <a href=\"mailto:{0}\">{0}</a> with the details. We take every report seriously.", ContactEmail)</p>
 </article>
 
 @code {

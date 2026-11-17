@@ -1,4 +1,4 @@
-﻿@page "/Account/Login"
+@page "/Account/Login"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -11,46 +11,46 @@
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Log in · WageHarbor</PageTitle>
+<PageTitle>@L["Log in · WageHarbor"]</PageTitle>
 <HeadContent><meta name="robots" content="noindex, follow" /></HeadContent>
 
-<h1 class="h3 fw-bold mb-1">Sign in</h1>
-<p class="text-muted mb-4">Welcome back. Sign in to manage payroll or view your pay.</p>
+<h1 class="h3 fw-bold mb-1">@L["Sign in"]</h1>
+<p class="text-muted mb-4">@L["Welcome back. Sign in to manage payroll or view your pay."]</p>
 <div>
     <div>
         <section>
             <StatusMessage Message="@errorMessage" />
             <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
                 <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" role="alert" />
+                <ValidationSummaryText class="text-danger" role="alert" />
                 <div class="form-floating mb-3">
                     <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username webauthn" aria-required="true" placeholder="name@example.com" />
-                    <label for="Input.Email" class="form-label">Email</label>
-                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                    <label for="Input.Email" class="form-label">@L["Email"]</label>
+                    <ValidationText For="() => Input.Email" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
-                    <label for="Input.Password" class="form-label">Password</label>
-                    <ValidationMessage For="() => Input.Password" class="text-danger" />
+                    <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="@L["password"]" />
+                    <label for="Input.Password" class="form-label">@L["Password"]</label>
+                    <ValidationText For="() => Input.Password" class="text-danger" />
                 </div>
                 <div class="checkbox mb-3">
                     <label class="form-label">
                         <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
-                        Remember me
+                        @L["Remember me"]
                     </label>
                 </div>
                 <div>
-                    <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+                    <button type="submit" class="w-100 btn btn-lg btn-primary">@L["Log in"]</button>
                 </div>
                 <hr />
                 <div class="d-flex flex-column">
-                    <span class="text-secondary mx-auto mt-2">OR</span>
-                    <PasskeySubmit Operation="PasskeyOperation.Request" Name="Input.Passkey" EmailName="Input.Email" class="btn btn-link mx-auto">Log in with a passkey</PasskeySubmit>
+                    <span class="text-secondary mx-auto mt-2">@L["OR"]</span>
+                    <PasskeySubmit Operation="PasskeyOperation.Request" Name="Input.Passkey" EmailName="Input.Email" class="btn btn-link mx-auto">@L["Log in with a passkey"]</PasskeySubmit>
                 </div>
                 <hr />
                 <div class="small d-flex justify-content-between">
-                    <span><a href="Account/ForgotPassword">Forgot your password?</a> · <a href="help">Help</a></span>
-                    <span class="text-muted">New to WageHarbor? <a class="fw-semibold" href="Account/Register">Register your company</a></span>
+                    <span><a href="Account/ForgotPassword">@L["Forgot your password?"]</a> · <a href="help">@L["Help"]</a></span>
+                    <span class="text-muted">@L["New to WageHarbor?"] <a class="fw-semibold" href="Account/Register">@L["Register your company"]</a></span>
                 </div>
             </EditForm>
         </section>

@@ -2,27 +2,27 @@
 @attribute [Authorize]
 @inherits AppComponentBase
 
-<PageTitle>Pay stub · WageHarbor</PageTitle>
+<PageTitle>@L["Pay stub · WageHarbor"]</PageTitle>
 
 @if (denied)
 {
-    <EmptyState Icon="shield-lock" Title="You don't have access to this pay stub" />
+    <EmptyState Icon="shield-lock" Title="@L["You don't have access to this pay stub"]" />
     return;
 }
 @if (check == null || company == null) { return; }
 
-<PageHeader Title="Pay stub" Subtitle="@($"{check.EmployeeName} · {Fmt.Date(check.PayDate)}")">
+<PageHeader Title="@L["Pay stub"]" Subtitle="@($"{check.EmployeeName} · {Fmt.Date(check.PayDate)}")">
     <Crumbs>
-        @if (isAdmin) { <a href="payroll/@check.PayrollRunId">Payroll run</a> } else { <a href="me/pay">My pay</a> } / Pay stub
+        @if (isAdmin) { <a href="payroll/@check.PayrollRunId">@L["Payroll run"]</a> } else { <a href="me/pay">@L["My pay"]</a> } / @L["Pay stub"]
     </Crumbs>
     <ChildContent>
-        <button class="btn btn-primary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>Print / save PDF</button>
+        <button class="btn btn-primary" onclick="paycrest.print()"><i class="bi bi-printer me-1"></i>@L["Print / save PDF"]</button>
     </ChildContent>
 </PageHeader>
 
 @if (status != PayrollRunStatus.Paid)
 {
-    <div class="alert alert-warning small no-print"><i class="bi bi-info-circle me-1"></i>Preview — this payroll is <strong>@status</strong> and amounts may change.</div>
+    <div class="alert alert-warning small no-print"><i class="bi bi-info-circle me-1"></i>@L.Html("Preview — this payroll is <strong>{0}</strong> and amounts may change.", L[status.ToString()])</div>
 }
 
 <div class="stub" style="max-width:900px">
@@ -34,13 +34,13 @@
             }
             <div class="fs-5 fw-bold">@(company.LegalName ?? company.Name)</div>
             <div class="small text-secondary">@company.AddressSingleLine</div>
-            @if (!string.IsNullOrEmpty(company.Ein)) { <div class="small text-secondary">EIN @company.Ein</div> }
+            @if (!string.IsNullOrEmpty(company.Ein)) { <div class="small text-secondary">@L["EIN {0}", company.Ein]</div> }
         </div>
         <div class="text-end small">
-            <div class="fw-semibold fs-6">Earnings statement</div>
-            <div>Pay date: <strong>@Fmt.Date(check.PayDate)</strong></div>
-            <div>Period: @Fmt.Date(check.PeriodStart) – @Fmt.Date(check.PeriodEnd)</div>
-            @if (check.CheckNumber.HasValue) { <div>Check #@check.CheckNumber</div> }
+            <div class="fw-semibold fs-6">@L["Earnings statement"]</div>
+            <div>@L["Pay date:"] <strong>@Fmt.Date(check.PayDate)</strong></div>
+            <div>@L["Period: {0} – {1}", Fmt.Date(check.PeriodStart), Fmt.Date(check.PeriodEnd)]</div>
+            @if (check.CheckNumber.HasValue) { <div>@L["Check #{0}", check.CheckNumber]</div> }
         </div>
     </div>
 
@@ -51,80 +51,80 @@
             <div class="text-secondary">@emp.City @emp.State @emp.PostalCode</div>
         </div>
         <div class="col-sm-6 text-sm-end text-secondary">
-            <div>Employee # @emp.EmployeeNumber · SSN @SensitiveData.MaskSsn(emp.SsnLast4)</div>
-            <div>Federal: @emp.FilingStatus.Label()@(emp.W4MultipleJobs ? ", Step 2 checked" : "")</div>
-            <div>State (@check.StateCode): @emp.StateFilingStatus.Label()</div>
+            <div>@L["Employee # {0} · SSN {1}", emp.EmployeeNumber, SensitiveData.MaskSsn(emp.SsnLast4)]</div>
+            <div>@L["Federal: {0}", L[emp.FilingStatus.Label()]]@(emp.W4MultipleJobs ? L[", Step 2 checked"] : "")</div>
+            <div>@L["State ({0}): {1}", check.StateCode, L[emp.StateFilingStatus.Label()]]</div>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-md-7">
-            <h4>Earnings</h4>
+            <h4>@L["Earnings"]</h4>
             <table>
-                <thead><tr><th>Description</th><th class="num">Rate</th><th class="num">Hours</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <thead><tr><th>@L["Description"]</th><th class="num">@L["Rate"]</th><th class="num">@L["Hours"]</th><th class="num">@L["Current"]</th><th class="num">@L["YTD"]</th></tr></thead>
                 <tbody>
                     @foreach (var l in Lines(PaycheckLineType.Earning))
                     {
-                        <tr><td>@l.Description</td><td class="num">@(l.Rate.HasValue ? l.Rate.Value.ToString("0.00##") : "")</td><td class="num">@(l.Hours.HasValue ? Fmt.Hours(l.Hours.Value) : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, PaycheckLineType.Earning))</td></tr>
+                        <tr><td>@L[l.Description]</td><td class="num">@(l.Rate.HasValue ? l.Rate.Value.ToString("0.00##") : "")</td><td class="num">@(l.Hours.HasValue ? Fmt.Hours(l.Hours.Value) : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, PaycheckLineType.Earning))</td></tr>
                     }
-                    <tr class="fw-bold"><td>Gross pay</td><td></td><td class="num">@Fmt.Hours(check.TotalHours)</td><td class="num">@Fmt.Money(check.GrossPay)</td><td class="num">@Fmt.Money(ytd.Sum(p => p.GrossPay))</td></tr>
+                    <tr class="fw-bold"><td>@L["Gross pay"]</td><td></td><td class="num">@Fmt.Hours(check.TotalHours)</td><td class="num">@Fmt.Money(check.GrossPay)</td><td class="num">@Fmt.Money(ytd.Sum(p => p.GrossPay))</td></tr>
                 </tbody>
             </table>
 
-            <h4>Taxes</h4>
+            <h4>@L["Taxes"]</h4>
             <table>
-                <thead><tr><th>Description</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <thead><tr><th>@L["Description"]</th><th class="num">@L["Current"]</th><th class="num">@L["YTD"]</th></tr></thead>
                 <tbody>
                     @foreach (var code in TaxCodes())
                     {
-                        <tr><td>@TaxName(code)</td><td class="num">@Fmt.Money(Current(code, PaycheckLineType.EmployeeTax))</td><td class="num">@Fmt.Money(Ytd(code, PaycheckLineType.EmployeeTax))</td></tr>
+                        <tr><td>@(code == "SIT" ? L["{0} state income tax", check.StateCode] : L[TaxName(code)])</td><td class="num">@Fmt.Money(Current(code, PaycheckLineType.EmployeeTax))</td><td class="num">@Fmt.Money(Ytd(code, PaycheckLineType.EmployeeTax))</td></tr>
                     }
-                    @if (!TaxCodes().Any()) { <tr><td colspan="3" class="text-secondary">No taxes withheld</td></tr> }
+                    @if (!TaxCodes().Any()) { <tr><td colspan="3" class="text-secondary">@L["No taxes withheld"]</td></tr> }
                 </tbody>
             </table>
         </div>
         <div class="col-md-5">
-            <h4>Deductions</h4>
+            <h4>@L["Deductions"]</h4>
             <table>
-                <thead><tr><th>Description</th><th class="num">Current</th><th class="num">YTD</th></tr></thead>
+                <thead><tr><th>@L["Description"]</th><th class="num">@L["Current"]</th><th class="num">@L["YTD"]</th></tr></thead>
                 <tbody>
                     @foreach (var l in check.Lines.Where(l => l.LineType is PaycheckLineType.PreTaxDeduction or PaycheckLineType.PostTaxDeduction))
                     {
-                        <tr><td>@l.Description @(l.LineType == PaycheckLineType.PreTaxDeduction ? "*" : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, l.LineType))</td></tr>
+                        <tr><td>@L[l.Description] @(l.LineType == PaycheckLineType.PreTaxDeduction ? "*" : "")</td><td class="num">@Fmt.Money(l.Amount)</td><td class="num">@Fmt.Money(Ytd(l.Code, l.LineType))</td></tr>
                     }
-                    @if (check.PreTaxDeductions + check.PostTaxDeductions == 0) { <tr><td colspan="3" class="text-secondary">None</td></tr> }
+                    @if (check.PreTaxDeductions + check.PostTaxDeductions == 0) { <tr><td colspan="3" class="text-secondary">@L["None"]</td></tr> }
                 </tbody>
             </table>
-            @if (check.PreTaxDeductions > 0) { <div class="small text-secondary mt-1">* Pre-tax: excluded from taxable wages</div> }
+            @if (check.PreTaxDeductions > 0) { <div class="small text-secondary mt-1">@L["* Pre-tax: excluded from taxable wages"]</div> }
 
             @if (check.Lines.Any(l => l.LineType == PaycheckLineType.EmployerContribution))
             {
-                <h4>Employer-paid benefits</h4>
+                <h4>@L["Employer-paid benefits"]</h4>
                 <table>
                     <tbody>
                         @foreach (var l in check.Lines.Where(l => l.LineType == PaycheckLineType.EmployerContribution))
                         {
-                            <tr><td>@l.Description</td><td class="num">@Fmt.Money(l.Amount)</td></tr>
+                            <tr><td>@L[l.Description]</td><td class="num">@Fmt.Money(l.Amount)</td></tr>
                         }
                     </tbody>
                 </table>
             }
 
-            <h4>Taxable wages</h4>
+            <h4>@L["Taxable wages"]</h4>
             <table>
                 <tbody>
-                    <tr><td>Federal</td><td class="num">@Fmt.Money(check.FederalTaxableWages)</td></tr>
-                    <tr><td>Social Security / Medicare</td><td class="num">@Fmt.Money(check.SocialSecurityWages) / @Fmt.Money(check.MedicareWages)</td></tr>
-                    <tr><td>State (@check.StateCode)</td><td class="num">@Fmt.Money(check.StateTaxableWages)</td></tr>
+                    <tr><td>@L["Federal"]</td><td class="num">@Fmt.Money(check.FederalTaxableWages)</td></tr>
+                    <tr><td>@L["Social Security / Medicare"]</td><td class="num">@Fmt.Money(check.SocialSecurityWages) / @Fmt.Money(check.MedicareWages)</td></tr>
+                    <tr><td>@L["State ({0})", check.StateCode]</td><td class="num">@Fmt.Money(check.StateTaxableWages)</td></tr>
                 </tbody>
             </table>
 
             @if (balances.Count > 0)
             {
-                <h4>Time off (hours)</h4>
+                <h4>@L["Time off (hours)"]</h4>
                 <table>
                     <tbody>
-                        @foreach (var b in balances) { <tr><td>@b.TimeOffPolicy!.Name</td><td class="num">@Fmt.Hours(b.Balance) available</td></tr> }
+                        @foreach (var b in balances) { <tr><td>@b.TimeOffPolicy!.Name</td><td class="num">@L["{0} available", Fmt.Hours(b.Balance)]</td></tr> }
                     </tbody>
                 </table>
             }
@@ -133,16 +133,16 @@
 
     <div class="net mt-4">
         <div>
-            <div class="small text-secondary">Net pay</div>
+            <div class="small text-secondary">@L["Net pay"]</div>
             @foreach (var d in check.Deposits)
             {
-                <div class="small">@d.AccountType @SensitiveData.MaskAccount(d.AccountLast4) @(d.BankName != null ? $"({d.BankName})" : "") — @Fmt.Money(d.Amount)</div>
+                <div class="small">@L[d.AccountType.ToString()] @SensitiveData.MaskAccount(d.AccountLast4) @(d.BankName != null ? $"({d.BankName})" : "") — @Fmt.Money(d.Amount)</div>
             }
-            @if (check.PaymentMethod == PaymentMethod.Check) { <div class="small">Paper check @(check.CheckNumber.HasValue ? "#" + check.CheckNumber : "")</div> }
+            @if (check.PaymentMethod == PaymentMethod.Check) { <div class="small">@L["Paper check"] @(check.CheckNumber.HasValue ? "#" + check.CheckNumber : "")</div> }
         </div>
         <div class="amt">@Fmt.Money(check.NetPay)</div>
     </div>
-    <div class="small text-secondary mt-2">YTD net pay: @Fmt.Money(ytd.Sum(p => p.NetPay))</div>
+    <div class="small text-secondary mt-2">@L["YTD net pay: {0}", Fmt.Money(ytd.Sum(p => p.NetPay))]</div>
 </div>
 
 @code {

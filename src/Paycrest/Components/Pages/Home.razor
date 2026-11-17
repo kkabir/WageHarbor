@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @layout Paycrest.Components.Layout.PublicLayout
 @attribute [AllowAnonymous]
 @inherits AppComponentBase
@@ -7,24 +7,24 @@
 
 @if (isVisitor)
 {
-    <PageTitle>WageHarbor · Free payroll & HR for small business</PageTitle>
+    <PageTitle>@L["WageHarbor · Free payroll & HR for small business"]</PageTitle>
     <Paycrest.Components.Pages.Public.Landing />
     return;
 }
 
-<PageTitle>Dashboard · WageHarbor</PageTitle>
+<PageTitle>@L["Dashboard · WageHarbor"]</PageTitle>
 
 @if (loading)
 {
-    <div class="text-muted">Loading…</div>
+    <div class="text-muted">@L["Loading…"]</div>
     return;
 }
 
 <PageHeader Title="@($"{Greeting}, {firstName}")" Subtitle="@today.ToString("dddd, MMMM d, yyyy")">
     @if (isPeopleAdmin)
     {
-        <a href="employees/new" class="btn btn-outline-secondary"><i class="bi bi-person-plus me-1"></i>Add employee</a>
-        <a href="payroll" class="btn btn-primary"><i class="bi bi-play-circle me-1"></i>Run payroll</a>
+        <a href="employees/new" class="btn btn-outline-secondary"><i class="bi bi-person-plus me-1"></i>@L["Add employee"]</a>
+        <a href="payroll" class="btn btn-primary"><i class="bi bi-play-circle me-1"></i>@L["Run payroll"]</a>
     }
 </PageHeader>
 
@@ -33,32 +33,32 @@
     <div class="pc-card mb-4 d-flex align-items-center gap-3 tone-primary border-0">
         <i class="bi bi-rocket-takeoff fs-3"></i>
         <div class="flex-grow-1">
-            <div class="fw-semibold">Finish setting up your company</div>
-            <div class="small">Add your legal name, EIN, address and bank details — or load sample data to explore.</div>
+            <div class="fw-semibold">@L["Finish setting up your company"]</div>
+            <div class="small">@L["Add your legal name, EIN, address and bank details — or load sample data to explore."]</div>
         </div>
-        <a href="setup" class="btn btn-primary">Start setup</a>
+        <a href="setup" class="btn btn-primary">@L["Start setup"]</a>
     </div>
 }
 
 @if (isPeopleAdmin)
 {
     <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-xl-3"><StatCard Label="Active employees" Value="@activeCount.ToString()" Icon="people" Tone="primary" Hint="@($"{newHires} hired in last 90 days")" /></div>
-        <div class="col-sm-6 col-xl-3"><StatCard Label="Next pay date" Value="@(nextPayDate?.ToString("MMM d") ?? "—")" Icon="calendar-event" Tone="info" Hint="@nextPayHint" /></div>
-        <div class="col-sm-6 col-xl-3"><StatCard Label="Last payroll cost" Value="@Fmt.Money(lastRun?.TotalCost ?? 0)" Icon="cash-coin" Tone="success" Hint="@(lastRun != null ? $"Paid {Fmt.Date(lastRun.PayDate)}" : "No payroll yet")" /></div>
-        <div class="col-sm-6 col-xl-3"><StatCard Label="Awaiting approval" Value="@((pendingTime + pendingTimeOff).ToString())" Icon="hourglass-split" Tone="warning" Hint="@($"{pendingTimeOff} time off · {pendingTime} time entries")" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="@L["Active employees"]" Value="@activeCount.ToString()" Icon="people" Tone="primary" Hint="@L["{0} hired in last 90 days", newHires]" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="@L["Next pay date"]" Value="@(nextPayDate?.ToString("MMM d") ?? "—")" Icon="calendar-event" Tone="info" Hint="@nextPayHint" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="@L["Last payroll cost"]" Value="@Fmt.Money(lastRun?.TotalCost ?? 0)" Icon="cash-coin" Tone="success" Hint="@(lastRun != null ? L["Paid {0}", Fmt.Date(lastRun.PayDate)] : L["No payroll yet"])" /></div>
+        <div class="col-sm-6 col-xl-3"><StatCard Label="@L["Awaiting approval"]" Value="@((pendingTime + pendingTimeOff).ToString())" Icon="hourglass-split" Tone="warning" Hint="@L["{0} time off · {1} time entries", pendingTimeOff, pendingTime]" /></div>
     </div>
 
     <div class="row g-3 mb-4">
         <div class="col-lg-8">
             <div class="pc-card h-100">
                 <div class="card-title-row">
-                    <h2>Payroll cost · last 12 months</h2>
-                    <a href="reports" class="small">Reports →</a>
+                    <h2>@L["Payroll cost · last 12 months"]</h2>
+                    <a href="reports" class="small">@L["Reports →"]</a>
                 </div>
                 @if (monthly.All(m => m.Value == 0))
                 {
-                    <EmptyState Icon="bar-chart" Title="No paid payrolls yet">Your gross pay plus employer taxes and benefits will appear here.</EmptyState>
+                    <EmptyState Icon="bar-chart" Title="@L["No paid payrolls yet"]">@L["Your gross pay plus employer taxes and benefits will appear here."]</EmptyState>
                 }
                 else
                 {
@@ -68,7 +68,7 @@
         </div>
         <div class="col-lg-4">
             <div class="pc-card h-100">
-                <div class="card-title-row"><h2>Action items</h2></div>
+                <div class="card-title-row"><h2>@L["Action items"]</h2></div>
                 <ul class="list-clean">
                     @if (draftRuns > 0)
                     {
@@ -92,7 +92,7 @@
                     }
                     @if (draftRuns + pendingTimeOff + pendingTime + missingBank == 0 && !missingTaxYear)
                     {
-                        <li class="text-muted"><i class="bi bi-check2-circle me-2 text-success"></i>You're all caught up.</li>
+                        <li class="text-muted"><i class="bi bi-check2-circle me-2 text-success"></i>@L["You're all caught up."]</li>
                     }
                 </ul>
             </div>
@@ -105,17 +105,17 @@
     {
         <div class="col-lg-4">
             <div class="pc-card h-100">
-                <div class="card-title-row"><h2>My last paycheck</h2><a href="me/pay" class="small">All pay →</a></div>
+                <div class="card-title-row"><h2>@L["My last paycheck"]</h2><a href="me/pay" class="small">@L["All pay →"]</a></div>
                 @if (myLastCheck == null)
                 {
-                    <EmptyState Icon="receipt" Title="No pay stubs yet" />
+                    <EmptyState Icon="receipt" Title="@L["No pay stubs yet"]" />
                 }
                 else
                 {
-                    <div class="text-muted small">Paid @Fmt.Date(myLastCheck.PayDate)</div>
+                    <div class="text-muted small">@L["Paid {0}", Fmt.Date(myLastCheck.PayDate)]</div>
                     <div class="display-6 fw-bold my-2 tabular">@Fmt.Money(myLastCheck.NetPay)</div>
-                    <div class="small text-muted mb-3">Gross @Fmt.Money(myLastCheck.GrossPay) · Taxes @Fmt.Money(myLastCheck.EmployeeTaxes)</div>
-                    <a href="paystub/@myLastCheck.Id" class="btn btn-soft btn-sm">View pay stub</a>
+                    <div class="small text-muted mb-3">@L["Gross {0} · Taxes {1}", Fmt.Money(myLastCheck.GrossPay), Fmt.Money(myLastCheck.EmployeeTaxes)]</div>
+                    <a href="paystub/@myLastCheck.Id" class="btn btn-soft btn-sm">@L["View pay stub"]</a>
                 }
                 @if (myBalances.Count > 0)
                 {
@@ -132,15 +132,15 @@
     <div class="@(myEmployeeId != null ? "col-lg-5" : "col-lg-8")">
         <div class="pc-card h-100">
             <div class="card-title-row">
-                <h2>Announcements</h2>
+                <h2>@L["Announcements"]</h2>
                 @if (isPeopleAdmin)
                 {
-                    <button class="btn btn-sm btn-soft" @onclick="() => showPost = true"><i class="bi bi-megaphone me-1"></i>Post</button>
+                    <button class="btn btn-sm btn-soft" @onclick="() => showPost = true"><i class="bi bi-megaphone me-1"></i>@L["Post"]</button>
                 }
             </div>
             @if (announcements.Count == 0)
             {
-                <EmptyState Icon="megaphone" Title="No announcements" />
+                <EmptyState Icon="megaphone" Title="@L["No announcements"]" />
             }
             <ul class="list-clean">
                 @foreach (var a in announcements)
@@ -150,7 +150,7 @@
                             <div class="fw-semibold">@if (a.IsPinned) { <i class="bi bi-pin-angle-fill text-primary me-1"></i> }@a.Title</div>
                             @if (isPeopleAdmin)
                             {
-                                <button class="btn btn-link btn-sm text-muted p-0" title="Remove" @onclick="() => DeleteAnnouncement(a.Id)"><i class="bi bi-x-lg"></i></button>
+                                <button class="btn btn-link btn-sm text-muted p-0" title="@L["Remove"]" @onclick="() => DeleteAnnouncement(a.Id)"><i class="bi bi-x-lg"></i></button>
                             }
                         </div>
                         <div class="small" style="white-space:pre-line">@a.Body</div>
@@ -162,18 +162,18 @@
     </div>
     <div class="col-lg-@(myEmployeeId != null ? "3" : "4")">
         <div class="pc-card h-100">
-            <div class="card-title-row"><h2>Coming up</h2></div>
+            <div class="card-title-row"><h2>@L["Coming up"]</h2></div>
             <ul class="list-clean small">
                 @foreach (var (date, icon, text) in upcoming)
                 {
                     <li class="d-flex gap-2">
                         <i class="bi bi-@icon text-primary"></i>
-                        <div><div>@text</div><div class="text-muted">@date.ToString("ddd, MMM d")</div></div>
+                        <div><div>@L[text]</div><div class="text-muted">@date.ToString("ddd, MMM d")</div></div>
                     </li>
                 }
                 @if (upcoming.Count == 0)
                 {
-                    <li class="text-muted">Nothing in the next 45 days.</li>
+                    <li class="text-muted">@L["Nothing in the next 45 days."]</li>
                 }
             </ul>
         </div>
@@ -182,18 +182,18 @@
 
 <WisdomCard />
 
-<Modal @bind-Show="showPost" Title="Post announcement">
+<Modal @bind-Show="showPost" Title="@L["Post announcement"]">
     <ChildContent>
-        <div class="mb-3"><label class="form-label">Title</label><input class="form-control" @bind="post.Title" maxlength="120" /></div>
-        <div class="mb-3"><label class="form-label">Message</label><textarea class="form-control" rows="5" @bind="post.Body" maxlength="4000"></textarea></div>
+        <div class="mb-3"><label class="form-label">@L["Title"]</label><input class="form-control" @bind="post.Title" maxlength="120" /></div>
+        <div class="mb-3"><label class="form-label">@L["Message"]</label><textarea class="form-control" rows="5" @bind="post.Body" maxlength="4000"></textarea></div>
         <div class="row g-3">
-            <div class="col-6"><label class="form-label">Expires on (optional)</label><InputDate class="form-control" @bind-Value="post.ExpiresOn" /></div>
-            <div class="col-6 d-flex align-items-end"><div class="form-check"><InputCheckbox class="form-check-input" id="pin" @bind-Value="post.IsPinned" /><label class="form-check-label" for="pin">Pin to top</label></div></div>
+            <div class="col-6"><label class="form-label">@L["Expires on (optional)"]</label><InputDate class="form-control" @bind-Value="post.ExpiresOn" /></div>
+            <div class="col-6 d-flex align-items-end"><div class="form-check"><InputCheckbox class="form-check-input" id="pin" @bind-Value="post.IsPinned" /><label class="form-check-label" for="pin">@L["Pin to top"]</label></div></div>
         </div>
     </ChildContent>
     <Footer>
-        <button class="btn btn-light" @onclick="() => showPost = false">Cancel</button>
-        <button class="btn btn-primary" disabled="@Busy" @onclick="PostAnnouncement">Post</button>
+        <button class="btn btn-light" @onclick="() => showPost = false">@L["Cancel"]</button>
+        <button class="btn btn-primary" disabled="@Busy" @onclick="PostAnnouncement">@L["Post"]</button>
     </Footer>
 </Modal>
 
@@ -213,7 +213,7 @@
     private List<(DateOnly Date, string Icon, string Text)> upcoming = [];
     private Announcement post = new();
 
-    private string Greeting => DateTime.Now.Hour switch { var h when h < 12 => "Good morning", var h when h < 17 => "Good afternoon", _ => "Good evening" };
+    private string Greeting => DateTime.Now.Hour switch { var h when h < 12 => L["Good morning"], var h when h < 17 => L["Good afternoon"], _ => L["Good evening"] };
 
     // Visitors who aren't signed in see the public home page instead of a dashboard.
     private bool isVisitor;
@@ -266,9 +266,9 @@
             {
                 var (s, e) = PayPeriods.Next(lastRun.PayFrequency, lastRun.PeriodEnd);
                 nextPayDate = PayPeriods.PayDate(e, company.PayDateOffsetDays);
-                nextPayHint = $"Period {s:MMM d} – {e:MMM d}";
+                nextPayHint = L["Period {0} – {1}", s.ToString("MMM d"), e.ToString("MMM d")];
             }
-            else nextPayHint = "Run your first payroll";
+            else nextPayHint = L["Run your first payroll"];
 
             monthly = (await Reports.MonthlyCostAsync(12)).Select(m => (m.Label, m.EmployerCost)).ToList();
         }
@@ -285,10 +285,10 @@
         foreach (var p in people)
         {
             var name = $"{p.PreferredName ?? p.FirstName} {p.LastName}";
-            if (p.DateOfBirth is { } dob && NextOccurrence(dob) is var b && b <= horizon) upcoming.Add((b, "balloon", $"{name}'s birthday"));
+            if (p.DateOfBirth is { } dob && NextOccurrence(dob) is var b && b <= horizon) upcoming.Add((b, "balloon", L["{0}'s birthday", name]));
             var anniv = NextOccurrence(p.HireDate);
             var years = anniv.Year - p.HireDate.Year;
-            if (years > 0 && anniv <= horizon) upcoming.Add((anniv, "award", $"{name} · {years} year{(years == 1 ? "" : "s")} at the company"));
+            if (years > 0 && anniv <= horizon) upcoming.Add((anniv, "award", years == 1 ? L["{0} · 1 year at the company", name] : L["{0} · {1} years at the company", name, years]));
         }
         upcoming = upcoming.OrderBy(u => u.Date).Take(8).ToList();
         loading = false;

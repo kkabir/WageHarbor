@@ -8,6 +8,8 @@ using Paycrest.Components.Account;
 using Paycrest.Data;
 using Paycrest.Services;
 using Paycrest.Services.Payroll;
+using Paycrest.Services.Localization;
+using Microsoft.AspNetCore.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +76,24 @@ builder.Services.AddScoped<OnboardingService>();
 builder.Services.AddScoped<AccountEmails>();
 
 // Permanent redirects, so search engines move their index to the https:// address.
+// Screen languages (see Services/Localization/Lang.cs): chosen with the language picker (a cookie), ?lang=xx links,
+// or the browser's language on a first visit.
+builder.Services.AddSingleton<Lang>();
+builder.Services.Configure<RequestLocalizationOptions>(o =>
+{
+    var cultures = Lang.All.Select(Lang.CultureFor).ToList();
+    o.DefaultRequestCulture = new RequestCulture(cultures[0]);
+    o.SupportedCultures = cultures;
+    o.SupportedUICultures = cultures;
+    o.FallBackToParentCultures = o.FallBackToParentUICultures = true;
+    o.RequestCultureProviders =
+    [
+        new QueryStringRequestCultureProvider { QueryStringKey = "lang", UIQueryStringKey = "lang" },
+        new CookieRequestCultureProvider { CookieName = Lang.CookieName },
+        new AcceptLanguageHeaderRequestCultureProvider { MaximumAcceptLanguageHeaderValuesToTry = 5 },
+    ];
+});
+
 builder.Services.AddHttpsRedirection(o => o.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);
 
 // Every Error/Critical log entry is stored in the database and emailed (see ErrorLogging.cs).
@@ -122,6 +142,15 @@ if (app.Configuration["Site:CanonicalHost"] is { Length: > 0 } canonicalHost && 
 }
 if (httpsEnabled) app.UseHttpsRedirection();
 
+app.UseRequestLocalization();
+// A ?lang=xx link also remembers the choice, so the live part of the page (its circuit) uses the same language.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Query["lang"].ToString() is { Length: > 0 } q && Lang.Find(q) is { } chosen)
+        ctx.Response.Cookies.Append(Lang.CookieName, CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(Lang.CultureFor(chosen).Name)),
+            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, SameSite = SameSiteMode.Lax, HttpOnly = true, Secure = ctx.Request.IsHttps });
+    await next();
+});
 app.UseVisitorLog();
 app.UseAntiforgery();
 
@@ -131,6 +160,18 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+
+// The language picker posts here: remember the choice for a year, then go back to the page.
+app.MapGet("/set-language", (string? lang, string? returnUrl, HttpContext http) =>
+{
+    var language = Lang.Find(lang) ?? Lang.All[0];
+    var culture = Lang.CultureFor(language).Name;
+    http.Response.Cookies.Append(Lang.CookieName, CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, SameSite = SameSiteMode.Lax, HttpOnly = true, Secure = http.Request.IsHttps });
+    // Only same-site paths, so the picker can't be used to send people elsewhere.
+    var back = returnUrl is { Length: > 0 } r && r.StartsWith('/') && !r.StartsWith("//") && !r.StartsWith("/\\") ? r : "/";
+    return Results.LocalRedirect(back);
+});
 
 // The signed-in user's company logo. ?v= changes when the logo does, so browsers may cache it.
 app.MapGet("/company-logo", async (HttpContext http, IDbContextFactory<ApplicationDbContext> factory) =>

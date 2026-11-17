@@ -12,6 +12,10 @@
 <article class="prose">
     <h1>Terms of service</h1>
     <p class="prose-meta">Last updated: October 28, 2026</p>
+    @if (Lang.Current.Code != "en")
+    {
+        <div class="alert alert-info small" lang="@Lang.Current.Code">@L["This page is only available in English. The English version is the one that applies."]</div>
+    }
 
     <p>These terms apply to your use of WageHarbor at wageharbor.com (the "service"). By registering a company or signing in, you agree to them. If you register on behalf of a business, you confirm you are allowed to accept these terms for that business.</p>
 

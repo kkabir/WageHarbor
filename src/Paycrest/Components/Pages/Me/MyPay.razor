@@ -2,9 +2,9 @@
 @attribute [Authorize]
 @inherits AppComponentBase
 
-<PageTitle>My pay · WageHarbor</PageTitle>
+<PageTitle>@L["My pay · WageHarbor"]</PageTitle>
 
-<PageHeader Title="My pay" Subtitle="Pay stubs, year-to-date totals and where your pay goes." />
+<PageHeader Title="@L["My pay"]" Subtitle="@L["Pay stubs, year-to-date totals and where your pay goes."]" />
 
 @if (myId == null)
 {
@@ -13,30 +13,30 @@
 }
 
 <div class="row g-3 mb-3">
-    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} gross pay")" Value="@Fmt.Money(ytd.Sum(p => p.GrossPay))" Icon="wallet2" /></div>
-    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} taxes")" Value="@Fmt.Money(ytd.Sum(p => p.EmployeeTaxes))" Icon="bank" Tone="warning" /></div>
-    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} deductions")" Value="@Fmt.Money(ytd.Sum(p => p.PreTaxDeductions + p.PostTaxDeductions))" Icon="heart-pulse" Tone="info" /></div>
-    <div class="col-6 col-xl-3"><StatCard Label="@($"{year} net pay")" Value="@Fmt.Money(ytd.Sum(p => p.NetPay))" Icon="cash" Tone="success" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@L["{0} gross pay", year]" Value="@Fmt.Money(ytd.Sum(p => p.GrossPay))" Icon="wallet2" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@L["{0} taxes", year]" Value="@Fmt.Money(ytd.Sum(p => p.EmployeeTaxes))" Icon="bank" Tone="warning" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@L["{0} deductions", year]" Value="@Fmt.Money(ytd.Sum(p => p.PreTaxDeductions + p.PostTaxDeductions))" Icon="heart-pulse" Tone="info" /></div>
+    <div class="col-6 col-xl-3"><StatCard Label="@L["{0} net pay", year]" Value="@Fmt.Money(ytd.Sum(p => p.NetPay))" Icon="cash" Tone="success" /></div>
 </div>
 
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="pc-card p-0">
             <div class="d-flex align-items-center p-3 border-bottom">
-                <div class="fw-semibold">Pay stubs</div>
+                <div class="fw-semibold">@L["Pay stubs"]</div>
                 <select class="form-select form-select-sm ms-auto" style="max-width:120px" value="@year" @onchange="YearChanged">
                     @foreach (var y in years) { <option value="@y">@y</option> }
                 </select>
             </div>
             @if (ytd.Count == 0)
             {
-                <EmptyState Icon="receipt" Title="No pay stubs for this year" />
+                <EmptyState Icon="receipt" Title="@L["No pay stubs for this year"]" />
             }
             else
             {
                 <div class="table-wrap">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>Pay date</th><th>Period</th><th class="num">Gross</th><th class="num">Taxes</th><th class="num">Net</th><th></th></tr></thead>
+                        <thead><tr><th>@L["Pay date"]</th><th>@L["Period"]</th><th class="num">@L["Gross"]</th><th class="num">@L["Taxes"]</th><th class="num">@L["Net"]</th><th></th></tr></thead>
                         <tbody>
                             @foreach (var p in ytd.OrderByDescending(p => p.PayDate))
                             {
@@ -57,36 +57,36 @@
     </div>
     <div class="col-lg-4">
         <div class="pc-card mb-3">
-            <h2 class="mb-3">Tax forms</h2>
+            <h2 class="mb-3">@L["Tax forms"]</h2>
             @if (formYears.Count == 0)
             {
-                <p class="small text-muted mb-0">Your W-2 (or 1099-NEC) appears here after your first paid payroll.</p>
+                <p class="small text-muted mb-0">@L["Your W-2 (or 1099-NEC) appears here after your first paid payroll."]</p>
             }
             else
             {
                 <ul class="list-clean small mb-0">
                     @foreach (var y in formYears)
                     {
-                        <li class="d-flex align-items-center"><i class="bi bi-file-earmark-text text-primary me-2"></i>@(isContractor ? "1099-NEC" : "W-2") for @y@(y >= DateTime.Today.Year ? " (so far)" : "")<a class="ms-auto" href="@(isContractor ? "forms/1099-nec" : "forms/w2")/@y">View</a></li>
+                        <li class="d-flex align-items-center"><i class="bi bi-file-earmark-text text-primary me-2"></i>@(y >= DateTime.Today.Year ? L["{0} for {1} (so far)", isContractor ? "1099-NEC" : "W-2", y] : L["{0} for {1}", isContractor ? "1099-NEC" : "W-2", y])<a class="ms-auto" href="@(isContractor ? "forms/1099-nec" : "forms/w2")/@y">@L["View"]</a></li>
                     }
                 </ul>
             }
         </div>
         <div class="pc-card mb-3">
-            <h2 class="mb-3">Direct deposit</h2>
-            @if (banks.Count == 0) { <div class="text-muted small">Paid by paper check.</div> }
+            <h2 class="mb-3">@L["Direct deposit"]</h2>
+            @if (banks.Count == 0) { <div class="text-muted small">@L["Paid by paper check."]</div> }
             @foreach (var b in banks)
             {
                 <div class="d-flex justify-content-between small py-1">
-                    <span><i class="bi bi-bank me-1"></i>@b.BankName @b.AccountType @SensitiveData.MaskAccount(b.AccountLast4)</span>
-                    <span>@(b.SplitType switch { DepositSplitType.FixedAmount => Fmt.Money(b.SplitValue), DepositSplitType.Percent => $"{b.SplitValue:0.##}%", _ => "Remainder" })</span>
+                    <span><i class="bi bi-bank me-1"></i>@b.BankName @L[b.AccountType.ToString()] @SensitiveData.MaskAccount(b.AccountLast4)</span>
+                    <span>@(b.SplitType switch { DepositSplitType.FixedAmount => Fmt.Money(b.SplitValue), DepositSplitType.Percent => $"{b.SplitValue:0.##}%", _ => L["Remainder"] })</span>
                 </div>
             }
-            <div class="form-text mt-2">To change bank details, contact HR. For your security, changes are verified.</div>
+            <div class="form-text mt-2">@L["To change bank details, contact HR. For your security, changes are verified."]</div>
         </div>
         <div class="pc-card">
-            <h2 class="mb-3">Benefits & deductions</h2>
-            @if (deductions.Count == 0) { <div class="text-muted small">None</div> }
+            <h2 class="mb-3">@L["Benefits & deductions"]</h2>
+            @if (deductions.Count == 0) { <div class="text-muted small">@L["None"]</div> }
             @foreach (var d in deductions)
             {
                 <div class="d-flex justify-content-between small py-1">

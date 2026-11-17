@@ -2,7 +2,7 @@
 @layout Paycrest.Components.Layout.PublicLayout
 @attribute [AllowAnonymous]
 
-<PageTitle>Pricing · WageHarbor · About ¼ the price of popular payroll apps</PageTitle>
+<PageTitle>@L["Pricing · WageHarbor · About ¼ the price of popular payroll apps"]</PageTitle>
 <HeadContent>
     <meta name="description" content="WageHarbor pricing: free for one person on payroll, then $12 a month plus $1.50 per person. About a quarter of the price of popular payroll apps, with every feature included." />
     <link rel="canonical" href="https://www.wageharbor.com/pricing" />
@@ -12,63 +12,63 @@
 
 <section class="pr-hero full-bleed">
     <div class="lp-wrap text-center">
-        <span class="lp-eyebrow"><i class="bi bi-heart me-1"></i>Here to serve, not to squeeze</span>
-        <h1>Payroll at <span>a quarter</span> of the price.</h1>
-        <p class="lp-lead mx-auto">Free when you have one person on payroll. After that, <strong>$@Pricing.BaseFee a month + $@Pricing.PerPerson.ToString("0.00") per person</strong>. Every feature, no setup fees, no contracts.</p>
+        <span class="lp-eyebrow"><i class="bi bi-heart me-1"></i>@L["Here to serve, not to squeeze"]</span>
+        <h1>@L.Html("Payroll at <span>a quarter</span> of the price.")</h1>
+        <p class="lp-lead mx-auto">@L.Html("Free when you have one person on payroll. After that, <strong>${0} a month + ${1} per person</strong>. Every feature, no setup fees, no contracts.", Pricing.BaseFee, Pricing.PerPerson.ToString("0.00"))</p>
     </div>
 </section>
 
 <section class="pr-plans">
     <div class="pr-plan">
-        <div class="pr-plan-name">Solo</div>
-        <div class="pr-plan-price">Free</div>
-        <div class="pr-plan-for">For a company with <strong>1 person</strong> on payroll, including the owner</div>
+        <div class="pr-plan-name">@L["Solo"]</div>
+        <div class="pr-plan-price">@L["Free"]</div>
+        <div class="pr-plan-for">@L.Html("For a company with <strong>1 person</strong> on payroll, including the owner")</div>
         <ul class="lp-checks">
-            <li><i class="bi bi-check2"></i>Every feature below</li>
-            <li><i class="bi bi-check2"></i>Unlimited payroll runs</li>
-            <li><i class="bi bi-check2"></i>Pay stubs, W-2 and tax reports</li>
-            <li><i class="bi bi-check2"></i>No credit card, ever</li>
+            <li><i class="bi bi-check2"></i>@L["Every feature below"]</li>
+            <li><i class="bi bi-check2"></i>@L["Unlimited payroll runs"]</li>
+            <li><i class="bi bi-check2"></i>@L["Pay stubs, W-2 and tax reports"]</li>
+            <li><i class="bi bi-check2"></i>@L["No credit card, ever"]</li>
         </ul>
-        <a href="Account/Register" class="btn btn-outline-primary btn-lg w-100">Start free</a>
+        <a href="Account/Register" class="btn btn-outline-primary btn-lg w-100">@L["Start free"]</a>
     </div>
     <div class="pr-plan pr-plan-featured">
-        <div class="pr-badge">Most teams</div>
-        <div class="pr-plan-name">Team</div>
-        <div class="pr-plan-price">$@Pricing.BaseFee<span>/month</span></div>
-        <div class="pr-plan-plus">+ $@Pricing.PerPerson.ToString("0.00") per person on payroll</div>
-        <div class="pr-plan-for">For 2 or more employees and contractors</div>
+        <div class="pr-badge">@L["Most teams"]</div>
+        <div class="pr-plan-name">@L["Team"]</div>
+        <div class="pr-plan-price">$@Pricing.BaseFee<span>@L["/month"]</span></div>
+        <div class="pr-plan-plus">@L["+ ${0} per person on payroll", Pricing.PerPerson.ToString("0.00")]</div>
+        <div class="pr-plan-for">@L["For 2 or more employees and contractors"]</div>
         <ul class="lp-checks">
-            <li><i class="bi bi-check2"></i>Everything in Solo</li>
-            <li><i class="bi bi-check2"></i>Logins for every employee</li>
-            <li><i class="bi bi-check2"></i>Managers, HR and payroll roles</li>
-            <li><i class="bi bi-check2"></i>Friendly help by email</li>
+            <li><i class="bi bi-check2"></i>@L["Everything in Solo"]</li>
+            <li><i class="bi bi-check2"></i>@L["Logins for every employee"]</li>
+            <li><i class="bi bi-check2"></i>@L["Managers, HR and payroll roles"]</li>
+            <li><i class="bi bi-check2"></i>@L["Friendly help by email"]</li>
         </ul>
-        <a href="Account/Register" class="btn btn-primary btn-lg w-100">Register your company</a>
+        <a href="Account/Register" class="btn btn-primary btn-lg w-100">@L["Register your company"]</a>
     </div>
 </section>
 
 <section class="lp-section pt-5">
     <div class="pr-calc pc-card">
         <div class="pr-calc-head">
-            <h2>What would you pay?</h2>
-            <p class="text-muted mb-0">Move the slider to the number of people you pay each month.</p>
+            <h2>@L["What would you pay?"]</h2>
+            <p class="text-muted mb-0">@L["Move the slider to the number of people you pay each month."]</p>
         </div>
         <div class="pr-calc-people">
-            <input type="range" class="form-range" min="1" max="200" step="1" @bind="people" @bind:event="oninput" aria-label="People on payroll" />
-            <div class="pr-calc-count"><strong>@people</strong> @(people == 1 ? "person" : "people")</div>
+            <input type="range" class="form-range" min="1" max="200" step="1" @bind="people" @bind:event="oninput" aria-label="@L["People on payroll"]" />
+            <div class="pr-calc-count"><strong>@people</strong> @(people == 1 ? L["person"] : L["people"])</div>
         </div>
         <div class="pr-calc-results">
             <div class="pr-calc-ours">
                 <div class="small text-muted">WageHarbor</div>
-                <div class="pr-calc-amt">@(Ours == 0 ? "Free" : Ours.ToString("C2", Us))<span>@(Ours == 0 ? "" : "/month")</span></div>
+                <div class="pr-calc-amt">@(Ours == 0 ? L["Free"] : Ours.ToString("C2", Us))<span>@(Ours == 0 ? "" : L["/month"])</span></div>
             </div>
             <div class="pr-calc-theirs">
-                <div class="small text-muted">Typical payroll app*</div>
-                <div class="pr-calc-amt muted">@Theirs.ToString("C2", Us)<span>/month</span></div>
+                <div class="small text-muted">@L["Typical payroll app*"]</div>
+                <div class="pr-calc-amt muted">@Theirs.ToString("C2", Us)<span>@L["/month"]</span></div>
             </div>
             <div class="pr-calc-save">
-                <div class="small">You keep</div>
-                <div class="pr-calc-amt">@(((Theirs - Ours) * 12).ToString("C0", Us))<span>/year</span></div>
+                <div class="small">@L["You keep"]</div>
+                <div class="pr-calc-amt">@(((Theirs - Ours) * 12).ToString("C0", Us))<span>@L["/year"]</span></div>
             </div>
         </div>
     </div>
@@ -77,18 +77,18 @@
 <section class="lp-section">
     <div class="pr-why">
         <i class="bi bi-quote"></i>
-        <h2>Why so little?</h2>
-        <p>We built WageHarbor so every small business can pay its people correctly and on time. Payroll shouldn't be a luxury, and the money you save is better spent on your team. So we charge what it takes to run the service well and no more: secure servers, careful updates to tax tables, and a real person answering your questions.</p>
-        <p>No ads. We never sell your data. No surprise fees. If your company has one person on payroll, it's free.</p>
-        <blockquote>“Give the worker his wages before his sweat dries.”<small>Prophet Muhammad ﷺ · Sunan Ibn Majah 2443</small></blockquote>
+        <h2>@L["Why so little?"]</h2>
+        <p>@L["We built WageHarbor so every small business can pay its people correctly and on time. Payroll shouldn't be a luxury, and the money you save is better spent on your team. So we charge what it takes to run the service well and no more: secure servers, careful updates to tax tables, and a real person answering your questions."]</p>
+        <p>@L["No ads. We never sell your data. No surprise fees. If your company has one person on payroll, it's free."]</p>
+        <blockquote>@L["“Give the worker his wages before his sweat dries.”"]<small>@L["Prophet Muhammad ﷺ · Sunan Ibn Majah 2443"]</small></blockquote>
     </div>
 </section>
 
 <section class="lp-section">
-    <div class="lp-head"><h2>Side by side</h2><p>Monthly price for the same number of people on payroll.</p></div>
+    <div class="lp-head"><h2>@L["Side by side"]</h2><p>@L["Monthly price for the same number of people on payroll."]</p></div>
     <div class="pc-card p-0 pr-table">
         <table class="table align-middle mb-0">
-            <thead><tr><th>People on payroll</th><th class="num">WageHarbor</th><th class="num">Typical payroll app*</th><th class="num">Yearly savings</th></tr></thead>
+            <thead><tr><th>@L["People on payroll"]</th><th class="num">WageHarbor</th><th class="num">@L["Typical payroll app*"]</th><th class="num">@L["Yearly savings"]</th></tr></thead>
             <tbody>
                 @foreach (var n in new[] { 1, 5, 10, 25, 50, 100 })
                 {
@@ -96,7 +96,7 @@
                     var theirs = Pricing.CompetitorPrice(n);
                     <tr>
                         <td class="fw-semibold">@n</td>
-                        <td class="num fw-bold text-primary">@(ours == 0 ? "Free" : ours.ToString("C2", Us))</td>
+                        <td class="num fw-bold text-primary">@(ours == 0 ? L["Free"] : ours.ToString("C2", Us))</td>
                         <td class="num text-muted">@theirs.ToString("C2", Us)</td>
                         <td class="num fw-semibold">@(((theirs - ours) * 12).ToString("C0", Us))</td>
                     </tr>
@@ -104,35 +104,35 @@
             </tbody>
         </table>
     </div>
-    <p class="small text-muted text-center mt-3">* Based on the published starting prices of popular small-business payroll apps such as Gusto Simple and OnPay ($@Pricing.CompetitorBase a month + $@Pricing.CompetitorPerPerson per person), as listed in @Pricing.CompetitorAsOf. Their prices and features may change; please check their sites.</p>
+    <p class="small text-muted text-center mt-3">@L["* Based on the published starting prices of popular small-business payroll apps such as Gusto Simple and OnPay (${0} a month + ${1} per person), as listed in {2}. Their prices and features may change; please check their sites.", Pricing.CompetitorBase, Pricing.CompetitorPerPerson, Pricing.CompetitorAsOf]</p>
 </section>
 
 <section id="everything" class="lp-section">
-    <div class="lp-head"><h2>Every plan includes everything</h2><p>No feature tiers, no add-ons to unlock.</p></div>
+    <div class="lp-head"><h2>@L["Every plan includes everything"]</h2><p>@L["No feature tiers, no add-ons to unlock."]</p></div>
     <div class="pr-includes">
         @foreach (var (icon, text) in Included)
         {
-            <div><i class="bi bi-@icon"></i>@text</div>
+            <div><i class="bi bi-@icon"></i>@L[text]</div>
         }
     </div>
 </section>
 
 <section class="lp-section">
-    <div class="lp-head"><h2>Pricing questions</h2></div>
+    <div class="lp-head"><h2>@L["Pricing questions"]</h2></div>
     <div class="lp-faq">
-        <details open><summary>Who counts as a "person on payroll"?</summary><p>Each employee or contractor who isn't marked as terminated. Former employees you keep for records don't count. The owner counts if they're paid through WageHarbor.</p></details>
-        <details><summary>When do I start paying?</summary><p>Online billing is being set up. Until it's ready you won't be charged, and we'll email you at least 30 days before your first bill so there are no surprises. Solo companies with one person on payroll stay free.</p></details>
-        <details><summary>Are there setup fees, contracts or year-end charges?</summary><p>No. No setup fee, no contract, no extra charge for W-2s, 1099s or year-end reports. Leave whenever you like, and print or export your records first.</p></details>
-        <details><summary>Will the price go up?</summary><p>Our aim is to stay around a quarter of what similar apps charge. If prices ever change, we'll tell you at least 60 days ahead.</p></details>
-        <details><summary>Does WageHarbor file my payroll taxes?</summary><p>WageHarbor calculates every tax and gives you the totals, the Form 941 worksheet and W-2 and 1099 reports. You or your accountant make the deposits and filings. That's part of how we keep the price low.</p></details>
+        <details open><summary>@L["Who counts as a \"person on payroll\"?"]</summary><p>@L["Each employee or contractor who isn't marked as terminated. Former employees you keep for records don't count. The owner counts if they're paid through WageHarbor."]</p></details>
+        <details><summary>@L["When do I start paying?"]</summary><p>@L["Online billing is being set up. Until it's ready you won't be charged, and we'll email you at least 30 days before your first bill so there are no surprises. Solo companies with one person on payroll stay free."]</p></details>
+        <details><summary>@L["Are there setup fees, contracts or year-end charges?"]</summary><p>@L["No. No setup fee, no contract, no extra charge for W-2s, 1099s or year-end reports. Leave whenever you like, and print or export your records first."]</p></details>
+        <details><summary>@L["Will the price go up?"]</summary><p>@L["Our aim is to stay around a quarter of what similar apps charge. If prices ever change, we'll tell you at least 60 days ahead."]</p></details>
+        <details><summary>@L["Does WageHarbor file my payroll taxes?"]</summary><p>@L["WageHarbor calculates every tax and gives you the totals, the Form 941 worksheet and W-2 and 1099 reports. You or your accountant make the deposits and filings. That's part of how we keep the price low."]</p></details>
     </div>
 </section>
 
 <section class="lp-cta full-bleed">
     <div class="lp-wrap text-center">
-        <h2>Pay your people right, for a quarter of the price.</h2>
-        <p>Free for one person. Register in two minutes.</p>
-        <a href="Account/Register" class="btn btn-lg btn-light"><i class="bi bi-rocket-takeoff me-1"></i>Register your company</a>
+        <h2>@L["Pay your people right, for a quarter of the price."]</h2>
+        <p>@L["Free for one person. Register in two minutes."]</p>
+        <a href="Account/Register" class="btn btn-lg btn-light"><i class="bi bi-rocket-takeoff me-1"></i>@L["Register your company"]</a>
     </div>
 </section>
 

@@ -1,11 +1,11 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @inject Db Dbs
 @inject CurrentUser Me
 @inject NavigationManager Nav
 
 <AuthorizeView>
     <Authorized>
-        <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-label="Toggle navigation" />
+        <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-label="@L["Toggle navigation"]" />
         <div class="app-shell">
             <aside class="app-sidebar">
                 <NavMenu />
@@ -25,9 +25,10 @@
                         <span class="company-name">@companyName</span>
                     </span>
                     <div class="ms-auto d-flex align-items-center gap-2">
+                        <LanguagePicker Class="d-none d-md-flex" />
                         <ThemeToggle />
                         <div class="dropdown">
-                            <a class="d-flex align-items-center gap-2 text-reset" href="Account/Manage" title="Account settings">
+                            <a class="d-flex align-items-center gap-2 text-reset" href="Account/Manage" title="@L["Account settings"]">
                                 <span class="avatar">@Initials(context.User.Identity?.Name)</span>
                                 <span class="d-none d-md-inline small fw-semibold">@context.User.Identity?.Name</span>
                             </a>
@@ -35,7 +36,7 @@
                         <form action="Account/Logout" method="post" class="m-0">
                             <AntiforgeryToken />
                             <input type="hidden" name="ReturnUrl" value="" />
-                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="@L["Sign out"]"><i class="bi bi-box-arrow-right"></i></button>
                         </form>
                     </div>
                 </header>
@@ -44,8 +45,8 @@
                     {
                         <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 small py-2" role="status">
                             <i class="bi bi-envelope-exclamation"></i>
-                            <span>Please confirm your email address. We sent a link to <strong>@unconfirmedEmail</strong>.</span>
-                            <a class="ms-auto fw-semibold" href="Account/ResendEmailConfirmation">Send it again</a>
+                            <span>@L.Html("Please confirm your email address. We sent a link to <strong>{0}</strong>.", System.Net.WebUtility.HtmlEncode(unconfirmedEmail))</span>
+                            <a class="ms-auto fw-semibold" href="Account/ResendEmailConfirmation">@L["Send it again"]</a>
                         </div>
                     }
                     @Body
@@ -59,22 +60,23 @@
             <section class="auth-hero">
                 <img src="brand/wageharbor-logo-dark.svg" alt="WageHarbor" height="44" />
                 <div>
-                    <h2>Payroll and HR,<br />done right.</h2>
-                    <p class="opacity-75 mb-4">Run payroll in minutes, keep every employee record in one place, and give your team self-service access to pay, time and benefits.</p>
+                    <h2>@L["Payroll and HR,"]<br />@L["done right."]</h2>
+                    <p class="opacity-75 mb-4">@L["Run payroll in minutes, keep every employee record in one place, and give your team self-service access to pay, time and benefits."]</p>
                     <ul>
-                        <li><i class="bi bi-check-circle-fill"></i>Automatic federal, FICA, state & unemployment taxes</li>
-                        <li><i class="bi bi-check-circle-fill"></i>Direct deposit with NACHA ACH files</li>
-                        <li><i class="bi bi-check-circle-fill"></i>Time clock, overtime and PTO accruals</li>
-                        <li><i class="bi bi-check-circle-fill"></i>Employee self-service & digital pay stubs</li>
-                        <li><i class="bi bi-check-circle-fill"></i>941, 940 and W-2 reporting</li>
+                        <li><i class="bi bi-check-circle-fill"></i>@L["Automatic federal, FICA, state & unemployment taxes"]</li>
+                        <li><i class="bi bi-check-circle-fill"></i>@L["Direct deposit with NACHA ACH files"]</li>
+                        <li><i class="bi bi-check-circle-fill"></i>@L["Time clock, overtime and PTO accruals"]</li>
+                        <li><i class="bi bi-check-circle-fill"></i>@L["Employee self-service & digital pay stubs"]</li>
+                        <li><i class="bi bi-check-circle-fill"></i>@L["941, 940 and W-2 reporting"]</li>
                     </ul>
                 </div>
                 <div>
-                    <a href="help" class="auth-help-link"><i class="bi bi-question-circle me-1"></i>Help &amp; user guides</a>
-                    <small class="d-block opacity-50 mt-2">Encrypted SSNs and bank data · Role-based access · Full audit trail</small>
+                    <a href="help" class="auth-help-link"><i class="bi bi-question-circle me-1"></i>@L["Help & user guides"]</a>
+                    <small class="d-block opacity-50 mt-2">@L["Encrypted SSNs and bank data · Role-based access · Full audit trail"]</small>
                 </div>
             </section>
             <section class="auth-panel">
+                <div class="d-flex justify-content-end mb-3"><LanguagePicker /></div>
                 <div>@Body</div>
             </section>
         </div>
@@ -82,8 +84,8 @@
 </AuthorizeView>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    @L["An unhandled error has occurred."]
+    <a href="." class="reload">@L["Reload"]</a>
     <span class="dismiss">🗙</span>
 </div>
 

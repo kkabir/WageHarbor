@@ -1,0 +1,33 @@
+@* Chooses the screen language. A plain GET form, so it works on static and interactive pages alike;
+   /set-language stores the choice in a cookie and reloads the same page. *@
+@inject NavigationManager Nav
+
+<form method="get" action="set-language" class="lang-picker @Class" data-enhance="false">
+    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+    <label for="@id" class="lang-picker-icon" title="@L["Language"]"><i class="bi bi-translate" aria-hidden="true"></i><span class="visually-hidden">@L["Language"]</span></label>
+    <select id="@id" name="lang" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="@L["Language"]">
+        @foreach (var language in Lang.All)
+        {
+            <option value="@language.Code" selected="@(language.Code == Lang.Current.Code)" lang="@language.Code" title="@language.EnglishName">@language.NativeName</option>
+        }
+    </select>
+    <noscript><button type="submit" class="btn btn-sm btn-light">@L["Go"]</button></noscript>
+</form>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    private readonly string id = "lang-" + Guid.NewGuid().ToString("N")[..6];
+
+    /// <summary>The current page, without any ?lang= so the new choice wins.</summary>
+    private string ReturnUrl
+    {
+        get
+        {
+            var uri = new Uri(Nav.Uri);
+            var query = string.Join("&", uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => !p.StartsWith("lang=", StringComparison.OrdinalIgnoreCase)));
+            return uri.AbsolutePath + (query.Length > 0 ? "?" + query : "");
+        }
+    }
+}

@@ -1,56 +1,56 @@
-﻿<div class="app-brand">
+<div class="app-brand">
     <img src="brand/wageharbor-mark.svg" class="logo" alt="" />
-    <div>Wage<span class="brand-accent">Harbor</span><small>Payroll & HR</small></div>
+    <div>Wage<span class="brand-accent">Harbor</span><small>@L["Payroll & HR"]</small></div>
 </div>
 
 <nav class="app-nav" onclick="document.getElementById('menu-toggle').checked=false">
-    <NavLink href="" Match="NavLinkMatch.All"><i class="bi bi-grid-1x2"></i>Dashboard</NavLink>
+    <NavLink href="" Match="NavLinkMatch.All"><i class="bi bi-grid-1x2"></i>@L["Dashboard"]</NavLink>
 
-    <div class="nav-section">Me</div>
-    <NavLink href="me/pay"><i class="bi bi-receipt"></i>My pay</NavLink>
-    <NavLink href="me/time"><i class="bi bi-clock"></i>My time</NavLink>
-    <NavLink href="me/time-off"><i class="bi bi-sun"></i>My time off</NavLink>
-    <NavLink href="me/profile"><i class="bi bi-person-vcard"></i>My profile</NavLink>
+    <div class="nav-section">@L["Me"]</div>
+    <NavLink href="me/pay"><i class="bi bi-receipt"></i>@L["My pay"]</NavLink>
+    <NavLink href="me/time"><i class="bi bi-clock"></i>@L["My time"]</NavLink>
+    <NavLink href="me/time-off"><i class="bi bi-sun"></i>@L["My time off"]</NavLink>
+    <NavLink href="me/profile"><i class="bi bi-person-vcard"></i>@L["My profile"]</NavLink>
 
     <AuthorizeView Roles="@AppRoles.Approvers">
-        <div class="nav-section">Team</div>
-        <NavLink href="time/approvals"><i class="bi bi-calendar-check"></i>Timesheets</NavLink>
-        <NavLink href="time-off/approvals"><i class="bi bi-airplane"></i>Time-off requests</NavLink>
+        <div class="nav-section">@L["Team"]</div>
+        <NavLink href="time/approvals"><i class="bi bi-calendar-check"></i>@L["Timesheets"]</NavLink>
+        <NavLink href="time-off/approvals"><i class="bi bi-airplane"></i>@L["Time-off requests"]</NavLink>
     </AuthorizeView>
 
     <AuthorizeView Roles="@AppRoles.PeopleAdmins">
-        <div class="nav-section">Company</div>
-        <NavLink href="employees"><i class="bi bi-people"></i>Employees</NavLink>
-        <NavLink href="payroll"><i class="bi bi-cash-stack"></i>Payroll</NavLink>
-        <NavLink href="reports"><i class="bi bi-bar-chart-line"></i>Reports</NavLink>
+        <div class="nav-section">@L["Company"]</div>
+        <NavLink href="employees"><i class="bi bi-people"></i>@L["Employees"]</NavLink>
+        <NavLink href="payroll"><i class="bi bi-cash-stack"></i>@L["Payroll"]</NavLink>
+        <NavLink href="reports"><i class="bi bi-bar-chart-line"></i>@L["Reports"]</NavLink>
     </AuthorizeView>
 
     <AuthorizeView Roles="@AppRoles.SettingsAdmins">
-        <div class="nav-section">Administration</div>
-        <NavLink href="settings/company"><i class="bi bi-building-gear"></i>Company</NavLink>
-        <NavLink href="settings/pay-setup"><i class="bi bi-sliders"></i>Earnings & deductions</NavLink>
-        <NavLink href="settings/time-off"><i class="bi bi-calendar-heart"></i>Time off & holidays</NavLink>
-        <NavLink href="settings/tax"><i class="bi bi-bank"></i>Tax tables</NavLink>
-        <NavLink href="settings/sayings"><i class="bi bi-quote"></i>Words of wisdom</NavLink>
+        <div class="nav-section">@L["Administration"]</div>
+        <NavLink href="settings/company"><i class="bi bi-building-gear"></i>@L["Company"]</NavLink>
+        <NavLink href="settings/pay-setup"><i class="bi bi-sliders"></i>@L["Earnings & deductions"]</NavLink>
+        <NavLink href="settings/time-off"><i class="bi bi-calendar-heart"></i>@L["Time off & holidays"]</NavLink>
+        <NavLink href="settings/tax"><i class="bi bi-bank"></i>@L["Tax tables"]</NavLink>
+        <NavLink href="settings/sayings"><i class="bi bi-quote"></i>@L["Words of wisdom"]</NavLink>
         <AuthorizeView Roles="@AppRoles.Admin" Context="adminCtx">
-            <NavLink href="settings/users"><i class="bi bi-shield-lock"></i>Users & roles</NavLink>
-            <NavLink href="settings/audit"><i class="bi bi-journal-text"></i>Audit log</NavLink>
+            <NavLink href="settings/users"><i class="bi bi-shield-lock"></i>@L["Users & roles"]</NavLink>
+            <NavLink href="settings/audit"><i class="bi bi-journal-text"></i>@L["Audit log"]</NavLink>
         </AuthorizeView>
     </AuthorizeView>
 
     <AuthorizeView Roles="@AppRoles.PlatformOwner" Context="ownerCtx">
-        <div class="nav-section">WageHarbor platform</div>
-        <NavLink href="platform/companies"><i class="bi bi-globe2"></i>Companies</NavLink>
-        <NavLink href="platform/users"><i class="bi bi-people"></i>All users</NavLink>
-        <NavLink href="platform/visitors"><i class="bi bi-graph-up"></i>Visitor log</NavLink>
-        <NavLink href="platform/errors"><i class="bi bi-bug"></i>Error log</NavLink>
-        <NavLink href="platform/messages"><i class="bi bi-envelope"></i>Messages</NavLink>
-        <NavLink href="settings/tax"><i class="bi bi-bank"></i>Tax tables</NavLink>
+        <div class="nav-section">@L["WageHarbor platform"]</div>
+        <NavLink href="platform/companies"><i class="bi bi-globe2"></i>@L["Companies"]</NavLink>
+        <NavLink href="platform/users"><i class="bi bi-people"></i>@L["All users"]</NavLink>
+        <NavLink href="platform/visitors"><i class="bi bi-graph-up"></i>@L["Visitor log"]</NavLink>
+        <NavLink href="platform/errors"><i class="bi bi-bug"></i>@L["Error log"]</NavLink>
+        <NavLink href="platform/messages"><i class="bi bi-envelope"></i>@L["Messages"]</NavLink>
+        <NavLink href="settings/tax"><i class="bi bi-bank"></i>@L["Tax tables"]</NavLink>
     </AuthorizeView>
 
-    <div class="nav-section">Support</div>
-    <NavLink href="help"><i class="bi bi-question-circle"></i>Help &amp; guides</NavLink>
-    <NavLink href="contact"><i class="bi bi-chat-dots"></i>Contact us</NavLink>
+    <div class="nav-section">@L["Support"]</div>
+    <NavLink href="help"><i class="bi bi-question-circle"></i>@L["Help & guides"]</NavLink>
+    <NavLink href="contact"><i class="bi bi-chat-dots"></i>@L["Contact us"]</NavLink>
 </nav>
 
-<div class="sidebar-footer">wageharbor.com · Here to serve, at ¼ the usual price<div class="build-info" title="@BuildInfo.Tooltip">@BuildInfo.Label</div></div>
+<div class="sidebar-footer">@L["wageharbor.com · Here to serve, at ¼ the usual price"]<div class="build-info" title="@BuildInfo.Tooltip">@BuildInfo.Label</div></div>

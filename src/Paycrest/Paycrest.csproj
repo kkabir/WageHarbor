@@ -23,6 +23,9 @@
   <ItemGroup>
     <!-- Local-only settings (LocalDB, dev test login) never go to the server. -->
     <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+    <!-- Screen translations (Services/Localization/Lang.cs). _keys.json is only the list translators work from. -->
+    <Content Update="Resources\Lang\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Resources\Lang\_keys.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <!-- Stamps build number (commit count), short commit id and build time into the DLL; BuildInfo.cs shows them in the footers.

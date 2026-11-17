@@ -12,6 +12,10 @@
 <article class="prose">
     <h1>Privacy policy</h1>
     <p class="prose-meta">Last updated: October 28, 2026</p>
+    @if (Lang.Current.Code != "en")
+    {
+        <div class="alert alert-info small" lang="@Lang.Current.Code">@L["This page is only available in English. The English version is the one that applies."]</div>
+    }
 
     <p>This policy explains what information WageHarbor ("we", "us") collects when businesses and their employees use wageharbor.com, how we use it and the choices you have. We wrote it to be read, not skimmed past.</p>
 

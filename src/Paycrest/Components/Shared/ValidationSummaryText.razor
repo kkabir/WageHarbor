@@ -1,0 +1,30 @@
+@* Like <ValidationSummary>, but in the current language. *@
+@implements IDisposable
+
+@if (EditContext.GetValidationMessages().Any())
+{
+    <ul class="validation-errors @Class" @attributes="Attrs">
+        @foreach (var message in EditContext.GetValidationMessages())
+        {
+            <li class="validation-message">@L[message]</li>
+        }
+    </ul>
+}
+
+@code {
+    [CascadingParameter] private EditContext EditContext { get; set; } = default!;
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? Attrs { get; set; }
+    private EditContext? subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (subscribed == EditContext) return;
+        if (subscribed != null) subscribed.OnValidationStateChanged -= Changed;
+        subscribed = EditContext;
+        subscribed.OnValidationStateChanged += Changed;
+    }
+
+    private void Changed(object? sender, ValidationStateChangedEventArgs e) => InvokeAsync(StateHasChanged);
+    public void Dispose() { if (subscribed != null) subscribed.OnValidationStateChanged -= Changed; }
+}

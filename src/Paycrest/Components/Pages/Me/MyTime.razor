@@ -5,9 +5,9 @@
 @inject TimeService Time
 @inject Clock Clock
 
-<PageTitle>My time · WageHarbor</PageTitle>
+<PageTitle>@L["My time · WageHarbor"]</PageTitle>
 
-<PageHeader Title="My time" Subtitle="Clock in and out, or enter hours manually. Your manager approves time before payroll." />
+<PageHeader Title="@L["My time"]" Subtitle="@L["Clock in and out, or enter hours manually. Your manager approves time before payroll."]" />
 
 @if (myId == null)
 {
@@ -22,36 +22,36 @@
             <div class="clock-face my-2">@now.ToString("h:mm:ss tt")</div>
             @if (openPunch != null)
             {
-                <div class="mb-3"><span class="chip tone-success">Clocked in since @openPunchLocal.ToString("h:mm tt") · @Elapsed</span></div>
-                <input class="form-control mb-2" placeholder="What did you work on? (optional)" @bind="clockNote" />
-                <button class="btn btn-danger btn-lg" disabled="@Busy" @onclick="ClockOut"><i class="bi bi-stop-circle me-1"></i>Clock out</button>
+                <div class="mb-3"><span class="chip tone-success">@L["Clocked in since {0} · {1}", openPunchLocal.ToString("h:mm tt"), Elapsed]</span></div>
+                <input class="form-control mb-2" placeholder="@L["What did you work on? (optional)"]" @bind="clockNote" />
+                <button class="btn btn-danger btn-lg" disabled="@Busy" @onclick="ClockOut"><i class="bi bi-stop-circle me-1"></i>@L["Clock out"]</button>
             }
             else
             {
-                <div class="mb-3"><span class="chip tone-info">Not clocked in</span></div>
-                <button class="btn btn-success btn-lg" disabled="@Busy" @onclick="ClockIn"><i class="bi bi-play-circle me-1"></i>Clock in</button>
+                <div class="mb-3"><span class="chip tone-info">@L["Not clocked in"]</span></div>
+                <button class="btn btn-success btn-lg" disabled="@Busy" @onclick="ClockIn"><i class="bi bi-play-circle me-1"></i>@L["Clock in"]</button>
             }
         </div>
     </div>
     <div class="col-lg-8">
         <div class="row g-3">
-            <div class="col-sm-4"><StatCard Label="This week" Value="@($"{Fmt.Hours(weekHours)} h")" Icon="calendar-week" /></div>
-            <div class="col-sm-4"><StatCard Label="This period" Value="@($"{Fmt.Hours(entries.Sum(e => e.Hours))} h")" Icon="calendar-range" Tone="info" /></div>
-            <div class="col-sm-4"><StatCard Label="Pending approval" Value="@entries.Count(e => e.Status == ApprovalStatus.Pending).ToString()" Icon="hourglass-split" Tone="warning" /></div>
+            <div class="col-sm-4"><StatCard Label="@L["This week"]" Value="@($"{Fmt.Hours(weekHours)} h")" Icon="calendar-week" /></div>
+            <div class="col-sm-4"><StatCard Label="@L["This period"]" Value="@($"{Fmt.Hours(entries.Sum(e => e.Hours))} h")" Icon="calendar-range" Tone="info" /></div>
+            <div class="col-sm-4"><StatCard Label="@L["Pending approval"]" Value="@entries.Count(e => e.Status == ApprovalStatus.Pending).ToString()" Icon="hourglass-split" Tone="warning" /></div>
         </div>
         <div class="pc-card mt-3">
-            <h2 class="mb-3">Add hours manually</h2>
+            <h2 class="mb-3">@L["Add hours manually"]</h2>
             <div class="row g-2 align-items-end">
-                <div class="col-sm-3"><label class="form-label">Date</label><InputDate class="form-control" @bind-Value="manual.WorkDate" /></div>
-                <div class="col-sm-2"><label class="form-label">Hours</label><input type="number" step="0.25" class="form-control" @bind="manual.Hours" /></div>
+                <div class="col-sm-3"><label class="form-label">@L["Date"]</label><InputDate class="form-control" @bind-Value="manual.WorkDate" /></div>
+                <div class="col-sm-2"><label class="form-label">@L["Hours"]</label><input type="number" step="0.25" class="form-control" @bind="manual.Hours" /></div>
                 <div class="col-sm-3">
-                    <label class="form-label">Type</label>
+                    <label class="form-label">@L["Type"]</label>
                     <select class="form-select" @bind="manual.EarningTypeId">
                         @foreach (var t in earningTypes) { <option value="@t.Id">@t.Name</option> }
                     </select>
                 </div>
-                <div class="col-sm-4"><button class="btn btn-soft w-100" disabled="@Busy" @onclick="AddManual"><i class="bi bi-plus-lg me-1"></i>Add entry</button></div>
-                <div class="col-12"><input class="form-control" placeholder="Notes" @bind="manual.Notes" /></div>
+                <div class="col-sm-4"><button class="btn btn-soft w-100" disabled="@Busy" @onclick="AddManual"><i class="bi bi-plus-lg me-1"></i>@L["Add entry"]</button></div>
+                <div class="col-12"><input class="form-control" placeholder="@L["Notes"]" @bind="manual.Notes" /></div>
             </div>
         </div>
     </div>
@@ -59,7 +59,7 @@
 
 <div class="pc-card p-0">
     <div class="d-flex align-items-center gap-2 p-3 border-bottom">
-        <div class="fw-semibold">Timesheet</div>
+        <div class="fw-semibold">@L["Timesheet"]</div>
         <div class="ms-auto d-flex gap-2 align-items-center">
             <button class="btn btn-sm btn-light" @onclick="() => Shift(-1)"><i class="bi bi-chevron-left"></i></button>
             <span class="small">@Fmt.Date(from) – @Fmt.Date(to)</span>
@@ -68,13 +68,13 @@
     </div>
     @if (entries.Count == 0)
     {
-        <EmptyState Icon="clock" Title="No time entered for this period" />
+        <EmptyState Icon="clock" Title="@L["No time entered for this period"]" />
     }
     else
     {
         <div class="table-wrap">
             <table class="table align-middle">
-                <thead><tr><th>Date</th><th>Type</th><th>In / out</th><th class="num">Hours</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>@L["Date"]</th><th>@L["Type"]</th><th>@L["In / out"]</th><th class="num">@L["Hours"]</th><th>@L["Notes"]</th><th>@L["Status"]</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var e in entries)
                     {
@@ -84,7 +84,7 @@
                             <td class="small">@PunchText(e)</td>
                             <td class="num">@(e.IsOpenPunch ? "…" : Fmt.Hours(e.Hours))</td>
                             <td class="small text-muted">@e.Notes</td>
-                            <td>@if (e.IsLocked) { <span class="chip tone-success plain"><i class="bi bi-lock"></i> Paid</span> } else { <StatusChip Status="e.Status" /> }</td>
+                            <td>@if (e.IsLocked) { <span class="chip tone-success plain"><i class="bi bi-lock"></i> @L["Paid"]</span> } else { <StatusChip Status="e.Status" /> }</td>
                             <td class="text-end">
                                 @if (!e.IsLocked && e.Status != ApprovalStatus.Approved && !e.IsOpenPunch)
                                 {
@@ -159,9 +159,9 @@
 
     private string PunchText(TimeEntry e)
     {
-        if (!e.ClockInUtc.HasValue) return e.Source == "TimeOff" ? "Time off" : "Manual";
+        if (!e.ClockInUtc.HasValue) return e.Source == "TimeOff" ? L["Time off"] : L["Manual"];
         var i = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(e.ClockInUtc.Value, DateTimeKind.Utc), tz!);
-        var o = e.ClockOutUtc.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(e.ClockOutUtc.Value, DateTimeKind.Utc), tz!).ToString("h:mm tt") : "now";
+        var o = e.ClockOutUtc.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(e.ClockOutUtc.Value, DateTimeKind.Utc), tz!).ToString("h:mm tt") : L["now"];
         return $"{i:h:mm tt} – {o}";
     }
 
@@ -182,7 +182,7 @@
     {
         decimal hours = 0;
         if (await RunAsync(async () => hours = await Time.ClockOutAsync(myId!.Value, clockNote)))
-            Toast.Success($"Clocked out · {Fmt.Hours(hours)} hours recorded.");
+            Toast.Success(L["Clocked out · {0} hours recorded.", Fmt.Hours(hours)]);
         clockNote = null;
         await LoadAsync();
     }
