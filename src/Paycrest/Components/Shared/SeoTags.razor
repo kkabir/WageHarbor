@@ -1,0 +1,77 @@
+@using Paycrest.Services.Localization
+@inject IConfiguration Config
+@*
+    Search and share tags for a public page: description, canonical address, links to every translation (hreflang),
+    Open Graph (Facebook, LinkedIn, WhatsApp, iMessage) and X/Twitter cards, plus optional structured data as ChildContent.
+    A page may have only one <HeadContent>, so put everything for <head> here.
+*@
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@Canonical" />
+    @if (Translated)
+    {
+        foreach (var language in Lang.All)
+        {
+            <link rel="alternate" hreflang="@language.Code" href="@UrlFor(language)" />
+        }
+        <link rel="alternate" hreflang="x-default" href="@UrlFor(Lang.All[0])" />
+    }
+    <meta property="og:site_name" content="WageHarbor" />
+    <meta property="og:type" content="@Type" />
+    <meta property="og:url" content="@Canonical" />
+    <meta property="og:title" content="@(ShareTitle ?? Title)" />
+    <meta property="og:description" content="@(ShareDescription ?? Description)" />
+    <meta property="og:image" content="@ImageUrl" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="@ImageAlt" />
+    <meta property="og:locale" content="@OgLocale(Current)" />
+    @if (Translated)
+    {
+        foreach (var language in Lang.All.Where(l => l != Current))
+        {
+            <meta property="og:locale:alternate" content="@OgLocale(language)" />
+        }
+    }
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@(ShareTitle ?? Title)" />
+    <meta name="twitter:description" content="@(ShareDescription ?? Description)" />
+    <meta name="twitter:image" content="@ImageUrl" />
+    <meta name="twitter:image:alt" content="@ImageAlt" />
+    @ChildContent
+</HeadContent>
+
+@code {
+    /// <summary>The page's path, e.g. "/pricing". "/" for the home page.</summary>
+    [Parameter, EditorRequired] public string Path { get; set; } = "/";
+    /// <summary>The page title, as shown in &lt;PageTitle&gt;.</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    /// <summary>One or two sentences for search results (about 150 characters).</summary>
+    [Parameter, EditorRequired] public string Description { get; set; } = "";
+    /// <summary>A catchier title or description for link previews, if different.</summary>
+    [Parameter] public string? ShareTitle { get; set; }
+    [Parameter] public string? ShareDescription { get; set; }
+    /// <summary>True when the page is translated into every screen language (?lang=xx).</summary>
+    [Parameter] public bool Translated { get; set; }
+    /// <summary>"website", or "article" for help articles.</summary>
+    [Parameter] public string Type { get; set; } = "website";
+    [Parameter] public string Image { get; set; } = "/brand/og-image.png";
+    [Parameter] public string ImageAlt { get; set; } = "WageHarbor: payroll and HR for small business";
+    /// <summary>Structured data (&lt;script type="application/ld+json"&gt;) or other extra head tags.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Root => SearchEngines.SiteRoot(Config);
+    private Language Current => Translated ? Lang.Current : Lang.All[0];
+    private string Canonical => UrlFor(Current);
+    private string ImageUrl => Image.StartsWith("http") ? Image : Root + Image;
+
+    private string UrlFor(Language language) => Root + Path + (language.Code == "en" ? "" : "?lang=" + language.Code);
+
+    /// <summary>Open Graph wants language_TERRITORY.</summary>
+    private static string OgLocale(Language language) => language.Code switch
+    {
+        "en" => "en_US", "es" => "es_US", "zh-Hans" => "zh_CN", "vi" => "vi_VN", "fil" => "fil_PH", "ar" => "ar_AR",
+        "ko" => "ko_KR", "fr" => "fr_FR", "pt" => "pt_BR", "ru" => "ru_RU", "ht" => "ht_HT", "hi" => "hi_IN",
+        "bn" => "bn_IN", "ur" => "ur_PK", _ => language.Code.Replace('-', '_'),
+    };
+}

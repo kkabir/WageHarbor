@@ -683,5 +683,11 @@
  "Invalid token.": "Jeton non valide.",
  "Error confirming your email.": "Erreur lors de la confirmation de votre adresse e-mail.",
  "Password reset link": "Lien de réinitialisation du mot de passe",
- "Error": "Erreur"
+ "Error": "Erreur",
+ "Payroll and HR for small businesses at about a quarter of the usual price, free for one employee: payroll taxes, direct deposit, pay stubs, time clock, time off and employee self-service.": "Paie et RH pour les petites entreprises à environ un quart du prix habituel, gratuit pour un employé : impôts sur la paie, dépôt direct, bulletins de paie, pointeuse, congés et libre-service pour les employés.",
+ "WageHarbor pricing: free for one person on payroll, then $12 a month plus $1.50 per person. About a quarter of the price of popular payroll apps, with every feature included.": "Tarifs WageHarbor : gratuit pour une personne sur la paie, puis $12 par mois plus $1.50 par personne. Environ un quart du prix des logiciels de paie populaires, toutes les fonctionnalités incluses.",
+ "WageHarbor's mission: help every small business pay its people correctly and on time, with payroll and HR software at about a quarter of the usual price, free for one employee.": "La mission de WageHarbor : aider chaque petite entreprise à payer ses employés correctement et à temps, avec un logiciel de paie et de RH à environ un quart du prix habituel, gratuit pour un employé.",
+ "How WageHarbor protects payroll data: encrypted SSNs and bank numbers, separate data for every company, role-based access, two-step sign-in and an audit log.": "Comment WageHarbor protège les données de paie : numéros de sécurité sociale et numéros bancaires chiffrés, données séparées pour chaque entreprise, accès selon le rôle, connexion en deux étapes et journal d'audit.",
+ "Questions about WageHarbor payroll? Send us a message and we'll get back to you.": "Des questions sur la paie WageHarbor ? Envoyez-nous un message et nous vous répondrons.",
+ "Register your company on WageHarbor: free payroll for one employee, then about a quarter of the usual price. No credit card needed.": "Inscrivez votre entreprise sur WageHarbor : paie gratuite pour un employé, puis environ un quart du prix habituel. Aucune carte de crédit requise."
 }

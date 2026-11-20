@@ -683,5 +683,11 @@
  "Invalid token.": "잘못된 토큰입니다.",
  "Error confirming your email.": "이메일을 확인하는 중 오류가 발생했습니다.",
  "Password reset link": "비밀번호 재설정 링크",
- "Error": "오류"
+ "Error": "오류",
+ "Payroll and HR for small businesses at about a quarter of the usual price, free for one employee: payroll taxes, direct deposit, pay stubs, time clock, time off and employee self-service.": "소규모 사업체를 위한 급여 및 인사 관리를 일반 가격의 약 4분의 1로, 직원 1명은 무료로: 급여세, 계좌 입금, 급여 명세서, 출퇴근 기록, 휴가 관리, 직원 셀프 서비스.",
+ "WageHarbor pricing: free for one person on payroll, then $12 a month plus $1.50 per person. About a quarter of the price of popular payroll apps, with every feature included.": "WageHarbor 요금: 급여 대상 1명은 무료, 이후 월 $12에 1인당 $1.50. 인기 급여 앱 가격의 약 4분의 1이며 모든 기능이 포함됩니다.",
+ "WageHarbor's mission: help every small business pay its people correctly and on time, with payroll and HR software at about a quarter of the usual price, free for one employee.": "WageHarbor의 사명: 모든 소규모 사업체가 직원에게 정확하고 제때 급여를 지급하도록 돕는 것. 일반 가격의 약 4분의 1인 급여·인사 소프트웨어를 제공하며, 직원 1명은 무료입니다.",
+ "How WageHarbor protects payroll data: encrypted SSNs and bank numbers, separate data for every company, role-based access, two-step sign-in and an audit log.": "WageHarbor가 급여 데이터를 보호하는 방법: 사회보장번호와 계좌번호 암호화, 회사별 데이터 분리, 역할 기반 접근 권한, 2단계 로그인, 감사 로그.",
+ "Questions about WageHarbor payroll? Send us a message and we'll get back to you.": "WageHarbor 급여 서비스에 대해 궁금한 점이 있으신가요? 메시지를 보내 주시면 답변해 드리겠습니다.",
+ "Register your company on WageHarbor: free payroll for one employee, then about a quarter of the usual price. No credit card needed.": "WageHarbor에 회사를 등록하세요: 직원 1명은 급여 무료, 이후 일반 가격의 약 4분의 1. 신용카드가 필요 없습니다."
 }

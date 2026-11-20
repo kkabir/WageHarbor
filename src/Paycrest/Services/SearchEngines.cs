@@ -11,29 +11,58 @@ namespace Paycrest.Services;
 /// </summary>
 public static partial class SearchEngines
 {
-    /// <summary>Public pages worth indexing. Add new public pages here.</summary>
-    public static readonly string[] PublicPaths =
+    /// <summary>
+    /// Public pages translated into every screen language (?lang=xx). Keep in step with the pages that set
+    /// Translated="true" on SeoTags.
+    /// </summary>
+    public static readonly string[] TranslatedPaths = ["/", "/pricing", "/about", "/security", "/contact", "/Account/Register"];
+
+    /// <summary>Public pages in English only.</summary>
+    public static readonly string[] EnglishOnlyPaths =
     [
-        "/", "/pricing", "/about", "/security", "/privacy", "/terms", "/contact",
+        "/privacy", "/terms",
         "/help", "/help/company", "/help/employee", "/help/articles",
         "/help/articles/first-payroll", "/help/articles/hourly-vs-salary", "/help/articles/read-your-pay-stub",
-        "/Account/Register",
     ];
+
+    /// <summary>Public pages worth indexing (English addresses). Add new public pages to one of the lists above.</summary>
+    public static IEnumerable<string> PublicPaths => TranslatedPaths.Concat(EnglishOnlyPaths);
+
+    /// <summary>Every indexable address: each translated page in every language, then the English-only pages.</summary>
+    public static IEnumerable<string> AllUrls(string root) =>
+        TranslatedPaths.SelectMany(p => Localization.Lang.All.Select(l => UrlFor(root, p, l.Code)))
+            .Concat(EnglishOnlyPaths.Select(p => root + p));
+
+    public static string UrlFor(string root, string path, string languageCode) =>
+        root + path + (languageCode == "en" ? "" : "?lang=" + languageCode);
 
     public static string SiteRoot(IConfiguration config) =>
         config["Site:CanonicalHost"] is { Length: > 0 } host ? $"https://{host}" :
         (config["Site:BaseUrl"] is { Length: > 0 } b ? b : "https://www.wageharbor.com").TrimEnd('/');
 
-    /// <summary>/sitemap.xml, with every page dated to the current build so each publish reads as an update.</summary>
+    /// <summary>
+    /// /sitemap.xml, with every page dated to the current build so each publish reads as an update.
+    /// Translated pages are listed once per language, each naming all its translations (hreflang), as Google asks.
+    /// </summary>
     public static IEndpointRouteBuilder MapSitemap(this IEndpointRouteBuilder app)
     {
         app.MapGet("/sitemap.xml", (HttpContext http, IConfiguration config) =>
         {
             var root = SiteRoot(config);
             var lastmod = BuildInfo.BuiltUtc.ToString("yyyy-MM-dd");
-            var xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
-            foreach (var path in PublicPaths)
-                xml.Append($"  <url><loc>{root}{path}</loc><lastmod>{lastmod}</lastmod></url>\n");
+            var xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">\n");
+            foreach (var path in TranslatedPaths)
+            {
+                var alternates = new StringBuilder();
+                foreach (var l in Localization.Lang.All)
+                    alternates.Append($"    <xhtml:link rel=\"alternate\" hreflang=\"{l.Code}\" href=\"{Escape(UrlFor(root, path, l.Code))}\"/>\n");
+                alternates.Append($"    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{Escape(root + path)}\"/>\n");
+                foreach (var l in Localization.Lang.All)
+                    xml.Append($"  <url>\n    <loc>{Escape(UrlFor(root, path, l.Code))}</loc>\n    <lastmod>{lastmod}</lastmod>\n{alternates}  </url>\n");
+            }
+            foreach (var path in EnglishOnlyPaths)
+                xml.Append($"  <url>\n    <loc>{root}{path}</loc>\n    <lastmod>{lastmod}</lastmod>\n  </url>\n");
             xml.Append("</urlset>\n");
             http.Response.Headers.CacheControl = "public, max-age=3600";
             return Results.Text(xml.ToString(), "application/xml", Encoding.UTF8);
@@ -41,7 +70,9 @@ public static partial class SearchEngines
         return app;
     }
 
-    /// <summary>The IndexNow key: Site:IndexNowKey, or the key file (32 hex characters + .txt) in wwwroot.</summary>
+    private static string Escape(string url) => System.Security.SecurityElement.Escape(url);
+
+    /// <summary>The IndexNow key:Site:IndexNowKey, or the key file (32 hex characters + .txt) in wwwroot.</summary>
     public static string? IndexNowKey(IConfiguration config, IWebHostEnvironment env)
     {
         if (config["Site:IndexNowKey"] is { Length: > 0 } k) return k;
@@ -78,7 +109,7 @@ public sealed class IndexNowPinger(IConfiguration config, IWebHostEnvironment en
             host = new Uri(root).Host,
             key,
             keyLocation = $"{root}/{key}.txt",
-            urlList = SearchEngines.PublicPaths.Select(p => root + p).ToArray(),
+            urlList = SearchEngines.AllUrls(root).ToArray(),
         };
         try
         {

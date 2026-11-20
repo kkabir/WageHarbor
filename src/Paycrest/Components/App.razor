@@ -29,7 +29,10 @@
     <link rel="stylesheet" href="@Assets["Paycrest.styles.css"]" />
     <ImportMap />
     <link rel="icon" type="image/svg+xml" href="brand/wageharbor-mark.svg" />
-    <link rel="apple-touch-icon" href="brand/wageharbor-mark.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+    @* iOS and Android don't use SVG icons for the home screen or link previews. *@
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
     <meta name="theme-color" content="#0B2545" />
     @* Each page sets its own <title> with <PageTitle>; a fixed one here would come first and win in search results. *@
     @if (Config["Site:GoogleVerification"] is { Length: > 0 } google)
